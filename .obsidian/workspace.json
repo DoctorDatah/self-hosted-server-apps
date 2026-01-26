@@ -11,14 +11,10 @@
             "id": "f484eadee6fc219b",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "AI/reading guide for ai.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "reading guide for ai"
+              "title": "New tab"
             }
           }
         ]
@@ -94,7 +90,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "AI/reading guide for ai.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +99,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for reading guide for ai"
+              "title": "Backlinks"
             }
           },
           {
@@ -113,12 +108,11 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "AI/reading guide for ai.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from reading guide for ai"
+              "title": "Outgoing links"
             }
           },
           {
@@ -156,13 +150,12 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "AI/reading guide for ai.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of reading guide for ai"
+              "title": "Outline"
             }
           }
         ]
@@ -185,10 +178,17 @@
   },
   "active": "f484eadee6fc219b",
   "lastOpenFiles": [
+    "AI/reading guide for ai.md",
+    "AI/1. reading guide for ai and sytax for devleoper.md",
+    "AI/2b. design document formatting guide.md",
+    "AI/2a. design document writing guide.md",
+    "Design/- 0.scope.md",
+    "AI/- document formatting guide.md",
+    "Design/1. package handling design.md",
+    "Design/0.scope.md",
     "AI/document formatting guide.md",
     "AI/design document formatting guide.md",
     "AI/design document writing guide.md",
-    "AI/reading guide for ai.md",
     "1. package handling design.md",
     "Design/app_design.md",
     "AI",
