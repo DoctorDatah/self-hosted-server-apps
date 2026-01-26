@@ -11,10 +11,14 @@
             "id": "f484eadee6fc219b",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Design/- 0.scope.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "- 0.scope"
             }
           }
         ]
@@ -90,6 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "Design/- 0.scope.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -99,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks"
+              "title": "Backlinks for - 0.scope"
             }
           },
           {
@@ -108,11 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "Design/- 0.scope.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links"
+              "title": "Outgoing links from - 0.scope"
             }
           },
           {
@@ -150,12 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
+                "file": "Design/- 0.scope.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline"
+              "title": "Outline of - 0.scope"
             }
           }
         ]
@@ -178,13 +185,13 @@
   },
   "active": "f484eadee6fc219b",
   "lastOpenFiles": [
-    "AI/reading guide for ai.md",
+    "AI/- document formatting guide.md",
+    "Design/- 0.scope.md",
     "AI/1. reading guide for ai and sytax for devleoper.md",
+    "Design/1. package handling design.md",
     "AI/2b. design document formatting guide.md",
     "AI/2a. design document writing guide.md",
-    "Design/- 0.scope.md",
-    "AI/- document formatting guide.md",
-    "Design/1. package handling design.md",
+    "AI/reading guide for ai.md",
     "Design/0.scope.md",
     "AI/document formatting guide.md",
     "AI/design document formatting guide.md",
