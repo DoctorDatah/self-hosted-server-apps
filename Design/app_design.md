@@ -1,0 +1,113 @@
+# n8n Proxmox VM Deployment (n8n-server)
+
+## Summary
+- **Goal:** Automate deployment of n8n + Postgres on a Proxmox VM via GitHub Actions and Docker Compose.
+
+## Front Matter
+- **Title:** n8n Proxmox VM Deployment (n8n-server)
+- **Project:** n8n self-hosting app
+- **Owner:** Malik
+- **Status:** Draft
+- **Last updated:** 2026-01-25
+- **Related docs:** `1. package handling design.md`, `AI/design document writing guide.md`
+
+## Global Variables (select here)
+| **Variable** | **Value** |
+| --- | --- |
+| **`PRIMARY_OS`** | **Ubuntu 22.04 LTS** |
+| **`DEPLOY_TRIGGER`** | **Push to main** |
+| **`DEPLOY_RUNTIME`** | **Docker Compose** |
+| **`DB_ENGINE`** | **Postgres** |
+| **`HTTPS_METHOD`** | **Cloudflare Tunnel or direct HTTPS** |
+| **`USE_RUNNER`** | **Optional** |
+
+## Decisions
+| **Decision** | **Rationale** | **Alternatives** | **Impact** |
+| --- | --- | --- | --- |
+| **Deploy with GitHub Actions and SSH to a single Proxmox VM.** | **Minimizes manual ops and keeps CI as source of truth.** | **Manual SSH or on-VM deployment.** | **CI must manage secrets and connectivity.** |
+| **Run n8n and Postgres in Docker Compose.** | **Consistent runtime and simple upgrades.** | **systemd services or managed DB.** | **Container images must be pinned and maintained.** |
+
+## Overview
+- **Goal:** Automate n8n + Postgres deployment to a single VM.
+- **Target users:** Solo operator/admin running n8n workflows.
+- **Business value:** Reliable, repeatable deployments with minimal manual server work.
+
+## Scope
+- **In scope:** GitHub Actions pipeline; Docker Compose stack; server bootstrap scripts.
+- **Out of scope:** Workflow design; multi-node HA; autoscaling; GUI monitoring.
+- **Assumptions:** Single VM with SSH; repo is source of truth; HTTPS handled by `HTTPS_METHOD`.
+- **Constraints:** Network-restricted CI runner; secrets stay in GitHub; minimal manual ops.
+
+## Requirements
+| **Type** | **Requirement** |
+| --- | --- |
+| **Functional** | **Deploy n8n and Postgres with Docker Compose.** |
+| **Functional** | **Generate `.env` from GitHub Secrets/Variables in CI.** |
+| **Functional** | **Sync repo to VM and run deployment script.** |
+| **Functional** | **Persist n8n and Postgres data across restarts.** |
+| **Functional** | **Support upgrades via image tag changes.** |
+| **Non-functional** | **Security: secrets never committed; SSH key access only.** |
+| **Non-functional** | **Reliability: idempotent deployment script.** |
+| **Non-functional** | **Maintainability: clear env schema and scripts.** |
+| **Non-functional** | **Observability: basic logs and health checks.** |
+
+## Architecture
+- **Components:** GitHub Actions; Proxmox VM; Docker Compose; n8n; Postgres; optional runner.
+- **Data flow:** Secrets -> CI env -> `.env` -> VM -> Docker Compose -> containers.
+- **External dependencies:** GitHub; SSH; optional Cloudflare Tunnel.
+- **Deployment model:** `DEPLOY_TRIGGER` triggers CI deployment.
+
+## Data Design
+- **Entities:** n8n workflows/credentials; Postgres app state.
+- **Storage/retention:** Docker volumes `./postgres_data`, `./n8n_data`; backups via `pg_dump`.
+
+## API Design (if applicable)
+- **Endpoints:** n8n UI `/` on port `5678`; webhooks `/webhook/*`.
+- **Auth:** n8n basic auth via env vars.
+- **Rate limits:** n8n defaults; no infra-level limits.
+
+## User Journeys
+| **Type** | **Description** |
+| --- | --- |
+| **Primary** | **Admin updates config -> push -> CI deploy -> n8n updated.** |
+| **Edge case** | **DB creds changed post-init; SSH host misconfigured.** |
+| **Error state** | **CI fails to connect; n8n fails to start due to DB mismatch.** |
+
+## Security
+- **Threats:** Secret leakage; exposed UI; insecure cookies.
+- **Mitigations:** GitHub Secrets; SSH keys; HTTPS via `HTTPS_METHOD`.
+- **Secrets management:** GitHub Variables/Secrets -> generated `.env`.
+- **Audit logging:** GitHub Action logs; Docker logs.
+
+## Observability
+- **Logging:** `docker compose logs` for n8n/db.
+- **Metrics:** Container health only.
+- **Alerts:** Not implemented; manual checks.
+
+## Testing Strategy
+- **Unit:** Script validation (lint if desired).
+- **Integration:** Deploy to VM and curl health check.
+- **E2E:** Manual login to n8n UI.
+
+## Rollout Plan
+- **Milestones:** Baseline CI deploy; hardened env mapping; backups/monitoring.
+- **Rollback:** Revert image tag and redeploy; restore from backups if needed.
+
+## Open Questions and Risks
+- **Questions:** Is HTTPS always via Cloudflare Tunnel; are runner features required.
+- **Risks and mitigations:** DB credential mismatch -> document rotation steps; single VM failure -> add backups.
+
+## Diagram Description
+- **Flow:** GitHub Actions generates `.env` -> SSH to Proxmox VM -> sync repo -> `docker compose up` -> n8n container talks to Postgres volume; optional runner connects to n8n.
+
+## Prioritized Task List
+1. **Verify env variable mapping** across `.env.example`, workflow, and Docker Compose.
+2. **Fix `N8N_LISTEN_ADDRESS` mapping** if incorrect.
+3. **Confirm HTTPS settings** (`N8N_PROTOCOL`, `WEBHOOK_URL`, `N8N_SECURE_COOKIE`).
+4. **Add backup cron** for Postgres.
+5. **Document DB credential rotation** steps.
+6. **Pin n8n and Postgres image tags** to specific versions.
+7. **Add health check verification** in deploy script.
+8. **Create a minimal troubleshooting guide** in README.
+9. **Add optional runner config** and env validation.
+10. **Add monitoring/alerting plan** (even if manual).

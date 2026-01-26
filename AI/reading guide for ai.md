@@ -1,0 +1,144 @@
+# Reading Guide for AI
+
+## Summary
+- **Goal:** Make AI reading deterministic, safe, and reviewable.
+
+## Front Matter
+- **Title:** Reading Guide for AI
+- **Project:** Repo-wide documentation
+- **Owner:** Malik
+- **Status:** Draft
+- **Last updated:** 2026-01-25
+- **Related docs:** `AI/document formatting guide.md`, `AI/design document writing guide.md`
+
+## Purpose
+- **Remove ambiguity** when interpreting docs.
+- **Lock in exclusions** so they are never reintroduced.
+- **Control rewrites** so meaning and scope do not drift.
+- **Enable selective edits** by defining what can and cannot be changed.
+- **Prevent over-editing** by constraining AI to update only approved sections when asked to edit docs.
+
+## Reading Protocol
+- **Start with Front Matter** to establish scope and authority.
+- **Collect exclusions first**; treat them as hard constraints.
+- **Extract variables and decisions** before reading details.
+- **Separate facts vs decisions**; do not infer new decisions.
+- **Stop on conflicts** and ask for resolution.
+
+## Authority Order (highest wins)
+- **Front Matter** overrides all other sections.
+- **Exclusions** override requirements and examples.
+- **Canonical statements** override non-canonical text.
+- **Requirements** override descriptions and notes.
+- **Examples** are lowest authority and never mandatory.
+
+## Exclusions (how to interpret)
+- **Definition:** Anything labeled excluded, deprecated, not used, or out of scope.
+- **Commented-out variables** are excluded by default.
+- **Examples are not requirements** unless explicitly labeled.
+- **Soft language is not exclusion** unless it uses explicit markers.
+
+## Exclusions (how to write)
+- **Use a dedicated section:** `## Exclusions` with one-line bullets.
+- **Inline marker:** prefix with `EXCLUDED:`.
+- **Inline comment marker:** use `<!-- EXCLUDED: reason -->` when removing text.
+- **Block marker:** use `<!-- EXCLUDED -->` and `<!-- /EXCLUDED -->` for multi-line exclusions.
+- **Keep exclusions visible** for review.
+
+## Custom Syntax (AI-readable markers)
+- **Single-line syntax:** `KEYWORD: content` at the start of a line.
+- **Multi-line syntax:** `<!-- KEYWORD -->` to start and `<!-- /KEYWORD -->` to end.
+- **Markers (same naming for both forms):** use the table below.
+
+| **Marker** | **Meaning** |
+| --- | --- |
+| **CANONICAL** | Authoritative statement for a topic |
+| **EDIT-SCOPE** | Allowed sections/files for edits in this request |
+| **MUST** | Non-negotiable rule or behavior |
+| **ALLOWED** | Explicitly supported choices |
+| **FORBIDDEN** | Explicitly prohibited choices |
+| **DEPRECATED** | Should not be used |
+| **EXCLUDED** | Out of scope or removed from use |
+| **LOCKED** | Must not be changed or moved |
+| **IGNORE** | Do not process or modify |
+| **OPEN** | Unresolved item requiring a decision |
+
+## Conflict Rules (when markers disagree)
+- **EXCLUDED beats ALLOWED** and MUST.
+- **FORBIDDEN beats ALLOWED**.
+- **DEPRECATED beats ALLOWED** and MUST.
+- **CANONICAL beats non-canonical** statements.
+- **LOCKED beats EDIT-SCOPE** and all rewrite intent.
+- **If conflict remains, stop** and ask.
+
+## Rewrite Rules
+- **Preserve scope and intent**; do not add requirements.
+- **Never reintroduce exclusions** or deprecated items.
+- **Keep literal values** for paths, commands, variables, and names.
+- **Maintain section order** unless asked to restructure.
+- **Do not change locked text** marked with `LOCKED:` or inside lock blocks.
+- **Edit only in scope** when `EDIT-SCOPE` is provided.
+- **Default to no changes** outside `EDIT-SCOPE`.
+- **Ask when missing context** before completing a rewrite.
+
+## Fail-Safe Defaults
+- **When unsure, do less**; remove instead of add.
+- **Prefer explicit markers** over inferred meaning.
+- **Do not assume support** for platforms or tools not listed.
+- **Do not change values** inside inline code.
+
+## Examples
+```text
+EDIT-SCOPE: `AI/reading guide for ai.md`#Purpose, `AI/reading guide for ai.md`#Examples
+
+## Exclusions
+- EXCLUDED: use of Ubuntu 20.04 for production nodes
+
+Requirements
+- MUST: store secrets in GitHub Secrets
+- FORBIDDEN: store secrets in plaintext files
+- ALLOWED: Docker or Podman for local builds
+
+<!-- IGNORE -->
+This paragraph is historical context only.
+<!-- /IGNORE -->
+
+<!-- EXCLUDED -->
+Legacy deployment steps are no longer supported.
+<!-- /EXCLUDED -->
+
+<!-- LOCKED -->
+This section is legally binding and must remain unchanged.
+The wording and order are fixed.
+<!-- /LOCKED -->
+```
+**How AI should interpret the block above**
+- **EDIT-SCOPE:** Only edit `Purpose` and `Examples` in `AI/reading guide for ai.md`; do not touch other sections.
+- **EXCLUDED:** Do not add or reintroduce Ubuntu 20.04 anywhere.
+- **MUST/FORBIDDEN/ALLOWED:** Treat as strict rules; do not weaken or contradict them.
+- **IGNORE block:** Leave the block unchanged and skip it for decisions.
+- **EXCLUDED block:** Treat the entire block as out of scope and keep it removed.
+- **LOCKED block:** Keep the exact wording and order; no edits inside.
+
+```text
+Decisions
+- CANONICAL: The API base URL is `https://api.example.com/v1`
+- DEPRECATED: The v0 endpoint is removed and must not be used
+- OPEN: Decide whether to support Windows agents
+- LOCKED: The primary region is `us-east-1`
+
+<!-- LOCKED -->
+This paragraph is contract text and must remain unchanged.
+<!-- /LOCKED -->
+```
+**How AI should interpret the block above**
+- **CANONICAL:** Treat as the source of truth; do not override with other text.
+- **DEPRECATED:** Do not use or reference the v0 endpoint.
+- **OPEN:** Do not decide; ask for a decision or list as unresolved.
+- **LOCKED:** Do not modify that line or any locked block.
+
+## Review Checklist
+- **Exclusions captured** and enforced.
+- **Variables and decisions** extracted explicitly.
+- **No new requirements** introduced.
+- **Conflicts flagged** and unresolved.
