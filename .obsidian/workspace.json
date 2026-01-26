@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Design/- 0.scope.md",
+                "file": "Design/6.1 gh action infisical install and secret fetch.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "- 0.scope"
+              "title": "6.1 gh action infisical install and secret fetch"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Design/- 0.scope.md",
+                "file": "Design/6.1 gh action infisical install and secret fetch.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for - 0.scope"
+              "title": "Backlinks for 6.1 gh action infisical install and secret fetch"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Design/- 0.scope.md",
+                "file": "Design/6.1 gh action infisical install and secret fetch.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from - 0.scope"
+              "title": "Outgoing links from 6.1 gh action infisical install and secret fetch"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Design/- 0.scope.md",
+                "file": "Design/6.1 gh action infisical install and secret fetch.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of - 0.scope"
+              "title": "Outline of 6.1 gh action infisical install and secret fetch"
             }
           }
         ]
@@ -185,6 +185,11 @@
   },
   "active": "f484eadee6fc219b",
   "lastOpenFiles": [
+    "Design/4. ssh setup design.md",
+    "Design/3. gh repo cloudflare pinned version.md",
+    "Design/2. cloudflare installation design.md",
+    "Design/1. package handling design.md",
+    "Design/- 0.scope.md",
     "Design/0. scope.md",
     "AI/3. implementation document writing guide.md",
     "Implementation/0. overall implementation.md",
@@ -205,11 +210,6 @@
     "Design/6.2 gh action deploy script install cloudflare.md",
     "Design/6.1 gh action infisical install and secret fetch.md",
     "Design/5. gh variables and secrets for infisical.md",
-    "Design/4. ssh setup design.md",
-    "Design/3. gh repo cloudflare pinned version.md",
-    "Design/2. cloudflare installation design.md",
-    "Design/1. package handling design.md",
-    "Design/- 0.scope.md",
     "Design/6. gh action deploy script runner install infisical.md",
     "Implimentation",
     "Design/3. ssh setup design.md",
