@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "AI/3. implementation document writing guide.md",
+                "file": "Design/- 0.scope.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "3. implementation document writing guide"
+              "title": "- 0.scope"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "AI/3. implementation document writing guide.md",
+                "file": "Design/- 0.scope.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for 3. implementation document writing guide"
+              "title": "Backlinks for - 0.scope"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "AI/3. implementation document writing guide.md",
+                "file": "Design/- 0.scope.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from 3. implementation document writing guide"
+              "title": "Outgoing links from - 0.scope"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "AI/3. implementation document writing guide.md",
+                "file": "Design/- 0.scope.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of 3. implementation document writing guide"
+              "title": "Outline of - 0.scope"
             }
           }
         ]
@@ -185,11 +185,11 @@
   },
   "active": "f484eadee6fc219b",
   "lastOpenFiles": [
-    "Implementation/0. overall implementation.md",
+    "Design/0. scope.md",
     "AI/3. implementation document writing guide.md",
+    "Implementation/0. overall implementation.md",
     "AI/4. implementation document guide.md",
     "Human/1. framework usage guide.md",
-    "Design/0. scope.md",
     "Human/1.",
     "Human",
     "Implementation/1. package handling implementation.md",
