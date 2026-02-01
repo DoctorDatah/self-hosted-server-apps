@@ -2,6 +2,6 @@
 # Update the hostname once the tunnel and DNS are created.
 
 ingress:
-  - hostname: TBD_N8N_HOSTNAME
+  - hostname: n8n.arshware.com
     service: http://n8n:5678
   - service: http_status:404
