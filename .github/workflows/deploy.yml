@@ -1,0 +1,130 @@
+name: deploy-n8n
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      INFISICAL_ENV: ${{ vars.INFISICAL_ENV }}
+      INFISICAL_PATH: ${{ vars.INFISICAL_PATH }}
+      INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+      CLOUDFLARE_TUNNEL_ENDPOINT: ${{ vars.CLOUDFLARE_TUNNEL_ENDPOINT }}
+      SSH_USER: ${{ vars.SSH_USER }}
+      N8N_REPO_PATH: ${{ vars.N8N_REPO_PATH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load pinned dependency values
+        shell: bash
+        run: |
+          set -euo pipefail
+          deps_file="Apps/n8n-app/ops/dependencies.md"
+          awk -F '|' '
+            NF >= 3 {
+              key=$2; val=$3;
+              gsub(/^[ \t]+|[ \t]+$/, "", key);
+              gsub(/^[ \t]+|[ \t]+$/, "", val);
+              if (key ~ /^[A-Z0-9_]+$/) {
+                print key "=" val;
+              }
+            }
+          ' "$deps_file" >> "$GITHUB_ENV"
+
+      - name: Install Infisical CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' | sudo -E bash
+          sudo apt-get install -y "infisical=${INFISICAL_CLI_VERSION}"
+
+      - name: Fetch secrets from Infisical
+        shell: bash
+        env:
+          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Export only required keys into GITHUB_ENV (avoid writing secrets to disk).
+          required_keys=(
+            CLOUDFLARE_CLIENT_ID
+            CLOUDFLARE_CLIENT_SECRET
+            CLOUDFLARE_TUNNEL_TOKEN
+            N8N_ENCRYPTION_KEY
+            POSTGRES_DB
+            POSTGRES_USER
+            POSTGRES_PASSWORD
+            N8N_HOST
+            N8N_PROTOCOL
+            N8N_PORT
+            WEBHOOK_URL
+            N8N_EDITOR_BASE_URL
+          )
+
+          export_output=$(infisical export \
+            --env "$INFISICAL_ENV" \
+            --path "$INFISICAL_PATH" \
+            --projectId "$INFISICAL_PROJECT_ID" \
+            --format dotenv)
+
+          while IFS= read -r line; do
+            key=${line%%=*}
+            val=${line#*=}
+            for want in "${required_keys[@]}"; do
+              if [[ "$key" == "$want" ]]; then
+                echo "$key=$val" >> "$GITHUB_ENV"
+              fi
+            done
+          done <<< "$export_output"
+
+      - name: Install Cloudflare client
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARE_CLIENT_VERSION}/cloudflared-linux-amd64" \
+            -o /tmp/cloudflared
+          chmod +x /tmp/cloudflared
+          sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          cp "Apps/n8n-app/ops/ssh/known_hosts" ~/.ssh/known_hosts
+
+      - name: Deploy over SSH via Cloudflare Tunnel
+        shell: bash
+        env:
+          CLOUDFLARE_ACCESS_CLIENT_ID: ${{ env.CLOUDFLARE_CLIENT_ID }}
+          CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ env.CLOUDFLARE_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$N8N_REPO_PATH" || "$N8N_REPO_PATH" == "TBD" ]]; then
+            echo "N8N_REPO_PATH is not set. Configure it as a GitHub variable." >&2
+            exit 1
+          fi
+
+          ssh \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ProxyCommand="cloudflared access ssh --hostname %h" \
+            -i ~/.ssh/id_ed25519 \
+            "${SSH_USER}@${CLOUDFLARE_TUNNEL_ENDPOINT}" \
+            "export CLOUDFLARE_TUNNEL_TOKEN='${CLOUDFLARE_TUNNEL_TOKEN}'; \
+             export POSTGRES_DB='${POSTGRES_DB}'; \
+             export POSTGRES_USER='${POSTGRES_USER}'; \
+             export POSTGRES_PASSWORD='${POSTGRES_PASSWORD}'; \
+             export N8N_ENCRYPTION_KEY='${N8N_ENCRYPTION_KEY}'; \
+             export N8N_HOST='${N8N_HOST}'; \
+             export N8N_PROTOCOL='${N8N_PROTOCOL}'; \
+             export N8N_PORT='${N8N_PORT}'; \
+             export WEBHOOK_URL='${WEBHOOK_URL}'; \
+             export N8N_EDITOR_BASE_URL='${N8N_EDITOR_BASE_URL}'; \
+             cd '$N8N_REPO_PATH' && \
+             ./Apps/n8n-app/ops/deploy/deploy.sh"

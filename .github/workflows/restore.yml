@@ -1,0 +1,93 @@
+name: restore-n8n-repo
+
+on:
+  workflow_dispatch:
+    inputs:
+      restore_source_id:
+        description: "Drive file ID (backup archive)"
+        required: true
+      dry_run:
+        description: "Dry run (true/false)"
+        required: true
+        default: "true"
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    env:
+      GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
+      RESTORE_TARGET: restore/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install restore tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rclone unzip
+
+      - name: Configure rclone
+        shell: bash
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rclone
+          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > /tmp/rclone/gdrive-sa.json
+          cat <<RCLONECONF > /tmp/rclone/rclone.conf
+          [gdrive]
+          type = drive
+          scope = drive.file
+          service_account_file = /tmp/rclone/gdrive-sa.json
+          root_folder_id = $GDRIVE_FOLDER_ID
+          RCLONECONF
+          echo "RCLONE_CONFIG=/tmp/rclone/rclone.conf" >> "$GITHUB_ENV"
+
+      - name: Download backup artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          restore_id="${{ inputs.restore_source_id }}"
+          mkdir -p /tmp/restore
+          # Uses rclone copyid to fetch by file ID.
+          rclone copyid gdrive: "$restore_id" /tmp/restore
+          archive=$(ls /tmp/restore/*.zip 2>/dev/null || true)
+          if [[ -z "$archive" ]]; then
+            echo "No zip archive found after download." >&2
+            exit 1
+          fi
+          archive_name=$(basename "$archive")
+          # Fetch checksum file if present (same name + .sha256)
+          rclone copy "gdrive:${archive_name}.sha256" /tmp/restore || true
+          echo "RESTORE_DIR=/tmp/restore" >> "$GITHUB_ENV"
+
+      - name: Verify checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ls /tmp/restore/*.sha256 >/dev/null 2>&1; then
+            (cd /tmp/restore && sha256sum -c *.sha256)
+          else
+            echo "WARNING: No checksum file found; skipping verification." >&2
+          fi
+
+      - name: Restore archive to staging target
+        shell: bash
+        run: |
+          set -euo pipefail
+          dry_run="${{ inputs.dry_run }}"
+          archive=$(ls /tmp/restore/*.zip 2>/dev/null || true)
+          if [[ -z "$archive" ]]; then
+            echo "No zip archive found in restore directory." >&2
+            exit 1
+          fi
+
+          if [[ "$dry_run" == "true" ]]; then
+            echo "Dry run enabled. Archive path: $archive"
+            exit 0
+          fi
+
+          mkdir -p "$RESTORE_TARGET"
+          unzip -o "$archive" -d "$RESTORE_TARGET"

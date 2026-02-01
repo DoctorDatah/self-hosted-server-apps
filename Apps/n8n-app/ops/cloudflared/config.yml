@@ -1,0 +1,7 @@
+# Cloudflared tunnel config (no secrets).
+# Update the hostname once the tunnel and DNS are created.
+
+ingress:
+  - hostname: TBD_N8N_HOSTNAME
+    service: http://n8n:5678
+  - service: http_status:404

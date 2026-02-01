@@ -1,0 +1,98 @@
+name: backup-n8n-repo
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      GDRIVE_FOLDER_ID: ${{ vars.GDRIVE_FOLDER_ID }}
+      BACKUP_TARGETS: "1. Human/ 2. AI/ Apps/n8n-app/Design/ Apps/n8n-app/Implementation/ .github/workflows/ Apps/n8n-app/ops/"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install backup tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rclone zip
+
+      - name: Configure rclone
+        shell: bash
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rclone
+          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > /tmp/rclone/gdrive-sa.json
+          cat <<RCLONECONF > /tmp/rclone/rclone.conf
+          [gdrive]
+          type = drive
+          scope = drive.file
+          service_account_file = /tmp/rclone/gdrive-sa.json
+          root_folder_id = $GDRIVE_FOLDER_ID
+          RCLONECONF
+          echo "RCLONE_CONFIG=/tmp/rclone/rclone.conf" >> "$GITHUB_ENV"
+
+      - name: Create backup artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit=$(git rev-parse --short HEAD)
+          date_utc=$(date -u +%F)
+          archive="repo-${date_utc}-${commit}.zip"
+          checksum="${archive}.sha256"
+          targets=()
+          for path in ${BACKUP_TARGETS}; do
+            if [[ -e "$path" ]]; then
+              targets+=("$path")
+            fi
+          done
+          if (( ${#targets[@]} == 0 )); then
+            echo "No backup targets found. Check BACKUP_TARGETS." >&2
+            exit 1
+          fi
+          zip -r "/tmp/${archive}" "${targets[@]}"
+          (cd /tmp && sha256sum "$archive" > "$checksum")
+          echo "BACKUP_ARCHIVE=/tmp/${archive}" >> "$GITHUB_ENV"
+          echo "BACKUP_CHECKSUM=/tmp/${checksum}" >> "$GITHUB_ENV"
+
+      - name: Upload to Google Drive
+        shell: bash
+        run: |
+          set -euo pipefail
+          rclone copy "$BACKUP_ARCHIVE" gdrive:
+          rclone copy "$BACKUP_CHECKSUM" gdrive:
+
+      - name: Enforce retention (keep last 30)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          def run(cmd):
+            return subprocess.check_output(cmd, text=True)
+
+          data = run(["rclone", "lsjson", "gdrive:"])
+          items = [x for x in json.loads(data) if x.get("IsDir") is False]
+          # Keep only backup zips (ignore checksum files)
+          zips = [x for x in items if x.get("Name", "").endswith(".zip")]
+          # Sort by ModTime descending
+          zips.sort(key=lambda x: x.get("ModTime", ""), reverse=True)
+          keep = set(x["Name"] for x in zips[:30])
+          delete = [x for x in zips[30:]]
+
+          for item in delete:
+            name = item["Name"]
+            subprocess.check_call(["rclone", "deletefile", f"gdrive:{name}"])
+            checksum_name = f"{name}.sha256"
+            subprocess.check_call(["rclone", "deletefile", f"gdrive:{checksum_name}"])
+          PY
