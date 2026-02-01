@@ -81,6 +81,8 @@ Examples:
 ### Out of Scope
 Clearly define what should **not** be modified or considered.
 
+---> Walkthroughs folder (unless I explicitly ask something from there.)
+
 Examples:
 - Other applications in the repository
 - Legacy or archived code
