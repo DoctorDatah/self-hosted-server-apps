@@ -1,0 +1,45 @@
+# Cloudflare Tunnel Install Guide (VM)
+
+## Summary
+- **Goal:** Install and run cloudflared on the VM via Docker Compose using the repo configs.
+- **Scope:** VM-side steps only (no DNS setup details, no secrets in repo).
+
+## Preconditions
+- Docker Engine and Compose installed on the VM.
+- Repo is present on the VM (same structure as this repo).
+- `Apps/n8n-app/ops/cloudflared/config.yml` has the correct hostname.
+- `Apps/n8n-app/ops/dependencies.md` has pinned Cloudflare values.
+- You have a valid Cloudflare Tunnel token (do **not** store it on disk).
+
+## Variables
+| **Name** | **Example** | **Notes** |
+| --- | --- | --- |
+| `CLOUDFLARE_TUNNEL_TOKEN` | `<token>` | Runtime only; never write to disk. |
+| `CLOUDFLARE_IMAGE` | `cloudflare/cloudflared` | Must match `Apps/n8n-app/ops/dependencies.md`. |
+| `CLOUDFLARE_IMAGE_TAG` | `2026.1.2` | Must match `Apps/n8n-app/ops/dependencies.md`. |
+| `CLOUDFLARE_CONFIG_PATH` | `/path/to/repo/Apps/n8n-app/ops/cloudflared/config.yml` | Repo path on the VM. |
+
+## Install Steps (VM)
+1) SSH to the VM.
+2) From the repo root, export runtime env vars (in-session only):
+```bash
+export CLOUDFLARE_TUNNEL_TOKEN="<your-tunnel-token>"
+```
+3) Run the VM install script (reads pins from `Apps/n8n-app/ops/dependencies.md`):
+```bash
+./Apps/n8n-app/Implementation/n8n-vm/install-cloudflared-vm.sh
+```
+4) Verify connection:
+```bash
+docker compose -f Apps/n8n-app/ops/compose/cloudflared.compose.yml logs -f
+```
+
+## Troubleshooting
+- **No tunnel connection:** Confirm the token is valid and not expired.
+- **Config error:** Validate `Apps/n8n-app/ops/cloudflared/config.yml` has the correct hostname and service.
+- **Wrong image tag:** Ensure `CLOUDFLARE_IMAGE_TAG` matches `Apps/n8n-app/ops/dependencies.md`.
+
+## Rollback
+```bash
+docker compose -f Apps/n8n-app/ops/compose/cloudflared.compose.yml down
+```
