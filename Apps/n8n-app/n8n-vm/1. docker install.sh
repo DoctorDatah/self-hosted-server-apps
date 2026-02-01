@@ -9,7 +9,7 @@ Usage: 1. docker install.sh
 
 Requires:
   - Repo cloned on the VM (run 0. repo clone.sh first)
-  - Apps/n8n-app/requirements/vm_requirments.txt in the repo
+  - Apps/n8n-app/requirements/vm_requirements.txt in the repo
   - Ubuntu 22.04 (jammy) or Debian 12 (bookworm)
 USAGE
 }
@@ -27,7 +27,7 @@ if [[ -z "$REPO_ROOT" ]]; then
   exit 1
 fi
 
-PACKAGES_FILE="$REPO_ROOT/Apps/n8n-app/requirements/vm_requirments.txt"
+PACKAGES_FILE="$REPO_ROOT/Apps/n8n-app/requirements/vm_requirements.txt"
 
 if [[ ! -f "$PACKAGES_FILE" ]]; then
   echo "ERROR: Missing package list at $PACKAGES_FILE" >&2
