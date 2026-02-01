@@ -3,6 +3,21 @@ set -euo pipefail
 
 # Installs Docker Engine + Compose plugin on the VM using pinned versions.
 
+show_usage() {
+  cat <<'USAGE'
+Usage: 1. docker install.sh
+
+Requires:
+  - Repo cloned on the VM (run 0. repo clone.sh first)
+  - Apps/n8n-app/ops/system-packages.txt in the repo
+USAGE
+}
+
+if [[ "${1-}" == "-h" || "${1-}" == "--help" ]]; then
+  show_usage
+  exit 0
+fi
+
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)
 

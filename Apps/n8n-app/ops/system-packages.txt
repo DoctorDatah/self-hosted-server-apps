@@ -6,6 +6,7 @@ ca-certificates
 curl
 gnupg
 lsb-release
+xterm
 
 # Docker engine + compose (pin versions explicitly)
 docker-ce=29.2.0-1~ubuntu.24.04~noble

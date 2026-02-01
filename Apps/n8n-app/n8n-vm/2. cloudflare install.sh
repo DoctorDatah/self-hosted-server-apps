@@ -4,6 +4,23 @@ set -euo pipefail
 # Installs and runs Cloudflare Tunnel (cloudflared) via Docker Compose on the VM.
 # Expects the repo to be present on the VM.
 
+show_usage() {
+  cat <<'USAGE'
+Usage: 2. cloudflare install.sh
+
+Requires:
+  - Repo cloned on the VM (run 0. repo clone.sh first)
+  - Apps/n8n-app/ops/cloudflared/config.yml
+  - Apps/n8n-app/ops/compose/cloudflared.compose.yml
+  - Apps/n8n-app/ops/dependencies.md
+USAGE
+}
+
+if [[ "${1-}" == "-h" || "${1-}" == "--help" ]]; then
+  show_usage
+  exit 0
+fi
+
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)
 
