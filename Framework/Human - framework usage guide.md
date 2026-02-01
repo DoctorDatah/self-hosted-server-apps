@@ -18,8 +18,9 @@
 ## Requirements
 - **Read the repo scope file first** and treat it as the session source of truth.
 - **Use the AI guides as rules, not suggestions.**
-- **Keep all docs in repo format** with required sections and front matter.
+- **Keep all docs in repo format** with required sections and front matter (see `AI/2b. general document formatting guide.md`).
 - **Treat design as the source of truth** for implementation steps.
+- **If design changes after implementation starts,** update the design first, then refresh the implementation checklist.
 - **Update implementation status** to `done` only after real work is complete.
 
 ## AI Folder (what it is)
@@ -40,6 +41,7 @@
 - **Write a design doc first** so decisions are explicit and testable.
 - **Translate design into implementation steps** so execution is deterministic.
 - **Reuse the same structure** across projects to keep reviews fast.
+- **Any project still must obey the current repo scope file** for allowed changes.
 
 ## Design Folder (how to design with AI)
 - **Purpose:** Capture decisions, scope, and requirements before any coding.
