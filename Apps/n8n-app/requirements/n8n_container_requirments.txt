@@ -1,0 +1,5 @@
+# n8n container requirements
+# Use this file to track container-level pinned requirements for n8n.
+# Example: image tags, base images, or runtime dependencies.
+
+# TODO: Add pinned container requirements.

@@ -5,7 +5,7 @@
 - Keep a minimal audit trail for version pinning and upgrades.
 
 ## Host Packages
-- **Baseline:** `Apps/n8n-app/ops/system-packages.txt`
+- **Baseline:** `Apps/n8n-app/requirements/vm_requirments.txt`
 - **Notes:** TBD
 
 ## Container Images

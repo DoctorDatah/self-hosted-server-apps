@@ -1,4 +1,4 @@
-# Host package list for the n8n VM (apt)
+# Host package list for the n8n VM (apt) - environment-specific pins
 # Pin versions explicitly before provisioning the VM.
 
 # Base utilities
