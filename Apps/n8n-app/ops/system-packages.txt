@@ -8,8 +8,8 @@ gnupg
 lsb-release
 
 # Docker engine + compose (pin versions explicitly)
-docker-ce=<PINNED_VERSION>
-docker-ce-cli=<PINNED_VERSION>
-containerd.io=<PINNED_VERSION>
-docker-buildx-plugin=<PINNED_VERSION>
-docker-compose-plugin=<PINNED_VERSION>
+docker-ce=29.2.0-1~ubuntu.24.04~noble
+docker-ce-cli=29.2.0-1~ubuntu.24.04~noble
+containerd.io=2.2.1-1~ubuntu.24.04~noble
+docker-buildx-plugin=0.31.1-1~ubuntu.24.04~noble
+docker-compose-plugin=5.0.2-1~ubuntu.24.04~noble
