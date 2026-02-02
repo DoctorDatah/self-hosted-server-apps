@@ -1,0 +1,18 @@
+services:
+  n8n:
+    image: n8nio/n8n:2.1.5
+    env_file:
+      - .env
+    environment:
+      - N8N_ENCRYPTION_KEY
+      - SERVICE_PASSWORD_N8N
+    volumes:
+      - n8n-data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  n8n-data:
