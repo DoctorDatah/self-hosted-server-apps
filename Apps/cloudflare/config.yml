@@ -2,6 +2,6 @@
 # Update the hostname once the tunnel and DNS are created.
 
 ingress:
-  - hostname: n8n.arshware.com
-    service: http://n8n:5678
+  - hostname: coolify.arshware.com
+    service: http://localhost:8000
   - service: http_status:404

@@ -71,19 +71,6 @@ services:
       - caddy_data:/data
       - caddy_config:/config
 
-  runner:
-    build:
-      context: .
-      dockerfile: Dockerfile.runner
-    restart: unless-stopped
-    environment:
-      # Runner registers to n8n via internal docker network (n8n service)
-      N8N_RUNNER_URL: ${N8N_RUNNER_URL}
-      N8N_RUNNER_NAME: ${N8N_RUNNER_NAME}
-      N8N_RUNNER_TOKEN: ${N8N_RUNNER_TOKEN}
-    depends_on:
-      - n8n
-
 volumes:
   caddy_data:
   caddy_config:

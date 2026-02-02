@@ -34,7 +34,7 @@ apt install -y openssh-server
 systemctl enable --now ssh
 ```
 
-Add the Coolify public key for **root** (if you will connect as `root`):
+Add the Coolify public key for **root** (if you will connect as `root`). Use append (`>>`) so you do **not** overwrite existing keys:
 ```bash
 mkdir -p /root/.ssh
 chmod 700 /root/.ssh
@@ -44,7 +44,7 @@ chown root:root /root/.ssh/authorized_keys
 systemctl restart ssh
 ```
 
-Add the Coolify public key for a **non-root user** (example: `malik`):
+Add the Coolify public key for a **non-root user** (example: `malik`). Use append (`>>`) so you do **not** overwrite existing keys:
 ```bash
 mkdir -p /home/malik/.ssh
 chmod 700 /home/malik/.ssh
