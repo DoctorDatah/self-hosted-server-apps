@@ -1,18 +1,89 @@
 services:
-  n8n:
-    image: n8nio/n8n:2.1.5
-    env_file:
-      - .env
+  db:
+    image: postgres:16
+    restart: always
     environment:
-      - N8N_ENCRYPTION_KEY
-      - SERVICE_PASSWORD_N8N
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - n8n-data:/home/node/.n8n
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/ >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
+      - ./postgres_data:/var/lib/postgresql/data
+
+  n8n:
+    image: n8nio/n8n:2.0.3
+    restart: always
+    depends_on:
+      - db
+
+    # use this port, if you want to expose n8n directly using droplet IP and port
+    # ports:
+    #   - "5678:5678"
+
+    # using this port mapping, if you want to expose n8n only on localhost
+    # local host then maps to droplet IP using reverse proxy, caddy
+    ports:
+      - "127.0.0.1:5678:5678"
+
+    # IMPORTANT: do NOT expose n8n to the public internet.
+    # Caddy will reach it internally via Docker network at n8n:5678
+    # ports:
+    #   - "5678:5678"
+
+    environment:
+      N8N_LISTEN_ADDRESS: 0.0.0.0
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      N8N_RUNNERS_ENABLED: ${N8N_RUNNERS_ENABLED}
+      N8N_TASK_RUNNER_MODE: ${N8N_TASK_RUNNER_MODE}
+      N8N_RUNNER_URL: ${N8N_RUNNER_URL}
+      N8N_RUNNER_NAME: ${N8N_RUNNER_NAME}
+      N8N_RUNNER_TOKEN: ${N8N_RUNNER_TOKEN}
+
+      DB_TYPE: ${DB_TYPE}
+      DB_POSTGRESDB_HOST: ${DB_POSTGRESDB_HOST}
+      DB_POSTGRESDB_PORT: ${DB_POSTGRESDB_PORT}
+      DB_POSTGRESDB_DATABASE: ${DB_POSTGRESDB_DATABASE}
+      DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER}
+      DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD}
+
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: ${N8N_PORT}
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    restart: unless-stopped
+    environment:
+      # Runner registers to n8n via internal docker network (n8n service)
+      N8N_RUNNER_URL: ${N8N_RUNNER_URL}
+      N8N_RUNNER_NAME: ${N8N_RUNNER_NAME}
+      N8N_RUNNER_TOKEN: ${N8N_RUNNER_TOKEN}
+    depends_on:
+      - n8n
 
 volumes:
-  n8n-data:
+  caddy_data:
+  caddy_config:

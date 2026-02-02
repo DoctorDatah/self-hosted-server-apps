@@ -9,6 +9,6 @@ Thumbs.db
 # Logs
 *.log
 
-# Env
-.env
-.env.*
+# # Env
+# .env
+# .env.*
