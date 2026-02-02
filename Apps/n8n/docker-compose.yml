@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
   n8n:
     image: n8nio/n8n:2.0.3
@@ -18,51 +18,20 @@ services:
       - db
     env_file:
       - .env
-
-    # use this port, if you want to expose n8n directly using droplet IP and port
-    # ports:
-    #   - "5678:5678"
-
-    # using this port mapping, if you want to expose n8n only on localhost
-    # local host then maps to droplet IP using reverse proxy, caddy
     ports:
-      - "127.0.0.1:5678:5678"
-
-    # IMPORTANT: do NOT expose n8n to the public internet.
-    # Caddy will reach it internally via Docker network at n8n:5678
-    # ports:
-    #   - "5678:5678"
-
+      - "5678:5678"
     environment:
-      N8N_LISTEN_ADDRESS: 0.0.0.0
       GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
-
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
-
-      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE}
-      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
-      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
-      N8N_RUNNERS_ENABLED: ${N8N_RUNNERS_ENABLED}
-      N8N_TASK_RUNNER_MODE: ${N8N_TASK_RUNNER_MODE}
-      N8N_RUNNER_URL: ${N8N_RUNNER_URL}
-      N8N_RUNNER_NAME: ${N8N_RUNNER_NAME}
-      N8N_RUNNER_TOKEN: ${N8N_RUNNER_TOKEN}
-
-      DB_TYPE: ${DB_TYPE}
-      DB_POSTGRESDB_HOST: ${DB_POSTGRESDB_HOST}
-      DB_POSTGRESDB_PORT: ${DB_POSTGRESDB_PORT}
-      DB_POSTGRESDB_DATABASE: ${DB_POSTGRESDB_DATABASE}
-      DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER}
-      DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD}
-
-      N8N_HOST: ${N8N_HOST}
-      N8N_PORT: ${N8N_PORT}
-      N8N_PROTOCOL: ${N8N_PROTOCOL}
-      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE}
-      WEBHOOK_URL: ${WEBHOOK_URL}
-
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./n8n_data:/home/node/.n8n
-
+      - n8n_data:/home/node/.n8n
 
 volumes:
+  postgres_data:
+  n8n_data:
