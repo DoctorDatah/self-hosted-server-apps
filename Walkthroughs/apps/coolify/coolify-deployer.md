@@ -8,25 +8,25 @@ Wrapper around Coolify's official installer that you can run inside the `vm-cool
 3. Can preseed the initial Coolify root user via prompts or env vars (username, email, password) so you can log in immediately after install.
 4. Downloads `https://cdn.coollabs.io/coolify/install.sh` to `/tmp` and runs it with the chosen environment; Coolify logs end up in `/data/coolify/source/installation-*.log`.
 
-## Usage
+
+## Getting the script onto the VM (when you can't paste)
+On the VM:
+1) `nano /root/coolify-deployer.sh`, paste, `Ctrl+O` to save, `Enter`, `Ctrl+X` to exit.  
+2) `chmod +x /root/coolify-deployer.sh`  
+3) Run it:
 
 ```bash
-sudo ./coolify-deployer.sh
-sudo ./coolify-deployer.sh -y --autoupdate false --pool-base 10.250.0.0/16 --pool-size 24
-COOLIFY_ROOT_USERNAME=admin COOLIFY_ROOT_EMAIL=you@example.com COOLIFY_ROOT_PASSWORD='secret' sudo ./coolify-deployer.sh -y
+sudo /root/coolify-deployer.sh
+
+# OR with flags
+sudo /root/coolify-deployer.sh -y --autoupdate false --pool-base 10.250.0.0/16 --pool-size 24
+
+# OR preseed the root user via env vars
+COOLIFY_ROOT_USERNAME=malik \
+COOLIFY_ROOT_EMAIL=malikhqtech@gmail.com \
+COOLIFY_ROOT_PASSWORD='mypass' \
+sudo /root/coolify-deployer.sh -y
 ```
-
-### Getting the script onto the VM (when you can't paste)
-- From your laptop/desktop to the VM (replace `<vm-ip>`):  
-  `scp proxmox/scripts/coolify-deployer.{sh,md} root@<vm-ip>:/root/`
-- Then on the VM:  
-  `chmod +x /root/coolify-deployer.sh && sudo /root/coolify-deployer.sh`
-- Copy/paste with nano inside the VM:  
-  1) Copy `proxmox/scripts/coolify-deployer.sh` on your machine (e.g., `cat proxmox/scripts/coolify-deployer.sh | pbcopy` on macOS).  
-  2) `ssh root@<vm-ip>`  
-  3) `nano /root/coolify-deployer.sh`, paste, `Ctrl+O` to save, `Enter`, `Ctrl+X` to exit.  
-  4) `chmod +x /root/coolify-deployer.sh && sudo /root/coolify-deployer.sh`
-
 ## Options and env
 - `--version <v>` pin Coolify version (default: latest from CDN).
 - `--registry <url>` registry for images (default `ghcr.io`).
@@ -45,4 +45,22 @@ COOLIFY_ROOT_USERNAME=admin COOLIFY_ROOT_EMAIL=you@example.com COOLIFY_ROOT_PASS
 - Domains/SSL: point DNS to the VM, set the domain in Coolify settings, request a cert (ports 80/443 must reach the VM).
 - Email: add SMTP in Settings and send a test.
 - Backups: copy `/data/coolify/source/.env` somewhere safe and include `/data/coolify` in VM backups/snapshots.
-- Remote deployments: add Coolify’s SSH key to target hosts (guide: `apps/coolify/ssh-remote-server.md`).
+- Remote deployments: add Coolify’s SSH key to target hosts (guide: `Walkthroughs/apps/coolify/coolify <-> Vm ssh.md`).
+
+## If the URL doesn’t open
+From the Coolify VM:
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | rg -i 'coolify|traefik'
+ss -lntp | rg -E ':8000|:80|:443'
+curl -I http://127.0.0.1:8000
+```
+
+From your laptop (replace `VM_IP`):
+```bash
+curl -I http://VM_IP:8000
+```
+
+Common fixes:
+- Wrong IP/port: Coolify UI is `http://<vm-ip>:8000` by default. If you set a domain/SSL, use `https://<domain>`.
+- VM firewall: allow inbound TCP `8000`, `80`, `443` in the VM and any Proxmox firewall rules.
+- Containers not healthy: check `docker logs coolify --tail 200` and the latest installer log in `/data/coolify/source/installation-*.log`.

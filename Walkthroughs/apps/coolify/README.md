@@ -11,7 +11,7 @@ sudo ./proxmox/scripts/coolify-deployer.sh
 
 ## Add a remote server for deployments
 - See `apps/coolify/proxmox-vm-to-coolify.md` for connecting a Proxmox VM to Coolify.
-- General SSH key instructions: `apps/coolify/ssh-remote-server.md`.
+- General SSH key instructions: `apps/coolify/coolify <-> Vm ssh.md`.
 
 ## Post-install basics
 - Health/logs: `/data/coolify/source/installation-*.log`, `docker logs coolify`.
