@@ -190,6 +190,18 @@ else
   CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$CONFIG_PATH}
 fi
 
+echo
+echo "Default cloudflared image: ${CLOUDFLARE_IMAGE}:${CLOUDFLARE_IMAGE_TAG}"
+read -r -p "Override cloudflared image tag? [y/N]: " OVERRIDE_TAG
+OVERRIDE_TAG="${OVERRIDE_TAG:-N}"
+if [[ "$OVERRIDE_TAG" =~ ^[Yy]$ ]]; then
+  read -r -p "Enter image tag (e.g. 2024.12.0): " NEW_TAG
+  NEW_TAG="${NEW_TAG// /}"
+  if [[ -n "$NEW_TAG" ]]; then
+    CLOUDFLARE_IMAGE_TAG="$NEW_TAG"
+  fi
+fi
+
 if [[ -z "$CLOUDFLARE_IMAGE_TAG" || "$CLOUDFLARE_IMAGE_TAG" == "TBD" ]]; then
   echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update Apps/cloudflare/requirements.txt." >&2
   exit 1
