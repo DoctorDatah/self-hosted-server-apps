@@ -18,6 +18,7 @@ Scripts live in `scripts/`:
 - `scripts/git.sh` installs Git
 - `scripts/network.sh` creates the shared `appnet` Docker network
 - `scripts/python.sh` installs Python3 + pip
+- `scripts/utils.sh` installs curl + wget
 
 ## Versions
 Pinned version placeholders live in `requirements.txt`. Update if you want to track specific versions.
