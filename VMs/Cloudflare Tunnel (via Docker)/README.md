@@ -7,7 +7,7 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 - Create the tunnel in Cloudflare and copy the token
 - Export `CLOUDFLARE_TUNNEL_TOKEN` in your VM shell
 - Update `config.yml` with your hostname(s) and service target(s)
-- Run `./install.sh` and select tags if prompted
+- Run `sudo -E ./install.sh` and select tags if prompted
 - Verify with `./logs.sh`
 
 ## Files (Hierarchy)
@@ -31,7 +31,7 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ## Usage (on the VM)
 ```bash
 export CLOUDFLARE_TUNNEL_TOKEN="your_token_here"
-./install.sh
+sudo -E ./install.sh
 ./logs.sh
 ```
 
