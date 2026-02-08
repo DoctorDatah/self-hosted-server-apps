@@ -1,6 +1,8 @@
 
 0. refer the sqquuence.txt
 1. Remeber the instlation of inficl needs these varibales manuuly in the VM 
+    - issue with folder name or prioduction envirmetion 
+    - refer some old infical work in othe rrpos to see the issue
 2. Update the fethc scipt in the Claudflare to fetch properly its not workinf properly 
 3. once it works then test on the VM 
 
