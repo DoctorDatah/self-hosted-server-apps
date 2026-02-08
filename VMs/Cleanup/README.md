@@ -5,6 +5,9 @@ Comprehensive cleanup for a VM (containers, volumes, images, networks, repo fold
 ## Run
 ```bash
 sudo -E "/home/malik/self-hosted-server-apps/VMs/cleanup/cleanup_vm.sh"
+or
+sudo -E "VMs/Cleanup/cleanup_vm.sh"
+
 ```
 
 ## Behavior

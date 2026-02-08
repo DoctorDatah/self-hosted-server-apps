@@ -24,7 +24,11 @@ Use this order for a new VM:
 
 ## Clone or Update Steps (VM)
 1) SSH to the VM as `malik`. (or through proxmos terminal)
-2) Clone the repo (first time):
+2) Quick setup to avoid repeated auth prompts:
+```bash
+git config --global credential.helper store
+```
+3) Clone the repo (first time):
 ```bash
 sudo -u malik git clone https://github.com/DoctorDatah/self-hosted-server-apps /home/malik/self-hosted-server-apps
 ```
@@ -49,6 +53,7 @@ GitHub no longer supports password auth for Git over HTTPS. Use a Personal Acces
    - Private repo: `repo` scope
 2) Clone and use the token as the password:
 ```bash
+sudo git config --global credential.helper store
 sudo -u malik git clone https://github.com/DoctorDatah/self-hosted-server-apps /home/malik/self-hosted-server-apps
 ```
 When prompted:
