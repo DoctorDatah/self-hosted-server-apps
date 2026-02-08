@@ -4,13 +4,12 @@ This folder contains scripts to install common VM prerequisites.
 
 ## Quick Start
 ```bash
-cd ~/self-hosted-server-apps/VMs/install
-./install_all.sh
+sudo -E "/home/malik/self-hosted-server-apps/VMs/0. Installations/install_all.sh"
 ```
 
 ## Run Specific Tools
 ```bash
-./install_all.sh --only docker,git,python
+sudo -E "/home/malik/self-hosted-server-apps/VMs/0. Installations/install_all.sh" --only docker,git,python
 ```
 
 ## Scripts

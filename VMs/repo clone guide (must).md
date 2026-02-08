@@ -12,25 +12,25 @@
 | **Name** | **Example** | **Notes** |
 | --- | --- | --- |
 | `REPO_URL` | `https://github.com/DoctorDatah/self-hosted-server-apps` | Use SSH if preferred. |
-| `REPO_DIR` | `~/self-hosted-server-apps` | Where the repo will live on the VM. |
+| `REPO_DIR` | `/home/malik/self-hosted-server-apps` | Always clone as the `malik` user (not root). |
 
 ## Clone or Update Steps (VM)
-1) SSH to the VM. (or through proxmos terminal)
+1) SSH to the VM as `malik`. (or through proxmos terminal)
 2) Clone the repo (first time):
 ```bash
-git clone https://github.com/DoctorDatah/self-hosted-server-apps ~/self-hosted-server-apps
+sudo -u malik git clone https://github.com/DoctorDatah/self-hosted-server-apps /home/malik/self-hosted-server-apps
 ```
 When prompted: username = `doctordatah`, password = your PAT.
 
 3) If you see “already exists and is not an empty directory”, the repo is already there:
 ```bash
-cd ~/self-hosted-server-apps
+cd /home/malik/self-hosted-server-apps
 git pull
 ```
 
 4) Verify the repo exists:
 ```bash
-ls -la ~/self-hosted-server-apps
+ls -la /home/malik/self-hosted-server-apps
 ```
 
 ## HTTPS + PAT (Option 1)
@@ -41,7 +41,7 @@ GitHub no longer supports password auth for Git over HTTPS. Use a Personal Acces
    - Private repo: `repo` scope
 2) Clone and use the token as the password:
 ```bash
-git clone https://github.com/DoctorDatah/self-hosted-server-apps ~/self-hosted-server-apps
+sudo -u malik git clone https://github.com/DoctorDatah/self-hosted-server-apps /home/malik/self-hosted-server-apps
 ```
 When prompted:
 - Username: `doctordatah`
@@ -56,6 +56,6 @@ When prompted:
 ## Update Later
 Pull updates from inside the repo:
 ```bash
-cd ~/self-hosted-server-apps
+cd /home/malik/self-hosted-server-apps
 git pull
 ```

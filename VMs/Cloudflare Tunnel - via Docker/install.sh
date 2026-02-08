@@ -61,10 +61,8 @@ done
 # --- Paths and prerequisites ---
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)
-
 if [[ -z "$REPO_ROOT" ]]; then
-  echo "ERROR: Could not determine repo root. Run this script from within the repo." >&2
-  exit 1
+  REPO_ROOT="$SCRIPT_DIR"
 fi
 
 CONFIG_PATH="$SCRIPT_DIR/config.yml"
