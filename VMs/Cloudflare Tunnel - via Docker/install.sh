@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Installs Docker (if missing) and runs Cloudflare Tunnel (cloudflared) via Docker Compose on the VM.
+# Requires Docker (and deps) and runs Cloudflare Tunnel (cloudflared) via Docker Compose on the VM.
 # Expects the repo to be present on the VM.
 
 # --- Help / usage ---
 
 show_usage() {
   cat <<'USAGE'
-Usage: ./install.sh [--skip-docker] [--pull] [--down] [--setup-cloudflare]
+Usage: ./install.sh [--pull] [--down] [--setup-cloudflare]
 
 Requires:
   - Repo cloned on the VM
@@ -17,7 +17,6 @@ Requires:
   - VMs/Cloudflare Tunnel - via Docker/requirements.txt
 
 Flags:
-  --skip-docker  Skip Docker install checks/installation
   --pull         Pull latest images before starting
   --down         Stop the tunnel instead of starting
   --setup-cloudflare  Create tunnel + DNS in Cloudflare via API
@@ -30,16 +29,12 @@ if [[ "${1-}" == "-h" || "${1-}" == "--help" ]]; then
   exit 0
 fi
 
-skip_docker=false
 pull=false
 down=false
 setup_cloudflare=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skip-docker)
-      skip_docker=true
-      ;;
     --pull)
       pull=true
       ;;
@@ -91,46 +86,18 @@ if [[ ! -f "$DEPS_FILE" ]]; then
   exit 1
 fi
 
-# --- Docker install helpers ---
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
-    echo "ERROR: $1 is required. Install it and rerun." >&2
+    echo "ERROR: $1 is missing. Please execute the installation module first (VMs/install/install_all.sh)." >&2
     exit 1
   }
 }
-
-install_docker() {
-  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    return 0
-  fi
-
-  if [[ $EUID -ne 0 ]]; then
-    echo "ERROR: Docker is missing and install requires root. Re-run with sudo or install Docker manually." >&2
-    exit 1
-  fi
-
-  require_cmd apt-get
-  require_cmd curl
-  require_cmd gpg
-
-  echo "Installing Docker Engine + Compose plugin..."
-  apt-get update
-  apt-get install -y ca-certificates curl gnupg
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  chmod a+r /etc/apt/keyrings/docker.gpg
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-    $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
-    tee /etc/apt/sources.list.d/docker.list > /dev/null
-  apt-get update
-  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-}
-
 # --- Ensure Docker is available ---
-if [[ "$skip_docker" == "false" ]]; then
-  install_docker
-fi
+require_cmd docker
+docker compose version >/dev/null 2>&1 || {
+  echo "ERROR: docker compose is missing. Please execute the installation module first (VMs/install/install_all.sh)." >&2
+  exit 1
+}
 
 # --- Tag selection (ingress) ---
 echo
@@ -183,6 +150,15 @@ if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
   echo "ERROR: CLOUDFLARE_APP_NETWORK is required." >&2
   exit 1
 fi
+
+case ",${SELECTED_RAW}," in
+  *,coolify,*)
+    if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
+      echo "Creating Docker network: ${CLOUDFLARE_APP_NETWORK}"
+      docker network create "$CLOUDFLARE_APP_NETWORK" >/dev/null
+    fi
+    ;;
+esac
 
 # --- Optional Cloudflare API setup ---
 if [[ "$setup_cloudflare" == "true" ]]; then

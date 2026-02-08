@@ -1,0 +1,5 @@
+# Pinned versions (optional). Leave blank or update as needed.
+DOCKER_VERSION=27.0.3
+DOCKER_COMPOSE_PLUGIN_VERSION=5.0.2
+GIT_VERSION=2.43.0
+PYTHON3_VERSION=3.12.3

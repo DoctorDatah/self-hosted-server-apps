@@ -45,7 +45,7 @@ git clone https://github.com/DoctorDatah/self-hosted-server-apps ~/self-hosted-s
 ```
 When prompted:
 - Username: `doctordatah`
-- Password: paste your PAT
+- Password: paste your PAT (In IOS passwords)
 
 ## Troubleshooting
 - **Git not installed:** `sudo apt-get update && sudo apt-get install -y git`
