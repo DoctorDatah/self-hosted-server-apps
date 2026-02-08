@@ -253,4 +253,4 @@ fi
 docker compose -f "$COMPOSE_FILE" up -d
 
 echo "cloudflared is starting. Check logs with:"
-echo "docker compose -f $COMPOSE_FILE logs -f"
+printf 'docker compose -f %q logs -f\n' "$COMPOSE_FILE"
