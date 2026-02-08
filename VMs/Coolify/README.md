@@ -22,8 +22,7 @@ Optional overrides:
 
 ## Run (on the VM)
 ```bash
-cd /home/malik/self-hosted-server-apps/VMs/Coolify
-sudo docker compose up -d
+sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
 
 ## Network

@@ -12,6 +12,7 @@ Usage: ./install.sh [--pull] [--down] [--setup-cloudflare]
 
 Requires:
   - Repo cloned on the VM
+  - VMs/install/install_all.sh has been run (Docker + deps installed)
   - VMs/Cloudflare Tunnel - via Docker/config.yml
   - VMs/Cloudflare Tunnel - via Docker/docker-compose.yml
   - VMs/Cloudflare Tunnel - via Docker/requirements.txt
@@ -93,14 +94,17 @@ require_cmd() {
   }
 }
 # --- Ensure Docker is available ---
+echo "Checking dependencies..."
 require_cmd docker
 docker compose version >/dev/null 2>&1 || {
   echo "ERROR: docker compose is missing. Please execute the installation module first (VMs/install/install_all.sh)." >&2
   exit 1
 }
+echo "Dependencies OK."
 
 # --- Tag selection (ingress) ---
 echo
+echo "Reading available tags from config..."
 mapfile -t TAGS < <(awk '/^[[:space:]]*# \[[^/].*\]/{gsub(/^[[:space:]]*# \[/,""); gsub(/\].*$/,""); print}' "$CONFIG_PATH")
 if [[ ${#TAGS[@]} -eq 0 ]]; then
   echo "No tags found in $CONFIG_PATH." >&2
@@ -140,6 +144,7 @@ if [[ "$SELECTED_RAW" == *","* ]]; then
 fi
 
 echo
+echo "Selecting app network..."
 read -r -p "Docker network for target app [${DEFAULT_APP_NETWORK}]: " CLOUDFLARE_APP_NETWORK
 CLOUDFLARE_APP_NETWORK="${CLOUDFLARE_APP_NETWORK// /}"
 if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
@@ -156,12 +161,17 @@ case ",${SELECTED_RAW}," in
     if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
       echo "Creating Docker network: ${CLOUDFLARE_APP_NETWORK}"
       docker network create "$CLOUDFLARE_APP_NETWORK" >/dev/null
+      echo "Docker network created."
+    else
+      echo "Docker network exists: ${CLOUDFLARE_APP_NETWORK}"
     fi
     ;;
 esac
 
 # --- Optional Cloudflare API setup ---
 if [[ "$setup_cloudflare" == "true" ]]; then
+  echo
+  echo "Cloudflare API setup enabled; this will create/verify tunnel + DNS."
   require_cmd curl
   require_cmd python3
 
@@ -340,6 +350,7 @@ if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]
 fi
 
 # --- Generate config based on tags ---
+echo "Generating tunnel config for selected tags..."
 awk -v selected_list="${SELECTED_RAW}" '
   BEGIN {
     split(selected_list, arr, ",");
@@ -363,6 +374,7 @@ awk -v selected_list="${SELECTED_RAW}" '
 ' "$CONFIG_PATH" > "$GENERATED_CONFIG_PATH"
 
 # --- Load pinned defaults ---
+echo "Loading pinned defaults (requirements.txt)..."
 while IFS='=' read -r key val; do
   [[ -z "${key// }" || "${key:0:1}" == "#" ]] && continue
   key="$(echo "$key" | xargs)"
@@ -384,6 +396,7 @@ fi
 
 # --- Image override prompt ---
 echo
+echo "Selecting cloudflared image..."
 echo "Default cloudflared image: ${CLOUDFLARE_IMAGE}:${CLOUDFLARE_IMAGE_TAG}"
 read -r -p "Override cloudflared image tag? [y/N]: " OVERRIDE_TAG
 OVERRIDE_TAG="${OVERRIDE_TAG:-N}"
@@ -408,6 +421,7 @@ export CLOUDFLARE_APP_NETWORK
 export CLOUDFLARE_TUNNEL_ID
 
 # --- Persist env for future compose commands ---
+echo "Writing .env for docker compose..."
 ENV_FILE="$SCRIPT_DIR/.env"
 escape_env() {
   local val="$1"
@@ -427,6 +441,7 @@ escape_env() {
 } > "$ENV_FILE"
 
 # --- Run docker compose ---
+echo "Starting cloudflared with docker compose..."
 cd "$REPO_ROOT"
 
 if [[ "$down" == "true" ]]; then
