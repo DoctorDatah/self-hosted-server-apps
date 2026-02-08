@@ -62,9 +62,10 @@ if [[ -z "$REPO_ROOT" ]]; then
   exit 1
 fi
 
-CONFIG_PATH="$REPO_ROOT/Apps/cloudflare/config.yml"
-COMPOSE_FILE="$REPO_ROOT/Apps/cloudflare/docker-compose.yml"
-DEPS_FILE="$REPO_ROOT/Apps/cloudflare/requirements.txt"
+CONFIG_PATH="$SCRIPT_DIR/config.yml"
+GENERATED_CONFIG_PATH="$SCRIPT_DIR/config.generated.yml"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+DEPS_FILE="$SCRIPT_DIR/requirements.txt"
 
 if [[ ! -f "$CONFIG_PATH" ]]; then
   echo "ERROR: Missing config at $CONFIG_PATH" >&2
@@ -125,6 +126,51 @@ if [[ "$skip_docker" == "false" ]]; then
   install_docker
 fi
 
+echo
+read -r -p "Select app tags for tunnel config now? [Y/n]: " PICK_TAGS
+PICK_TAGS="${PICK_TAGS:-Y}"
+if [[ "$PICK_TAGS" =~ ^[Yy]$ ]]; then
+  mapfile -t TAGS < <(awk '/^\s*# \[[^/].*\]/{gsub(/^\s*# \[/,""); gsub(/\].*$/,""); print}' "$CONFIG_PATH")
+  if [[ ${#TAGS[@]} -eq 0 ]]; then
+    echo "No tags found in $CONFIG_PATH." >&2
+    exit 1
+  fi
+
+  echo "Available tags:"
+  for t in "${TAGS[@]}"; do
+    echo "- ${t}"
+  done
+  echo
+  read -r -p "Select tags (comma-separated, e.g. coolify,n8n): " SELECTED_RAW
+  SELECTED_RAW="${SELECTED_RAW// /}"
+  if [[ -z "${SELECTED_RAW}" ]]; then
+    echo "No tags selected."
+    exit 1
+  fi
+
+  awk -v selected_list="${SELECTED_RAW}" '
+    BEGIN {
+      split(selected_list, arr, ",");
+      for (i in arr) { sel[arr[i]] = 1; }
+      in_block = 0; emit = 1;
+    }
+    /^\s*# \[[^/].*\]/ {
+      tag=$0; sub(/^\s*# \[/, "", tag); sub(/\].*$/, "", tag);
+      in_block = 1;
+      emit = (tag in sel);
+      next;
+    }
+    /^\s*# \[\/.*\]/ {
+      in_block = 0;
+      emit = 1;
+      next;
+    }
+    {
+      if (!in_block || emit) { print; }
+    }
+  ' "$CONFIG_PATH" > "$GENERATED_CONFIG_PATH"
+fi
+
 while IFS='=' read -r key val; do
   [[ -z "${key// }" || "${key:0:1}" == "#" ]] && continue
   key="$(echo "$key" | xargs)"
@@ -137,7 +183,12 @@ done < "$DEPS_FILE"
 # Use pinned defaults from requirements.txt if not provided.
 CLOUDFLARE_IMAGE=${CLOUDFLARE_IMAGE:-cloudflare/cloudflared}
 CLOUDFLARE_IMAGE_TAG=${CLOUDFLARE_IMAGE_TAG:-}
-CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$CONFIG_PATH}
+
+if [[ -f "$GENERATED_CONFIG_PATH" ]]; then
+  CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$GENERATED_CONFIG_PATH}
+else
+  CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$CONFIG_PATH}
+fi
 
 if [[ -z "$CLOUDFLARE_IMAGE_TAG" || "$CLOUDFLARE_IMAGE_TAG" == "TBD" ]]; then
   echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update Apps/cloudflare/requirements.txt." >&2

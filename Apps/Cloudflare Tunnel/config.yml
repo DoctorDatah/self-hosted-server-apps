@@ -1,7 +1,25 @@
-# Cloudflared tunnel config (no secrets).
-# Update the hostname once the tunnel and DNS are created.
+# Cloudflared tunnel config (template, no secrets).
+# All app blocks are active by default.
+# When you run install.sh, it can generate a filtered config based on tag blocks:
+# - Tags are defined between: "# [tag]" and "# [/tag]".
+# - install.sh asks which tags to enable, then writes config.generated.yml.
+# - If you skip tag selection, this full config is used as-is.
 
 ingress:
+  # [coolify]
   - hostname: coolify.arshware.com
     service: http://localhost:8000
+  - hostname: coolify.arshware.com
+    path: /terminal/ws
+    service: http://localhost:8000
+  - hostname: coolify.arshware.com
+    path: /app
+    service: http://localhost:8000
+  # [/coolify]
+
+  # [n8n]
+  - hostname: n8n.arshware.com
+    service: http://localhost:5678
+  # [/n8n]
+
   - service: http_status:404
