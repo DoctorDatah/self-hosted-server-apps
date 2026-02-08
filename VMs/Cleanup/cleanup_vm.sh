@@ -52,21 +52,31 @@ require_root_or_sudo
 # --- Docker containers/volumes/images/networks ---
 if command -v docker >/dev/null 2>&1; then
   if do_step "Stop and remove all Docker containers?"; then
-    run_root docker ps -aq | xargs -r run_root docker rm -f
+    while IFS= read -r cid; do
+      [[ -z "$cid" ]] && continue
+      run_root docker rm -f "$cid"
+    done < <(run_root docker ps -aq)
   fi
 
   if do_step "Remove all Docker volumes?"; then
-    run_root docker volume ls -q | xargs -r run_root docker volume rm -f
+    while IFS= read -r vid; do
+      [[ -z "$vid" ]] && continue
+      run_root docker volume rm -f "$vid"
+    done < <(run_root docker volume ls -q)
   fi
 
   if do_step "Remove all Docker images?"; then
-    run_root docker image ls -q | xargs -r run_root docker image rm -f
+    while IFS= read -r iid; do
+      [[ -z "$iid" ]] && continue
+      run_root docker image rm -f "$iid"
+    done < <(run_root docker image ls -q)
   fi
 
   if do_step "Remove all Docker networks (except default)?"; then
-    run_root docker network ls --format '{{.Name}}' | \
-      grep -v -E '^(bridge|host|none)$' | \
-      xargs -r run_root docker network rm
+    while IFS= read -r nname; do
+      [[ -z "$nname" ]] && continue
+      run_root docker network rm "$nname"
+    done < <(run_root docker network ls --format '{{.Name}}' | grep -v -E '^(bridge|host|none)$')
   fi
 else
   echo "Docker not found; skipping container cleanup."
