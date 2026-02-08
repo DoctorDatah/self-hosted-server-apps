@@ -11,9 +11,9 @@ if [[ -z "$REPO_ROOT" ]]; then
   exit 1
 fi
 
-CONFIG_PATH="$REPO_ROOT/Apps/cloudflare/config.yml"
-COMPOSE_FILE="$REPO_ROOT/Apps/cloudflare/docker-compose.yml"
-DEPS_FILE="$REPO_ROOT/Apps/cloudflare/requirements.txt"
+CONFIG_PATH="$SCRIPT_DIR/config.yml"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+DEPS_FILE="$SCRIPT_DIR/requirements.txt"
 
 if [[ ! -f "$CONFIG_PATH" ]]; then
   echo "ERROR: Missing config at $CONFIG_PATH" >&2
@@ -44,7 +44,7 @@ CLOUDFLARE_IMAGE_TAG=${CLOUDFLARE_IMAGE_TAG:-}
 CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$CONFIG_PATH}
 
 if [[ -z "$CLOUDFLARE_IMAGE_TAG" || "$CLOUDFLARE_IMAGE_TAG" == "TBD" ]]; then
-  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update Apps/cloudflare/requirements.txt." >&2
+  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VMs/Cloudflare Tunnel (via Docker)/requirements.txt." >&2
   exit 1
 fi
 

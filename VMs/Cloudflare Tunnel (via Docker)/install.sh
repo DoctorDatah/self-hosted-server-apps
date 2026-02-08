@@ -10,9 +10,9 @@ Usage: ./install.sh [--skip-docker] [--pull] [--down]
 
 Requires:
   - Repo cloned on the VM
-  - Apps/cloudflare/config.yml
-  - Apps/cloudflare/docker-compose.yml
-  - Apps/cloudflare/requirements.txt
+  - VMs/Cloudflare Tunnel (via Docker)/config.yml
+  - VMs/Cloudflare Tunnel (via Docker)/docker-compose.yml
+  - VMs/Cloudflare Tunnel (via Docker)/requirements.txt
 
 Flags:
   --skip-docker  Skip Docker install checks/installation
@@ -127,49 +127,49 @@ if [[ "$skip_docker" == "false" ]]; then
 fi
 
 echo
-read -r -p "Select app tags for tunnel config now? [Y/n]: " PICK_TAGS
-PICK_TAGS="${PICK_TAGS:-Y}"
-if [[ "$PICK_TAGS" =~ ^[Yy]$ ]]; then
-  mapfile -t TAGS < <(awk '/^\s*# \[[^/].*\]/{gsub(/^\s*# \[/,""); gsub(/\].*$/,""); print}' "$CONFIG_PATH")
-  if [[ ${#TAGS[@]} -eq 0 ]]; then
-    echo "No tags found in $CONFIG_PATH." >&2
-    exit 1
-  fi
+mapfile -t TAGS < <(awk '/^[[:space:]]*# \[[^/].*\]/{gsub(/^[[:space:]]*# \[/,""); gsub(/\].*$/,""); print}' "$CONFIG_PATH")
+if [[ ${#TAGS[@]} -eq 0 ]]; then
+  echo "No tags found in $CONFIG_PATH." >&2
+  exit 1
+fi
 
-  echo "Available tags:"
-  for t in "${TAGS[@]}"; do
-    echo "- ${t}"
-  done
+echo "Available tags:"
+for t in "${TAGS[@]}"; do
+  echo "- ${t}"
+done
+
+while true; do
   echo
-  read -r -p "Select tags (comma-separated, e.g. coolify,n8n): " SELECTED_RAW
+  read -r -p "Select tags (comma-separated, e.g. app-main,app-ws): " SELECTED_RAW
   SELECTED_RAW="${SELECTED_RAW// /}"
   if [[ -z "${SELECTED_RAW}" ]]; then
-    echo "No tags selected."
-    exit 1
+    echo "Please select at least one tag."
+    continue
   fi
+  break
+done
 
-  awk -v selected_list="${SELECTED_RAW}" '
-    BEGIN {
-      split(selected_list, arr, ",");
-      for (i in arr) { sel[arr[i]] = 1; }
-      in_block = 0; emit = 1;
-    }
-    /^\s*# \[[^/].*\]/ {
-      tag=$0; sub(/^\s*# \[/, "", tag); sub(/\].*$/, "", tag);
-      in_block = 1;
-      emit = (tag in sel);
-      next;
-    }
-    /^\s*# \[\/.*\]/ {
-      in_block = 0;
-      emit = 1;
-      next;
-    }
-    {
-      if (!in_block || emit) { print; }
-    }
-  ' "$CONFIG_PATH" > "$GENERATED_CONFIG_PATH"
-fi
+awk -v selected_list="${SELECTED_RAW}" '
+  BEGIN {
+    split(selected_list, arr, ",");
+    for (i in arr) { sel[arr[i]] = 1; }
+    in_block = 0; emit = 1;
+  }
+  /^[[:space:]]*# \[[^/].*\]/ {
+    tag=$0; sub(/^[[:space:]]*# \[/, "", tag); sub(/\].*$/, "", tag);
+    in_block = 1;
+    emit = (tag in sel);
+    next;
+  }
+  /^[[:space:]]*# \[\/.*\]/ {
+    in_block = 0;
+    emit = 1;
+    next;
+  }
+  {
+    if (!in_block || emit) { print; }
+  }
+' "$CONFIG_PATH" > "$GENERATED_CONFIG_PATH"
 
 while IFS='=' read -r key val; do
   [[ -z "${key// }" || "${key:0:1}" == "#" ]] && continue
@@ -203,7 +203,7 @@ if [[ "$OVERRIDE_TAG" =~ ^[Yy]$ ]]; then
 fi
 
 if [[ -z "$CLOUDFLARE_IMAGE_TAG" || "$CLOUDFLARE_IMAGE_TAG" == "TBD" ]]; then
-  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update Apps/cloudflare/requirements.txt." >&2
+  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VMs/Cloudflare Tunnel (via Docker)/requirements.txt." >&2
   exit 1
 fi
 

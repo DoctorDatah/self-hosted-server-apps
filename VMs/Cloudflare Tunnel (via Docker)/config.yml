@@ -1,9 +1,10 @@
-# Cloudflared tunnel config (template, no secrets).
-# All app blocks are active by default.
 # When you run install.sh, it can generate a filtered config based on tag blocks:
 # - Tags are defined between: "# [tag]" and "# [/tag]".
 # - install.sh asks which tags to enable, then writes config.generated.yml.
 # - If you skip tag selection, this full config is used as-is.
+
+# Note: If cloudflared runs in Docker and your app is in another container,
+# use http://<container-name>:<port> instead of http://localhost:<port>.
 
 ingress:
   # [coolify]

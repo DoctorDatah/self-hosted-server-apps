@@ -6,8 +6,8 @@ services:
     volumes:
       - ${CLOUDFLARE_CONFIG_PATH}:/etc/cloudflared/config.yml:ro
     networks:
-      - n8n
+      - appnet
 
 networks:
-  n8n:
-    name: n8n
+  appnet:
+    name: appnet
