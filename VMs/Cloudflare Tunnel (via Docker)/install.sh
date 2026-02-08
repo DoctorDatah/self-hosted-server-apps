@@ -149,6 +149,33 @@ while true; do
   break
 done
 
+IFS=',' read -r FIRST_TAG _ <<< "$SELECTED_RAW"
+DEFAULT_APP_NETWORK=""
+case "$FIRST_TAG" in
+  coolify)
+    DEFAULT_APP_NETWORK="coolify"
+    ;;
+  n8n)
+    DEFAULT_APP_NETWORK="n8n"
+    ;;
+esac
+
+if [[ "$SELECTED_RAW" == *","* ]]; then
+  echo "Note: Multiple tags selected. Ensure all services are reachable on the same network."
+fi
+
+echo
+read -r -p "Docker network for target app [${DEFAULT_APP_NETWORK}]: " CLOUDFLARE_APP_NETWORK
+CLOUDFLARE_APP_NETWORK="${CLOUDFLARE_APP_NETWORK// /}"
+if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
+  CLOUDFLARE_APP_NETWORK="$DEFAULT_APP_NETWORK"
+fi
+
+if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
+  echo "ERROR: CLOUDFLARE_APP_NETWORK is required." >&2
+  exit 1
+fi
+
 awk -v selected_list="${SELECTED_RAW}" '
   BEGIN {
     split(selected_list, arr, ",");
@@ -210,6 +237,7 @@ fi
 export CLOUDFLARE_IMAGE
 export CLOUDFLARE_IMAGE_TAG
 export CLOUDFLARE_CONFIG_PATH
+export CLOUDFLARE_APP_NETWORK
 
 cd "$REPO_ROOT"
 

@@ -9,18 +9,18 @@
 ingress:
   # [coolify]
   - hostname: coolify.arshware.com
-    service: http://localhost:8000
+    service: http://coolify:8000
   - hostname: coolify.arshware.com
     path: /terminal/ws
-    service: http://localhost:8000
+    service: http://coolify:8000
   - hostname: coolify.arshware.com
     path: /app
-    service: http://localhost:8000
+    service: http://coolify:8000
   # [/coolify]
 
   # [n8n]
   - hostname: n8n.arshware.com
-    service: http://localhost:5678
+    service: http://n8n:5678
   # [/n8n]
 
   - service: http_status:404

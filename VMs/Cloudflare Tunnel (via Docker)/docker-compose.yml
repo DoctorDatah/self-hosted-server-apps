@@ -10,4 +10,5 @@ services:
 
 networks:
   appnet:
-    name: appnet
+    name: ${CLOUDFLARE_APP_NETWORK}
+    external: true
