@@ -229,30 +229,16 @@ if [[ "$setup_cloudflare" == "true" ]]; then
     "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel" \
     --data "{\"name\":\"${CLOUDFLARE_TUNNEL_NAME}\",\"config_src\":\"local\"}")
 
-  python3 - <<'PY' <<<"$TUNNEL_CREATE_JSON" || exit 1
-import json,sys
-data=json.load(sys.stdin)
+  python3 -c 'import json,sys; data=json.load(sys.stdin); 
 if not data.get("success"):
-  print("ERROR: Tunnel create failed:", data.get("errors") or data, file=sys.stderr)
-  sys.exit(1)
+  print("ERROR: Tunnel create failed:", data.get("errors") or data, file=sys.stderr); sys.exit(1)
 result=data.get("result") or {}
 if not result.get("token") or not result.get("id"):
-  print("ERROR: Tunnel create response missing token/id.", file=sys.stderr)
-  sys.exit(1)
-PY
+  print("ERROR: Tunnel create response missing token/id.", file=sys.stderr); sys.exit(1)
+' <<<"$TUNNEL_CREATE_JSON" || exit 1
 
-  CLOUDFLARE_TUNNEL_ID=$(python3 - <<'PY' <<<"$TUNNEL_CREATE_JSON"
-import json,sys
-data=json.load(sys.stdin)
-print(data["result"]["id"])
-PY
-)
-  CLOUDFLARE_TUNNEL_TOKEN=$(python3 - <<'PY' <<<"$TUNNEL_CREATE_JSON"
-import json,sys
-data=json.load(sys.stdin)
-print(data["result"]["token"])
-PY
-)
+  CLOUDFLARE_TUNNEL_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(data["result"]["id"])' <<<"$TUNNEL_CREATE_JSON")
+  CLOUDFLARE_TUNNEL_TOKEN=$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(data["result"]["token"])' <<<"$TUNNEL_CREATE_JSON")
 
   echo
   read -r -p "Public hostname (e.g. coolify.arshware.com): " CLOUDFLARE_DNS_HOSTNAME
@@ -265,14 +251,11 @@ PY
       -X POST \
       "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
       --data "{\"type\":\"CNAME\",\"name\":\"${CLOUDFLARE_DNS_HOSTNAME}\",\"content\":\"${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com\",\"proxied\":true}")
-    python3 - <<'PY' <<<"$DNS_CREATE_JSON"
-import json,sys
-data=json.load(sys.stdin)
+    python3 -c 'import json,sys; data=json.load(sys.stdin);
 if not data.get("success"):
-  print("WARN: DNS record create failed:", data.get("errors") or data, file=sys.stderr)
-  sys.exit(0)
+  print("WARN: DNS record create failed:", data.get("errors") or data, file=sys.stderr); sys.exit(0)
 print("DNS record created.")
-PY
+' <<<"$DNS_CREATE_JSON"
   else
     echo "Skipping DNS record creation (no hostname provided)."
   fi
