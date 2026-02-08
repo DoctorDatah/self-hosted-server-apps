@@ -1,0 +1,6 @@
+Put your Infisical token on the VM (one-time):
+
+echo 'INFISICAL_TOKEN=your_token_here' | sudo tee /etc/infisical.env
+
+Optional: set project id:
+echo 'your_project_id_here' | sudo tee /etc/infisical.project

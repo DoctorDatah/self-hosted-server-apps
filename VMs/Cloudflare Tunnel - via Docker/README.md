@@ -41,6 +41,12 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/
 ```
 If you skip `--setup-cloudflare`, you must export `CLOUDFLARE_TUNNEL_TOKEN` or the script will exit.
 
+## Infisical (optional)
+If you keep Cloudflare secrets in Infisical, fetch them into this folder:
+```bash
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/fetch_cloudflare_env.sh"
+```
+
 ## What install.sh does
 - Checks Docker + Compose (errors if missing; run `VMs/install/install_all.sh`)
 - Prompts for tag selection and generates `config.generated.yml` if chosen
