@@ -127,15 +127,7 @@ done
 
 # --- App network selection (Docker) ---
 IFS=',' read -r FIRST_TAG _ <<< "$SELECTED_RAW"
-DEFAULT_APP_NETWORK=""
-case "$FIRST_TAG" in
-  coolify)
-    DEFAULT_APP_NETWORK="coolify"
-    ;;
-  n8n)
-    DEFAULT_APP_NETWORK="n8n"
-    ;;
-esac
+DEFAULT_APP_NETWORK="appnet"
 
 if [[ "$SELECTED_RAW" == *","* ]]; then
   echo "Note: Multiple tags selected. Ensure all services are reachable on the same network."
@@ -154,17 +146,11 @@ if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
   exit 1
 fi
 
-case ",${SELECTED_RAW}," in
-  *,coolify,*)
-    if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
-      echo "Creating Docker network: ${CLOUDFLARE_APP_NETWORK}"
-      docker network create "$CLOUDFLARE_APP_NETWORK" >/dev/null
-      echo "Docker network created."
-    else
-      echo "Docker network exists: ${CLOUDFLARE_APP_NETWORK}"
-    fi
-    ;;
-esac
+if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
+  echo "ERROR: Docker network '${CLOUDFLARE_APP_NETWORK}' not found." >&2
+  echo "Run the installation module (creates appnet) and deploy the app first." >&2
+  exit 1
+fi
 
 # --- Optional Cloudflare API setup ---
 if [[ "$setup_cloudflare" == "true" ]]; then

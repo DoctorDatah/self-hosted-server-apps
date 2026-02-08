@@ -26,4 +26,5 @@ sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-c
 ```
 
 ## Network
-The compose creates a `coolify` network. Use this network in the Cloudflare tunnel setup if you want to proxy Coolify via cloudflared.
+This compose uses the shared `appnet` network (external). Ensure it exists first by running `VMs/0. Installations/install_all.sh`.
+Run the Cloudflare tunnel setup after this so it can attach to `appnet`.

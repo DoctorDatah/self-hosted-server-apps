@@ -8,6 +8,14 @@
 - VM has Git installed (`git --version` works).
 - You have network access to GitHub.
 
+## Per-VM Workflow (Order)
+Use this order for a new VM:
+1) Install prerequisites (`/home/malik/self-hosted-server-apps/VMs/0. Installations/install_all.sh`).
+2) Clone this repo.
+3) Deploy the app stack (e.g., Coolify or other app). It should attach to the shared `appnet` network.
+4) Run Cloudflare Tunnel setup (`/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/install.sh --setup-cloudflare`).
+5) Follow the post-setup guide to map the tunnel to the app network.
+
 ## Variables
 | **Name** | **Example** | **Notes** |
 | --- | --- | --- |
