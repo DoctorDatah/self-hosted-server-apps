@@ -1,0 +1,8 @@
+
+0. refer the sqquuence.txt
+1. Remeber the instlation of inficl needs these varibales manuuly in the VM 
+2. Update the fethc scipt in the Claudflare to fetch properly its not workinf properly 
+3. once it works then test on the VM 
+
+
+4. do the same to coolify as well. 
