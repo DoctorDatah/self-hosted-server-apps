@@ -1,12 +1,12 @@
 # Coolify (Docker Compose)
 
-Single-file compose for running Coolify on this host.
+Single-file compose for running Coolify on this VM.
 
 ## Files
 - `docker-compose.yml` – full Coolify stack (app + postgres + redis + soketi)
 
 ## Required env
-Create `Apps/coolify/.env` with the Coolify app variables, including:
+Create `VMs/Coolify/.env` with the Coolify app variables, including:
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `DB_DATABASE` (optional, defaults to `coolify`)
@@ -20,9 +20,10 @@ Optional overrides:
 - `SOKETI_PORT` (defaults to `6001`)
 - `REGISTRY_URL`, `LATEST_IMAGE`
 
-## Run
+## Run (on the VM)
 ```bash
-docker compose -f /Users/malikqayyum/self-hosted-server-apps/Apps/coolify/docker-compose.yml up -d
+cd /home/malik/self-hosted-server-apps/VMs/Coolify
+sudo docker compose up -d
 ```
 
 ## Network

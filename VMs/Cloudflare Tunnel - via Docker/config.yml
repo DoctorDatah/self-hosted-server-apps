@@ -9,13 +9,13 @@
 ingress:
   # [coolify]
   - hostname: coolify.arshware.com
-    service: http://coolify:8000
+    service: http://coolify:8080
   - hostname: coolify.arshware.com
     path: /terminal/ws
-    service: http://coolify:8000
+    service: http://coolify:8080
   - hostname: coolify.arshware.com
     path: /app
-    service: http://coolify:8000
+    service: http://coolify:8080
   # [/coolify]
 
   # [n8n]
