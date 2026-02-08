@@ -1,6 +1,6 @@
 # VM Cleanup
 
-Comprehensive cleanup for a VM (containers, volumes, images, networks, repo folders, and optional package uninstall).
+Comprehensive cleanup for a VM (containers, volumes, images, networks, repo folders, and data dirs).
 
 ## Run
 ```bash
@@ -17,4 +17,3 @@ sudo -E "VMs/Cleanup/cleanup_vm.sh"
 ## Notes
 - Removes `/data/coolify` if you approve that step
 - Removes repo folders in `/home/malik` and `/root` if approved
-- Uninstalls Docker, Git, and Python3 if approved

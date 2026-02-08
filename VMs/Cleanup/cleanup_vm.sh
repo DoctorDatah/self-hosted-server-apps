@@ -93,22 +93,4 @@ if do_step "Remove repo folders (/home/malik/self-hosted-server-apps and /root/s
   run_root rm -rf /root/self-hosted-server-apps
 fi
 
-# --- Uninstall packages ---
-if do_step "Uninstall Docker Engine + Compose plugin?"; then
-  run_root apt-get purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || true
-  run_root rm -rf /var/lib/docker /var/lib/containerd
-fi
-
-if do_step "Uninstall Git?"; then
-  run_root apt-get purge -y git || true
-fi
-
-if do_step "Uninstall Python3 + pip?"; then
-  run_root apt-get purge -y python3 python3-pip || true
-fi
-
-if do_step "Run apt autoremove to clean unused packages?"; then
-  run_root apt-get autoremove -y || true
-fi
-
 echo "Cleanup complete."
