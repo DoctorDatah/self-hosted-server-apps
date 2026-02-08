@@ -159,17 +159,39 @@ if [[ "$setup_cloudflare" == "true" ]]; then
   require_cmd curl
   require_cmd python3
 
+  INFISICAL_ENV_FILE="$SCRIPT_DIR/.infisical.cloudflare.env"
+  if [[ -f "$INFISICAL_ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$INFISICAL_ENV_FILE"
+    set +a
+  fi
+
+  if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" && -n "${Cloudflare_Account_ID-}" ]]; then
+    CLOUDFLARE_ACCOUNT_ID="$Cloudflare_Account_ID"
+  fi
+  if [[ -z "${CLOUDFLARE_ZONE_ID-}" && -n "${Cloudflare_Zone_ID-}" ]]; then
+    CLOUDFLARE_ZONE_ID="$Cloudflare_Zone_ID"
+  fi
+  if [[ -z "${CLOUDFLARE_API_TOKEN-}" && -n "${Cloudflare_Token-}" ]]; then
+    CLOUDFLARE_API_TOKEN="$Cloudflare_Token"
+  fi
+
   echo
-  read -r -p "Cloudflare Account ID: " CLOUDFLARE_ACCOUNT_ID
-  CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID// /}"
-  if [[ -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+  if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" ]]; then
+    read -r -p "Cloudflare Account ID: " CLOUDFLARE_ACCOUNT_ID
+    CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID// /}"
+  fi
+  if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" ]]; then
     echo "ERROR: Cloudflare Account ID is required." >&2
     exit 1
   fi
 
-  read -r -p "Cloudflare Zone ID: " CLOUDFLARE_ZONE_ID
-  CLOUDFLARE_ZONE_ID="${CLOUDFLARE_ZONE_ID// /}"
-  if [[ -z "$CLOUDFLARE_ZONE_ID" ]]; then
+  if [[ -z "${CLOUDFLARE_ZONE_ID-}" ]]; then
+    read -r -p "Cloudflare Zone ID: " CLOUDFLARE_ZONE_ID
+    CLOUDFLARE_ZONE_ID="${CLOUDFLARE_ZONE_ID// /}"
+  fi
+  if [[ -z "${CLOUDFLARE_ZONE_ID-}" ]]; then
     echo "ERROR: Cloudflare Zone ID is required." >&2
     exit 1
   fi
@@ -178,8 +200,7 @@ if [[ "$setup_cloudflare" == "true" ]]; then
     read -r -s -p "Cloudflare API Token (Account: Tunnel Edit, Zone: DNS Edit): " CLOUDFLARE_API_TOKEN
     echo
   fi
-
-  if [[ -z "$CLOUDFLARE_API_TOKEN" ]]; then
+  if [[ -z "${CLOUDFLARE_API_TOKEN-}" ]]; then
     echo "ERROR: Cloudflare API token is required." >&2
     exit 1
   fi
@@ -339,7 +360,7 @@ if not result.get("token") or not result.get("id"):
   fi
 
   echo
-  read -r -p "Public hostname (e.g. coolify.arshware.com): " CLOUDFLARE_DNS_HOSTNAME
+  read -r -p "Public hostname (e.g. coolify.arshware.com) — must match the DNS record you want Cloudflare to update (CNAME to the tunnel): " CLOUDFLARE_DNS_HOSTNAME
   CLOUDFLARE_DNS_HOSTNAME="${CLOUDFLARE_DNS_HOSTNAME// /}"
   if [[ -n "$CLOUDFLARE_DNS_HOSTNAME" ]]; then
     echo "Creating DNS CNAME -> ${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com ..."

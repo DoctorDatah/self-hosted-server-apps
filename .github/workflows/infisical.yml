@@ -1,0 +1,49 @@
+name: Infisical CLI (GitHub Secrets)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  infisical:
+    runs-on: ubuntu-latest
+    env:
+      INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
+      INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+      INFISICAL_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Infisical CLI
+        run: |
+          curl -1sLf 'https://artifacts-cli.infisical.com/setup.deb.sh' | sudo bash
+          sudo apt-get update
+          sudo apt-get install -y infisical
+      - name: Check required secrets
+        run: |
+          if [[ -z "${INFISICAL_TOKEN:-}" ]]; then
+            echo "Missing INFISICAL_TOKEN secret" >&2
+            exit 1
+          fi
+          if [[ -z "${INFISICAL_PROJECT_ID:-}" ]]; then
+            echo "Missing INFISICAL_PROJECT_ID secret" >&2
+            exit 1
+          fi
+          echo "Required secrets are set."
+      - name: Cloudflare variables
+        run: |
+          infisical export \
+            --projectId="$INFISICAL_PROJECT_ID" \
+            --env="$INFISICAL_ENV" \
+            --path="/cloudflare" \
+            --format=dotenv \
+            --output-file="VMs/Cloudflare Tunnel - via Docker/.infisical.cloudflare.env"
+          cat "VMs/Cloudflare Tunnel - via Docker/.infisical.cloudflare.env" >> "$GITHUB_ENV"
+          for v in Cloudflare_Account_ID Cloudflare_Token Cloudflare_Zone_ID; do
+            if [[ -z "${!v:-}" ]]; then
+              echo "Missing required secret: $v" >&2
+              exit 1
+            fi
+          done
+      - name: Verify Auth
+        run: |
+          infisical --version
