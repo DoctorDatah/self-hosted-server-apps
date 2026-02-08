@@ -240,10 +240,67 @@ print(data.get("result") or "")' <<<"$TOKEN_JSON")
           -H "Content-Type: application/json" \
           -X DELETE \
           "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${EXISTING_TUNNEL_ID}")
-        python3 -c 'import json,sys; data=json.load(sys.stdin);
+        if ! python3 -c 'import json,sys; data=json.load(sys.stdin);
+if not data.get("success"):
+  print("ERROR: Tunnel delete failed:", data.get("errors") or data, file=sys.stderr); sys.exit(1)
+' <<<"$DELETE_JSON"; then
+          if python3 -c 'import json,sys; data=json.load(sys.stdin);
+errs=data.get("errors") or []
+msg=" ".join(e.get("message","") for e in errs)
+sys.exit(0 if "active connections" in msg.lower() else 1)
+' <<<"$DELETE_JSON"; then
+            echo "Tunnel has active connections."
+            echo "Choose action:"
+            echo "  1) Stop cloudflared container and retry delete"
+            echo "  2) Reuse existing tunnel (no delete)"
+            echo "  3) Abort"
+            read -r -p "Select [1/2/3]: " ACTIVE_ACTION
+            case "$ACTIVE_ACTION" in
+              1)
+                echo "Stopping cloudflared..."
+                docker compose -f "$COMPOSE_FILE" down || true
+                echo "Retrying delete..."
+                DELETE_JSON=$(curl -sS \
+                  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -X DELETE \
+                  "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${EXISTING_TUNNEL_ID}")
+                python3 -c 'import json,sys; data=json.load(sys.stdin);
 if not data.get("success"):
   print("ERROR: Tunnel delete failed:", data.get("errors") or data, file=sys.stderr); sys.exit(1)
 ' <<<"$DELETE_JSON" || exit 1
+                ;;
+              2)
+                CLOUDFLARE_TUNNEL_ID="$EXISTING_TUNNEL_ID"
+                if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" ]]; then
+                  echo "Fetching existing tunnel token..."
+                  TOKEN_JSON=$(curl -sS \
+                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${CLOUDFLARE_TUNNEL_ID}/token")
+                  CLOUDFLARE_TUNNEL_TOKEN=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
+if not data.get("success"):
+  print("", end=""); sys.exit(0)
+print(data.get("result") or "")' <<<"$TOKEN_JSON")
+                fi
+                if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+                  read -r -s -p "Existing tunnel token (manual): " CLOUDFLARE_TUNNEL_TOKEN
+                  echo
+                fi
+                if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+                  echo "ERROR: Tunnel token is required to reuse an existing tunnel." >&2
+                  exit 1
+                fi
+                ;;
+              *)
+                echo "Aborting."
+                exit 1
+                ;;
+            esac
+          else
+            exit 1
+          fi
+        fi
         ;;
       3)
         read -r -p "New tunnel name: " CLOUDFLARE_TUNNEL_NAME
