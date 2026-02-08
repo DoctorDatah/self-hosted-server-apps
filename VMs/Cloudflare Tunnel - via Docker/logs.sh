@@ -44,7 +44,7 @@ CLOUDFLARE_IMAGE_TAG=${CLOUDFLARE_IMAGE_TAG:-}
 CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$CONFIG_PATH}
 
 if [[ -z "$CLOUDFLARE_IMAGE_TAG" || "$CLOUDFLARE_IMAGE_TAG" == "TBD" ]]; then
-  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VMs/Cloudflare Tunnel (via Docker)/requirements.txt." >&2
+  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VMs/Cloudflare Tunnel - via Docker/requirements.txt." >&2
   exit 1
 fi
 

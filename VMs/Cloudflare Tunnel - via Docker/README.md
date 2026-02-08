@@ -4,10 +4,10 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 
 ## Quick Steps (Do This)
 - Clone the repo to the VM (first time only) (pull later)
-- Create the tunnel in Cloudflare and copy the token
-- Export `CLOUDFLARE_TUNNEL_TOKEN` in your VM shell
 - Update `config.yml` with your hostname(s) and service target(s)
-- Run `sudo -E ./install.sh` and select tags if prompted
+- Run `sudo -E ./install.sh --setup-cloudflare` to create tunnel + DNS via API
+  - Or export `CLOUDFLARE_TUNNEL_TOKEN` and run `sudo -E ./install.sh`
+- Select tags and the target app network when prompted
 - Verify with `./logs.sh`
 
 ## Files (Hierarchy)
@@ -19,16 +19,20 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ├─ requirements.txt                    # pinned cloudflared image tag
 ├─ install.sh                          # start the tunnel (prompts for tag selection)
 ├─ logs.sh                             # follow logs
-├─ vm-requirements.txt                 # pinned Docker packages for the VM
-└─ Step by Step Installation \ Setup Guide
+└─ 1. Setup Guide
    ├─ 1. repo-clone-guide.md           # clone/update the repo on the VM
    ├─ 2. cloudflare-tunnel-creation-guide.md
-   ├─ 3. cloudflare-install-guide.md
    ├─ 4. [In self hosted app config]  cloudflare-to-app-network-guide.md
    └─ 5. cloudflare-troubleshooting-guide.md
 ```
 
 ## Usage (on the VM)
+### Option A: API setup (recommended)
+```bash
+sudo -E ./install.sh --setup-cloudflare
+```
+
+### Option B: Manual token
 ```bash
 export CLOUDFLARE_TUNNEL_TOKEN="your_token_here"
 sudo -E ./install.sh
@@ -38,10 +42,13 @@ sudo -E ./install.sh
 ## What install.sh does
 - Checks Docker + Compose (installs if missing unless `--skip-docker`)
 - Prompts for tag selection and generates `config.generated.yml` if chosen
+- Prompts for the target app network (e.g., `coolify`, `n8n`)
+- Optionally creates/reuses/deletes a tunnel and DNS record via `--setup-cloudflare`
 - Reads pinned image/tag from `requirements.txt` (can override tag)
+- Writes `.env` for future `docker compose` commands
 - Starts the tunnel container with Docker Compose
 
 ## Notes
 - Update `config.yml` with your hostname(s) and service target(s).
 - `install.sh` can filter `config.yml` by tag blocks and write `config.generated.yml`.
-- `CLOUDFLARE_TUNNEL_TOKEN` must be exported in the shell session.
+- If you use `--setup-cloudflare`, `.env` will contain the tunnel token (treat as a secret).
