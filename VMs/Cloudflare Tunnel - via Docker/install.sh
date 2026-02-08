@@ -8,7 +8,7 @@ set -euo pipefail
 
 show_usage() {
   cat <<'USAGE'
-Usage: ./install.sh [--skip-docker] [--pull] [--down]
+Usage: ./install.sh [--skip-docker] [--pull] [--down] [--setup-cloudflare]
 
 Requires:
   - Repo cloned on the VM
@@ -20,6 +20,7 @@ Flags:
   --skip-docker  Skip Docker install checks/installation
   --pull         Pull latest images before starting
   --down         Stop the tunnel instead of starting
+  --setup-cloudflare  Create tunnel + DNS in Cloudflare via API
 USAGE
 }
 
@@ -32,6 +33,7 @@ fi
 skip_docker=false
 pull=false
 down=false
+setup_cloudflare=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,6 +45,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --down)
       down=true
+      ;;
+    --setup-cloudflare)
+      setup_cloudflare=true
       ;;
     -h|--help)
       show_usage
@@ -83,12 +88,6 @@ fi
 
 if [[ ! -f "$DEPS_FILE" ]]; then
   echo "ERROR: Missing requirements file at $DEPS_FILE" >&2
-  exit 1
-fi
-
-# --- Required env ---
-if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]; then
-  echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (export it in-session)." >&2
   exit 1
 fi
 
@@ -185,6 +184,106 @@ if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
   exit 1
 fi
 
+# --- Optional Cloudflare API setup ---
+if [[ "$setup_cloudflare" == "true" ]]; then
+  require_cmd curl
+  require_cmd python3
+
+  echo
+  read -r -p "Cloudflare Account ID: " CLOUDFLARE_ACCOUNT_ID
+  CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID// /}"
+  if [[ -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+    echo "ERROR: Cloudflare Account ID is required." >&2
+    exit 1
+  fi
+
+  read -r -p "Cloudflare Zone ID: " CLOUDFLARE_ZONE_ID
+  CLOUDFLARE_ZONE_ID="${CLOUDFLARE_ZONE_ID// /}"
+  if [[ -z "$CLOUDFLARE_ZONE_ID" ]]; then
+    echo "ERROR: Cloudflare Zone ID is required." >&2
+    exit 1
+  fi
+
+  if [[ -z "${CLOUDFLARE_API_TOKEN-}" ]]; then
+    read -r -s -p "Cloudflare API Token (Account: Tunnel Edit, Zone: DNS Edit): " CLOUDFLARE_API_TOKEN
+    echo
+  fi
+
+  if [[ -z "$CLOUDFLARE_API_TOKEN" ]]; then
+    echo "ERROR: Cloudflare API token is required." >&2
+    exit 1
+  fi
+
+  DEFAULT_TUNNEL_NAME="${FIRST_TAG}-tunnel"
+  read -r -p "Tunnel name [${DEFAULT_TUNNEL_NAME}]: " CLOUDFLARE_TUNNEL_NAME
+  CLOUDFLARE_TUNNEL_NAME="${CLOUDFLARE_TUNNEL_NAME// /}"
+  if [[ -z "$CLOUDFLARE_TUNNEL_NAME" ]]; then
+    CLOUDFLARE_TUNNEL_NAME="$DEFAULT_TUNNEL_NAME"
+  fi
+
+  echo "Creating Cloudflare Tunnel..."
+  TUNNEL_CREATE_JSON=$(curl -sS \
+    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -X POST \
+    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel" \
+    --data "{\"name\":\"${CLOUDFLARE_TUNNEL_NAME}\",\"config_src\":\"local\"}")
+
+  python3 - <<'PY' <<<"$TUNNEL_CREATE_JSON" || exit 1
+import json,sys
+data=json.load(sys.stdin)
+if not data.get("success"):
+  print("ERROR: Tunnel create failed:", data.get("errors") or data, file=sys.stderr)
+  sys.exit(1)
+result=data.get("result") or {}
+if not result.get("token") or not result.get("id"):
+  print("ERROR: Tunnel create response missing token/id.", file=sys.stderr)
+  sys.exit(1)
+PY
+
+  CLOUDFLARE_TUNNEL_ID=$(python3 - <<'PY' <<<"$TUNNEL_CREATE_JSON"
+import json,sys
+data=json.load(sys.stdin)
+print(data["result"]["id"])
+PY
+)
+  CLOUDFLARE_TUNNEL_TOKEN=$(python3 - <<'PY' <<<"$TUNNEL_CREATE_JSON"
+import json,sys
+data=json.load(sys.stdin)
+print(data["result"]["token"])
+PY
+)
+
+  echo
+  read -r -p "Public hostname (e.g. coolify.arshware.com): " CLOUDFLARE_DNS_HOSTNAME
+  CLOUDFLARE_DNS_HOSTNAME="${CLOUDFLARE_DNS_HOSTNAME// /}"
+  if [[ -n "$CLOUDFLARE_DNS_HOSTNAME" ]]; then
+    echo "Creating DNS CNAME -> ${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com ..."
+    DNS_CREATE_JSON=$(curl -sS \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -X POST \
+      "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
+      --data "{\"type\":\"CNAME\",\"name\":\"${CLOUDFLARE_DNS_HOSTNAME}\",\"content\":\"${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com\",\"proxied\":true}")
+    python3 - <<'PY' <<<"$DNS_CREATE_JSON"
+import json,sys
+data=json.load(sys.stdin)
+if not data.get("success"):
+  print("WARN: DNS record create failed:", data.get("errors") or data, file=sys.stderr)
+  sys.exit(0)
+print("DNS record created.")
+PY
+  else
+    echo "Skipping DNS record creation (no hostname provided)."
+  fi
+fi
+
+# --- Required env ---
+if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]; then
+  echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (export it in-session or use --setup-cloudflare)." >&2
+  exit 1
+fi
+
 # --- Generate config based on tags ---
 awk -v selected_list="${SELECTED_RAW}" '
   BEGIN {
@@ -251,6 +350,7 @@ export CLOUDFLARE_IMAGE
 export CLOUDFLARE_IMAGE_TAG
 export CLOUDFLARE_CONFIG_PATH
 export CLOUDFLARE_APP_NETWORK
+export CLOUDFLARE_TUNNEL_ID
 
 # --- Persist env for future compose commands ---
 ENV_FILE="$SCRIPT_DIR/.env"
@@ -266,6 +366,7 @@ escape_env() {
   printf 'CLOUDFLARE_IMAGE="%s"\n' "$(escape_env "$CLOUDFLARE_IMAGE")"
   printf 'CLOUDFLARE_IMAGE_TAG="%s"\n' "$(escape_env "$CLOUDFLARE_IMAGE_TAG")"
   printf 'CLOUDFLARE_TUNNEL_TOKEN="%s"\n' "$(escape_env "$CLOUDFLARE_TUNNEL_TOKEN")"
+  printf 'CLOUDFLARE_TUNNEL_ID="%s"\n' "$(escape_env "${CLOUDFLARE_TUNNEL_ID-}")"
   printf 'CLOUDFLARE_CONFIG_PATH="%s"\n' "$(escape_env "$CLOUDFLARE_CONFIG_PATH")"
   printf 'CLOUDFLARE_APP_NETWORK="%s"\n' "$(escape_env "$CLOUDFLARE_APP_NETWORK")"
 } > "$ENV_FILE"
