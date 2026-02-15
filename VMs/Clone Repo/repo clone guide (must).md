@@ -76,3 +76,4 @@ Pull updates from inside the repo:
 cd /home/malik/self-hosted-server-apps
 git pull
 ```
+
