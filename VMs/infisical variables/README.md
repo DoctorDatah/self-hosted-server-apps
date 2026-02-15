@@ -13,13 +13,35 @@ This script connects to Infisical using the token you provide, exports secrets f
 ```bash
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
 ```
+To show extra step-by-step detail:
+```bash
+DEBUG=1 "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
+```
+
+## Run on macOS (local)
+```bash
+"/Users/malikqayyum/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
+```
+To show extra step-by-step detail:
+```bash
+DEBUG=1 "/Users/malikqayyum/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
+```
+
+## Validate access (macOS)
+Edit the local config:
+`/Users/malikqayyum/self-hosted-server-apps/VMs/Infisical Variables/local_validation/infisical.local.env`
+
+Run the validator:
+```bash
+"/Users/malikqayyum/self-hosted-server-apps/VMs/Infisical Variables/local_validation/validate_infisical_access.sh"
+```
 
 ## What it does
 - Prompts for Infisical Project ID and token.
 - Asks whether to fetch all variables from `/` or a specific folder.
 - Lists available folders when you choose a specific folder.
 - Writes `VMs/.env` and locks it to `600` permissions.
- - Prints the secret names after export.
+- Prints the secret names after export.
 
 ## Output
 - `.env` is created at:
@@ -28,4 +50,4 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infis
 ## Notes
 - Default environment is `production` (you can override when prompted).
 - Keep the token private.
- - The script uses the root path `/` to fetch all secrets available to the token.
+- The script uses the root path `/` to fetch all secrets available to the token.
