@@ -61,10 +61,10 @@ else
 fi
 
 step "Collecting project and auth details"
-read -r -p "Infisical Project ID: " PROJECT_ID
+PROJECT_ID_DEFAULT="dce03ebf-dea5-47a3-8893-d1779dcfbbac"
+read -r -p "Infisical Project ID [Default (Homelab project): ${PROJECT_ID_DEFAULT}]: " PROJECT_ID
 if [[ -z "${PROJECT_ID// }" ]]; then
-  echo "ERROR: Project ID is required." >&2
-  exit 1
+  PROJECT_ID="$PROJECT_ID_DEFAULT"
 fi
 
 read -r -s -p "Infisical Token: " INFISICAL_TOKEN
@@ -75,8 +75,8 @@ fi
 
 echo ""
 
-ENV_NAME="$DEFAULT_ENV_NAME"
-read -r -p "Environment slug [${ENV_NAME}]: " ENV_INPUT
+ENV_NAME="prod"
+read -r -p "Environment slug [Default: ${ENV_NAME}]: " ENV_INPUT
 if [[ -n "${ENV_INPUT// }" ]]; then
   ENV_NAME="$ENV_INPUT"
 fi
@@ -122,10 +122,47 @@ fetch_api() {
 
 write_env_from_response() {
   local response="$1"
+  local include_path_comments="$2"
+  local mode="$3" # "write" or "append"
+  local redir=">"
+  if [[ "$mode" == "append" ]]; then
+    redir=">>"
+  fi
   if command -v jq >/dev/null 2>&1; then
-    printf "%s\n" "$response" | jq -r '.secrets[] | "\(.secretKey)=\(.secretValue)"' > "$tmp_output"
+    if [[ "$include_path_comments" == "1" ]]; then
+      printf "%s\n" "$response" | jq -r '
+        .secrets
+        | sort_by(.secretPath // .secretPath // "")
+        | group_by(.secretPath // .secretPath // "")
+        | .[]
+        | (if (.[0].secretPath // .secretPath // "") != "" then "# path: \(.[0].secretPath // .secretPath)" else "# path: /" end),
+          (.[] | "\(.secretKey)=\(.secretValue)")' $redir "$tmp_output"
+    else
+      printf "%s\n" "$response" | jq -r '.secrets[] | "\(.secretKey)=\(.secretValue)"' $redir "$tmp_output"
+    fi
   else
-    printf "%s\n" "$response" | python3 - <<'PY' > "$tmp_output"
+    if [[ "$include_path_comments" == "1" ]]; then
+      printf "%s\n" "$response" | python3 - <<'PY' $redir "$tmp_output"
+import json, sys
+data = sys.stdin.read().strip()
+obj = json.loads(data)
+secrets = obj.get("secrets", [])
+def get_path(s):
+    return s.get("secretPath") or "/"
+secrets.sort(key=get_path)
+last_path = None
+for s in secrets:
+    path = get_path(s)
+    if path != last_path:
+        print(f"# path: {path}")
+        last_path = path
+    key = s.get("secretKey", "")
+    val = s.get("secretValue", "")
+    if key:
+        print(f"{key}={val}")
+PY
+    else
+      printf "%s\n" "$response" | python3 - <<'PY' $redir "$tmp_output"
 import json, sys
 data = sys.stdin.read().strip()
 obj = json.loads(data)
@@ -135,6 +172,7 @@ for s in obj.get("secrets", []):
     if key:
         print(f"{key}={val}")
 PY
+    fi
   fi
 }
 
@@ -144,17 +182,26 @@ FETCH_ALL=$(printf "%s" "$FETCH_ALL" | tr '[:upper:]' '[:lower:]')
 if [[ "$FETCH_ALL" == "y" || "$FETCH_ALL" == "yes" ]]; then
   step "Mode: export all folders from root (recursive)"
   response=$(fetch_api "$DEFAULT_ALL_PATH" "true")
-  write_env_from_response "$response"
+  : > "$tmp_output"
+  write_env_from_response "$response" "1" "write"
 else
   step "Mode: export a specific folder"
-  read -r -p "Enter folder path (e.g. /cloudflare): " PATH_NAME
+  read -r -p "Enter folder path(s) (comma-separated, e.g. /cloudflare,/n8n): " PATH_NAME
   if [[ -z "${PATH_NAME// }" ]]; then
     echo "ERROR: Folder path is required." >&2
     exit 1
   fi
-  step "Exporting selected folder: ${PATH_NAME}"
-  response=$(fetch_api "$PATH_NAME" "false")
-  write_env_from_response "$response"
+  IFS=',' read -r -a path_list <<< "$PATH_NAME"
+  : > "$tmp_output"
+  for p in "${path_list[@]}"; do
+    p="${p//[[:space:]]/}"
+    if [[ -z "$p" ]]; then
+      continue
+    fi
+    step "Exporting selected folder: ${p}"
+    response=$(fetch_api "$p" "false")
+    write_env_from_response "$response" "1" "append"
+  done
 fi
 
 if [[ ! -s "$tmp_output" ]]; then
@@ -170,34 +217,9 @@ step "Printing fetched secret names"
 echo "Fetched variables:"
 awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/{print " - " $1}' "$tmp_output"
 
-step "Writing output file (deduping keys)"
-dup_count=$(
-  awk -F= '
-  /^[A-Za-z_][A-Za-z0-9_]*=/{
-    key=$1
-    if (seen[key]++) dups++
-  }
-  END{print dups+0}
-  ' "$tmp_output"
-)
-awk -F= '
-  /^[A-Za-z_][A-Za-z0-9_]*=/{
-    key=$1
-    val=$0
-    last[key]=val
-    order[++n]=key
-  }
-  END{
-    for (i=1;i<=n;i++) {
-      key=order[i]
-      if (!printed[key]++) print last[key]
-    }
-  }
-  ' "$tmp_output" > "$OUTPUT_FILE"
+step "Writing output file"
+cp "$tmp_output" "$OUTPUT_FILE"
 chmod 600 "$OUTPUT_FILE"
-if [[ "$dup_count" -gt 0 ]]; then
-  echo "WARNING: ${dup_count} duplicate keys were found. The last value was kept." >&2
-fi
 
 step "Done"
 echo "Wrote: $OUTPUT_FILE"
