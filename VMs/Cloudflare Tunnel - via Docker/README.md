@@ -38,11 +38,6 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/
 ```
 If you skip `--setup-cloudflare`, you must export `CLOUDFLARE_TUNNEL_TOKEN` or the script will exit.
 
-## Infisical (optional)
-If you keep Cloudflare secrets in Infisical, fetch them into this folder:
-```bash
-sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/fetch_cloudflare_env.sh"
-```
 Setup required on the VM:
 ```bash
 echo 'INFISICAL_TOKEN=your_token_here' | sudo tee /etc/infisical.env
