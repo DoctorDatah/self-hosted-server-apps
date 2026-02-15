@@ -5,8 +5,7 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ## Quick Steps (Do This)
 - Clone the repo to the VM (first time only) (pull later)
 - Update `config.yml` with your hostname(s) and service target(s)
-- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh" --setup-cloudflare` to create tunnel + DNS via API
-  - Or export `CLOUDFLARE_TUNNEL_TOKEN` and run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"`
+- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"` (requires `CLOUDFLARE_TUNNEL_TOKEN` in `VMs/.env` or your session)
 - Select tags and the target app network when prompted (default: `appnet`)
 - The app network must already exist (created by `VMs/Installations` and app deployment)
 
@@ -26,31 +25,18 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ```
 
 ## Usage (on the VM)
-### Option A: API setup (recommended)
-```bash
-sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh" --setup-cloudflare
-```
-
-### Option B: Manual token
+### Manual token
 ```bash
 export CLOUDFLARE_TUNNEL_TOKEN="your_token_here"
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"
 ```
-If you skip `--setup-cloudflare`, you must export `CLOUDFLARE_TUNNEL_TOKEN` or the script will exit.
-
-Setup required on the VM:
-```bash
-echo 'INFISICAL_TOKEN=your_token_here' | sudo tee /etc/infisical.env
-echo 'your_project_id_here' | sudo tee /etc/infisical.project
-sudo -E "/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh" --only infisical
-```
+If you keep the token in `VMs/.env`, you can skip the export.
 
 ## What cloudflare_install_and_setup.sh does
 - Checks Docker + Compose (errors if missing; run `VMs/install/install_all.sh`)
 - Prompts for tag selection and generates `config.generated.yml` if chosen
 - Prompts for the target app network (default: `appnet`)
 - Exits if the target app network does not exist (run installations to create `appnet`, then deploy the app)
-- Optionally creates/reuses/deletes a tunnel and DNS record via `--setup-cloudflare`
 - Reads pinned image/tag from `requirements.txt` (can override tag)
 - Writes `.env` for future `docker compose` commands
 - Starts the tunnel container with Docker Compose
@@ -58,4 +44,3 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh" -
 ## Notes
 - Update `config.yml` with your hostname(s) and service target(s).
 - `cloudflare_install_and_setup.sh` can filter `config.yml` by tag blocks and write `config.generated.yml`.
-- If you use `--setup-cloudflare`, `.env` will contain the tunnel token (treat as a secret).

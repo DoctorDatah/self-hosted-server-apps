@@ -8,7 +8,7 @@ set -euo pipefail
 
 show_usage() {
   cat <<'USAGE'
-Usage: ./cloudflare_install_and_setup.sh [--pull] [--down] [--setup-cloudflare]
+Usage: ./cloudflare_install_and_setup.sh [--pull] [--down]
 
 Requires:
   - Repo cloned on the VM
@@ -20,7 +20,6 @@ Requires:
 Flags:
   --pull         Pull latest images before starting
   --down         Stop the tunnel instead of starting
-  --setup-cloudflare  Create tunnel + DNS in Cloudflare via API
 USAGE
 }
 
@@ -32,7 +31,6 @@ fi
 
 pull=false
 down=false
-setup_cloudflare=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,9 +39,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --down)
       down=true
-      ;;
-    --setup-cloudflare)
-      setup_cloudflare=true
       ;;
     -h|--help)
       show_usage
@@ -152,276 +147,6 @@ if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
   exit 1
 fi
 
-# --- Optional Cloudflare API setup ---
-if [[ "$setup_cloudflare" == "true" ]]; then
-  echo
-  echo "Cloudflare API setup enabled; this will create/verify tunnel + DNS."
-  require_cmd curl
-  require_cmd python3
-
-  INFISICAL_ENV_FILE="$SCRIPT_DIR/.infisical.cloudflare.env"
-  if [[ -f "$INFISICAL_ENV_FILE" ]]; then
-    set -a
-    # shellcheck disable=SC1090
-    source "$INFISICAL_ENV_FILE"
-    set +a
-  fi
-
-  if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" && -n "${Cloudflare_Account_ID-}" ]]; then
-    CLOUDFLARE_ACCOUNT_ID="$Cloudflare_Account_ID"
-  fi
-  if [[ -z "${CLOUDFLARE_ZONE_ID-}" && -n "${Cloudflare_Zone_ID-}" ]]; then
-    CLOUDFLARE_ZONE_ID="$Cloudflare_Zone_ID"
-  fi
-  if [[ -z "${CLOUDFLARE_API_TOKEN-}" && -n "${Cloudflare_Token-}" ]]; then
-    CLOUDFLARE_API_TOKEN="$Cloudflare_Token"
-  fi
-
-  # Load from shared VMs/.env if present
-  VMS_ENV_FILE="$REPO_ROOT/VMs/.env"
-  if [[ -f "$VMS_ENV_FILE" ]]; then
-    set -a
-    # shellcheck disable=SC1090
-    source "$VMS_ENV_FILE"
-    set +a
-  fi
-  if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" && -n "${Cloudflare_Account_ID-}" ]]; then
-    CLOUDFLARE_ACCOUNT_ID="$Cloudflare_Account_ID"
-  fi
-  if [[ -z "${CLOUDFLARE_ZONE_ID-}" && -n "${Cloudflare_Zone_ID-}" ]]; then
-    CLOUDFLARE_ZONE_ID="$Cloudflare_Zone_ID"
-  fi
-  if [[ -z "${CLOUDFLARE_API_TOKEN-}" && -n "${Cloudflare_Token-}" ]]; then
-    CLOUDFLARE_API_TOKEN="$Cloudflare_Token"
-  fi
-
-  echo
-  if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" ]]; then
-    read -r -p "Cloudflare Account ID [required]: " CLOUDFLARE_ACCOUNT_ID
-    CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID// /}"
-  fi
-  if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" ]]; then
-    echo "ERROR: Cloudflare Account ID is required." >&2
-    exit 1
-  fi
-
-  if [[ -z "${CLOUDFLARE_ZONE_ID-}" ]]; then
-    read -r -p "Cloudflare Zone ID [required]: " CLOUDFLARE_ZONE_ID
-    CLOUDFLARE_ZONE_ID="${CLOUDFLARE_ZONE_ID// /}"
-  fi
-  if [[ -z "${CLOUDFLARE_ZONE_ID-}" ]]; then
-    echo "ERROR: Cloudflare Zone ID is required." >&2
-    exit 1
-  fi
-
-  if [[ -z "${CLOUDFLARE_API_TOKEN-}" ]]; then
-    read -r -s -p "Cloudflare API Token (Account: Tunnel Edit, Zone: DNS Edit) [required]: " CLOUDFLARE_API_TOKEN
-    echo
-  fi
-  if [[ -z "${CLOUDFLARE_API_TOKEN-}" ]]; then
-    echo "ERROR: Cloudflare API token is required." >&2
-    exit 1
-  fi
-
-  DEFAULT_TUNNEL_NAME="${FIRST_TAG}-tunnel"
-  read -r -p "Tunnel name [Default: ${DEFAULT_TUNNEL_NAME} (from selected tag)]: " CLOUDFLARE_TUNNEL_NAME
-  CLOUDFLARE_TUNNEL_NAME="${CLOUDFLARE_TUNNEL_NAME// /}"
-  if [[ -z "$CLOUDFLARE_TUNNEL_NAME" ]]; then
-    CLOUDFLARE_TUNNEL_NAME="$DEFAULT_TUNNEL_NAME"
-  fi
-
-  echo "Checking for existing tunnel..."
-  TUNNEL_LIST_JSON=$(curl -sS \
-    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel")
-
-  EXISTING_TUNNEL_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
-name=sys.argv[1];
-for t in data.get("result") or []:
-  if t.get("name") == name:
-    print(t.get("id") or ""); break' "$CLOUDFLARE_TUNNEL_NAME" <<<"$TUNNEL_LIST_JSON")
-
-  if [[ -n "$EXISTING_TUNNEL_ID" ]]; then
-    echo "Found existing tunnel with name '${CLOUDFLARE_TUNNEL_NAME}'."
-    echo "Choose action:"
-    echo "  1) Reuse existing tunnel (token auto-fetch; manual only if API fails)"
-    echo "  2) Delete existing tunnel and create a new one"
-    echo "  3) Choose a different tunnel name"
-    read -r -p "Select [1/2/3]: " TUNNEL_ACTION
-    case "$TUNNEL_ACTION" in
-      1)
-        CLOUDFLARE_TUNNEL_ID="$EXISTING_TUNNEL_ID"
-        if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" ]]; then
-          echo "Fetching existing tunnel token..."
-          TOKEN_JSON=$(curl -sS \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${CLOUDFLARE_TUNNEL_ID}/token")
-          CLOUDFLARE_TUNNEL_TOKEN=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
-if not data.get("success"):
-  print("", end=""); sys.exit(0)
-print(data.get("result") or "")' <<<"$TOKEN_JSON")
-        fi
-        if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
-          read -r -s -p "Existing tunnel token (manual): " CLOUDFLARE_TUNNEL_TOKEN
-          echo
-        fi
-        if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
-          echo "ERROR: Tunnel token is required to reuse an existing tunnel." >&2
-          exit 1
-        fi
-        ;;
-      2)
-        echo "Deleting existing tunnel ${EXISTING_TUNNEL_ID}..."
-        DELETE_JSON=$(curl -sS \
-          -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-          -H "Content-Type: application/json" \
-          -X DELETE \
-          "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${EXISTING_TUNNEL_ID}")
-        if ! python3 -c 'import json,sys; data=json.load(sys.stdin);
-if not data.get("success"):
-  print("ERROR: Tunnel delete failed:", data.get("errors") or data, file=sys.stderr); sys.exit(1)
-' <<<"$DELETE_JSON"; then
-          if python3 -c 'import json,sys; data=json.load(sys.stdin);
-errs=data.get("errors") or []
-msg=" ".join(e.get("message","") for e in errs)
-sys.exit(0 if "active connections" in msg.lower() else 1)
-' <<<"$DELETE_JSON"; then
-            echo "Tunnel has active connections."
-            echo "Choose action:"
-            echo "  1) Stop cloudflared container and retry delete"
-            echo "  2) Reuse existing tunnel (no delete)"
-            echo "  3) Abort"
-            read -r -p "Select [1/2/3]: " ACTIVE_ACTION
-            case "$ACTIVE_ACTION" in
-              1)
-                echo "Stopping cloudflared..."
-                docker compose -f "$COMPOSE_FILE" down || true
-                echo "Retrying delete..."
-                DELETE_JSON=$(curl -sS \
-                  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                  -H "Content-Type: application/json" \
-                  -X DELETE \
-                  "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${EXISTING_TUNNEL_ID}")
-                python3 -c 'import json,sys; data=json.load(sys.stdin);
-if not data.get("success"):
-  print("ERROR: Tunnel delete failed:", data.get("errors") or data, file=sys.stderr); sys.exit(1)
-' <<<"$DELETE_JSON" || exit 1
-                ;;
-              2)
-                CLOUDFLARE_TUNNEL_ID="$EXISTING_TUNNEL_ID"
-                if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" ]]; then
-                  echo "Fetching existing tunnel token..."
-                  TOKEN_JSON=$(curl -sS \
-                    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                    -H "Content-Type: application/json" \
-                    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel/${CLOUDFLARE_TUNNEL_ID}/token")
-                  CLOUDFLARE_TUNNEL_TOKEN=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
-if not data.get("success"):
-  print("", end=""); sys.exit(0)
-print(data.get("result") or "")' <<<"$TOKEN_JSON")
-                fi
-                if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
-                  read -r -s -p "Existing tunnel token (manual): " CLOUDFLARE_TUNNEL_TOKEN
-                  echo
-                fi
-                if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
-                  echo "ERROR: Tunnel token is required to reuse an existing tunnel." >&2
-                  exit 1
-                fi
-                ;;
-              *)
-                echo "Aborting."
-                exit 1
-                ;;
-            esac
-          else
-            exit 1
-          fi
-        fi
-        ;;
-      3)
-        read -r -p "New tunnel name: " CLOUDFLARE_TUNNEL_NAME
-        CLOUDFLARE_TUNNEL_NAME="${CLOUDFLARE_TUNNEL_NAME// /}"
-        if [[ -z "$CLOUDFLARE_TUNNEL_NAME" ]]; then
-          echo "ERROR: Tunnel name is required." >&2
-          exit 1
-        fi
-        ;;
-      *)
-        echo "ERROR: Invalid selection." >&2
-        exit 1
-        ;;
-    esac
-  fi
-
-  if [[ -z "${CLOUDFLARE_TUNNEL_ID-}" ]]; then
-    echo "Creating Cloudflare Tunnel..."
-    TUNNEL_CREATE_JSON=$(curl -sS \
-      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-      -H "Content-Type: application/json" \
-      -X POST \
-      "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/cfd_tunnel" \
-      --data "{\"name\":\"${CLOUDFLARE_TUNNEL_NAME}\",\"config_src\":\"local\"}")
-
-    python3 -c 'import json,sys; data=json.load(sys.stdin);
-if not data.get("success"):
-  print("ERROR: Tunnel create failed:", data.get("errors") or data, file=sys.stderr); sys.exit(1)
-result=data.get("result") or {}
-if not result.get("token") or not result.get("id"):
-  print("ERROR: Tunnel create response missing token/id.", file=sys.stderr); sys.exit(1)
-' <<<"$TUNNEL_CREATE_JSON" || exit 1
-
-    CLOUDFLARE_TUNNEL_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(data["result"]["id"])' <<<"$TUNNEL_CREATE_JSON")
-    CLOUDFLARE_TUNNEL_TOKEN=$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(data["result"]["token"])' <<<"$TUNNEL_CREATE_JSON")
-  fi
-
-  echo
-  read -r -p "Public hostname (e.g. coolify.arshware.com) — must match the DNS record you want Cloudflare to update (CNAME to the tunnel): " CLOUDFLARE_DNS_HOSTNAME
-  CLOUDFLARE_DNS_HOSTNAME="${CLOUDFLARE_DNS_HOSTNAME// /}"
-  if [[ -n "$CLOUDFLARE_DNS_HOSTNAME" ]]; then
-    echo "Creating DNS CNAME -> ${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com ..."
-    DNS_CREATE_JSON=$(curl -sS \
-      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-      -H "Content-Type: application/json" \
-      -X POST \
-      "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
-      --data "{\"type\":\"CNAME\",\"name\":\"${CLOUDFLARE_DNS_HOSTNAME}\",\"content\":\"${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com\",\"proxied\":true}")
-    if ! python3 -c 'import json,sys; data=json.load(sys.stdin);
-if not data.get("success"):
-  sys.exit(1)
-' <<<"$DNS_CREATE_JSON"; then
-      echo "DNS create failed; attempting to update existing record..."
-      DNS_LOOKUP_JSON=$(curl -sS \
-        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?type=CNAME&name=${CLOUDFLARE_DNS_HOSTNAME}")
-      DNS_RECORD_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
-records=data.get("result") or []
-print(records[0]["id"] if records else "")' <<<"$DNS_LOOKUP_JSON")
-      if [[ -n "$DNS_RECORD_ID" ]]; then
-        DNS_UPDATE_JSON=$(curl -sS \
-          -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-          -H "Content-Type: application/json" \
-          -X PUT \
-          "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${DNS_RECORD_ID}" \
-          --data "{\"type\":\"CNAME\",\"name\":\"${CLOUDFLARE_DNS_HOSTNAME}\",\"content\":\"${CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com\",\"proxied\":true}")
-        python3 -c 'import json,sys; data=json.load(sys.stdin);
-if not data.get("success"):
-  print("WARN: DNS record update failed:", data.get("errors") or data, file=sys.stderr); sys.exit(0)
-print("DNS record updated.")
-' <<<"$DNS_UPDATE_JSON"
-      else
-        echo "WARN: DNS record not found; please add it manually." >&2
-      fi
-    else
-      echo "DNS record created."
-    fi
-  else
-    echo "Skipping DNS record creation (no hostname provided)."
-  fi
-fi
 
 # --- Required env ---
 VMS_ENV_FILE="$REPO_ROOT/VMs/.env"
@@ -432,7 +157,7 @@ if [[ -f "$VMS_ENV_FILE" ]]; then
   set +a
 fi
 if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]; then
-  echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (export it in-session or use --setup-cloudflare)." >&2
+  echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (set it in VMs/.env or export it in-session)." >&2
   exit 1
 fi
 
