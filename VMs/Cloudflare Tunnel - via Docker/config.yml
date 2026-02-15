@@ -1,6 +1,6 @@
-# When you run install.sh, it can generate a filtered config based on tag blocks:
+# When you run cloudflare_install_and_setup.sh, it can generate a filtered config based on tag blocks:
 # - Tags are defined between: "# [tag]" and "# [/tag]".
-# - install.sh asks which tags to enable, then writes config.generated.yml.
+# - cloudflare_install_and_setup.sh asks which tags to enable, then writes config.generated.yml.
 # - If you skip tag selection, this full config is used as-is.
 
 # Note: If cloudflared runs in Docker and your app is in another container,
