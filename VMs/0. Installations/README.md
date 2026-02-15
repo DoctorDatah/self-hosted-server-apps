@@ -17,6 +17,7 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/0. Installations/install_all.sh
 Scripts live in `scripts/`:
 - `scripts/docker.sh` installs Docker Engine + Docker Compose plugin
 - `scripts/git.sh` installs Git
+- `scripts/infisical.sh` installs the Infisical CLI
 - `scripts/network.sh` creates the shared `appnet` Docker network
 - `scripts/python.sh` installs Python3 + pip
 - `scripts/utils.sh` installs curl + wget
