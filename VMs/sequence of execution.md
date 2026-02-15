@@ -36,5 +36,10 @@ sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-c
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"
 ```
 
+## 5) Optional cleanup (dangerous)
+```bash
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Cleanup/cleanup_vm.sh"
+```
+
 ## Note
 Coolify and Cloudflare use `VMs/.env` for variables created by the Infisical variables fetch.
