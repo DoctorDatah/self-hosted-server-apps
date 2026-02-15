@@ -11,8 +11,6 @@ require_cmd() {
   fi
 }
 
-require_cmd infisical
-
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 VM_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 OUTPUT_FILE="$VM_DIR/.env"
@@ -24,6 +22,17 @@ log_debug() {
   fi
 }
 
+step() {
+  local msg="$1"
+  echo "==> ${msg}"
+}
+
+step "Starting Infisical export script"
+step "Checking prerequisites"
+require_cmd infisical
+step "Infisical CLI found: $(command -v infisical)"
+
+step "Collecting project and auth details"
 read -r -p "Infisical Project ID: " PROJECT_ID
 if [[ -z "${PROJECT_ID// }" ]]; then
   echo "ERROR: Project ID is required." >&2
@@ -52,6 +61,7 @@ log_debug "Environment: ${ENV_NAME}"
 log_debug "Output file: ${OUTPUT_FILE}"
 log_debug "API URL: ${INFISICAL_API_URL:-<default>}"
 
+step "Preparing temp workspace"
 tmp_dir=$(mktemp -d)
 tmp_file="$tmp_dir/export.env"
 combined_file="$tmp_dir/combined.env"
@@ -172,6 +182,7 @@ append_exports_for_path() {
   local path="$1"
   local out_file="$2"
   : > "$out_file"
+  step "Exporting secrets for path: ${path}"
   log_debug "Exporting path: ${path}"
   export_with_fallback "$path" "$out_file" || return 1
   if [[ -s "$out_file" ]]; then
@@ -188,13 +199,18 @@ read -r -p "Fetch all variables (root path / and subfolders)? [y/N]: " FETCH_ALL
 FETCH_ALL=${FETCH_ALL,,}
 
 if [[ "$FETCH_ALL" == "y" || "$FETCH_ALL" == "yes" ]]; then
+  step "Mode: export all folders from root"
   : > "$combined_file"
+  step "Exporting root path /"
   append_exports_for_path "/" "$tmp_file"
+  step "Discovering all subfolders"
   mapfile -t all_folders < <(collect_all_folders)
+  step "Found ${#all_folders[@]} folders"
   for folder in "${all_folders[@]}"; do
     append_exports_for_path "$folder" "$tmp_file"
   done
 else
+  step "Mode: export a specific folder"
   echo "Available folders (root = /):"
   if ! list_folders "/"; then
     echo "WARNING: Could not list folders. You can still enter a path manually." >&2
@@ -205,6 +221,7 @@ else
     echo "ERROR: Folder path is required." >&2
     exit 1
   fi
+  step "Exporting selected folder: ${PATH_NAME}"
   : > "$combined_file"
   append_exports_for_path "$PATH_NAME" "$tmp_file"
 fi
@@ -218,10 +235,13 @@ if [[ ! -s "$combined_file" ]]; then
   exit 1
 fi
 
+step "Printing fetched secret names"
 echo "Fetched variables:"
 awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/{print " - " $1}' "$combined_file"
 
+step "Writing output file"
 mv "$combined_file" "$OUTPUT_FILE"
 chmod 600 "$OUTPUT_FILE"
 
+step "Done"
 echo "Wrote: $OUTPUT_FILE"
