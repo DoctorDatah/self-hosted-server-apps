@@ -41,6 +41,12 @@ export INFISICAL_TOKEN
 export INFISICAL_DISABLE_UPDATE_CHECK=true
 
 tmp_file=$(mktemp)
+cleanup() {
+  if [[ -f "$tmp_file" ]]; then
+    rm -f "$tmp_file"
+  fi
+}
+trap cleanup EXIT
 
 list_folders() {
   local path="$1"
@@ -58,13 +64,32 @@ list_folders() {
 read -r -p "Fetch all variables (including subfolders)? [y/N]: " FETCH_ALL
 FETCH_ALL=${FETCH_ALL,,}
 
-if [[ "$FETCH_ALL" == "y" || "$FETCH_ALL" == "yes" ]]; then
+export_with_fallback() {
+  local path="$1"
+  set +e
   infisical export \
     --projectId="$PROJECT_ID" \
     --env="$ENV_NAME" \
-    --path="/" \
+    --path="$path" \
+    --recursive \
     --format=dotenv \
     --output-file="$tmp_file"
+  local status=$?
+  if [[ $status -ne 0 ]]; then
+    infisical export \
+      --projectId="$PROJECT_ID" \
+      --env="$ENV_NAME" \
+      --path="$path" \
+      --format=dotenv \
+      --output-file="$tmp_file"
+    status=$?
+  fi
+  set -e
+  return $status
+}
+
+if [[ "$FETCH_ALL" == "y" || "$FETCH_ALL" == "yes" ]]; then
+  export_with_fallback "/"
 else
   echo "Available folders (root = /):"
   if ! list_folders "/"; then
@@ -76,13 +101,16 @@ else
     echo "ERROR: Folder path is required." >&2
     exit 1
   fi
-  infisical export \
-    --projectId="$PROJECT_ID" \
-    --env="$ENV_NAME" \
-    --path="$PATH_NAME" \
-    --format=dotenv \
-    --output-file="$tmp_file"
+  export_with_fallback "$PATH_NAME"
 fi
+
+if [[ ! -s "$tmp_file" ]]; then
+  echo "ERROR: No secrets were exported. The .env file would be empty." >&2
+  exit 1
+fi
+
+echo "Fetched variables:"
+awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/{print " - " $1}' "$tmp_file"
 
 mv "$tmp_file" "$OUTPUT_FILE"
 chmod 600 "$OUTPUT_FILE"
