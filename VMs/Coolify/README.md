@@ -22,7 +22,7 @@ Optional overrides:
 
 ## Run (on the VM)
 ```bash
-sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
+sudo docker compose --env-file "/home/malik/self-hosted-server-apps/VMs/.env" -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
 
 ## Network
