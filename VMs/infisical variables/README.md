@@ -11,12 +11,7 @@ This script connects to Infisical using the token you provide, exports secrets f
 
 ## Run on the VM
 ```bash
-"/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
-```
-Or from inside the folder:
-```bash
-cd "/home/malik/self-hosted-server-apps/VMs/Infisical Variables"
-./fetch_infisical_env.sh
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
 ```
 
 ## What it does

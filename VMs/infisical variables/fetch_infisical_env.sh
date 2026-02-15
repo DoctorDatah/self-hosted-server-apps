@@ -16,6 +16,13 @@ require_cmd infisical
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 VM_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 OUTPUT_FILE="$VM_DIR/.env"
+DEBUG="${DEBUG:-0}"
+
+log_debug() {
+  if [[ "$DEBUG" == "1" ]]; then
+    echo "[DEBUG] $*"
+  fi
+}
 
 read -r -p "Infisical Project ID: " PROJECT_ID
 if [[ -z "${PROJECT_ID// }" ]]; then
@@ -39,6 +46,11 @@ fi
 
 export INFISICAL_TOKEN
 export INFISICAL_DISABLE_UPDATE_CHECK=true
+INFISICAL_API_URL="${INFISICAL_API_URL:-}"
+log_debug "Project ID: ${PROJECT_ID}"
+log_debug "Environment: ${ENV_NAME}"
+log_debug "Output file: ${OUTPUT_FILE}"
+log_debug "API URL: ${INFISICAL_API_URL:-<default>}"
 
 tmp_dir=$(mktemp -d)
 tmp_file="$tmp_dir/export.env"
@@ -121,6 +133,7 @@ get_folder_paths() {
   if [[ -z "$output" ]]; then
     output=$(infisical secrets folders get --path="$path" --env="$ENV_NAME" --token="$INFISICAL_TOKEN" 2>/dev/null || true)
   fi
+  log_debug "folders.get raw output for ${path}: ${output:-<empty>}"
 
   local parsed=""
   parsed=$(printf "%s" "$output" | extract_paths_from_output || true)
@@ -159,10 +172,14 @@ append_exports_for_path() {
   local path="$1"
   local out_file="$2"
   : > "$out_file"
+  log_debug "Exporting path: ${path}"
   export_with_fallback "$path" "$out_file" || return 1
   if [[ -s "$out_file" ]]; then
+    log_debug "Exported bytes for ${path}: $(wc -c < "$out_file" | tr -d ' ')"
     cat "$out_file" >> "$combined_file"
     printf "\n" >> "$combined_file"
+  else
+    log_debug "No secrets found at ${path}"
   fi
   return 0
 }
@@ -195,6 +212,9 @@ fi
 if [[ ! -s "$combined_file" ]]; then
   echo "ERROR: No secrets were exported. The .env file would be empty." >&2
   echo "Check: project ID, token permissions, environment slug, and folder path." >&2
+  if [[ "$DEBUG" == "1" ]]; then
+    echo "[DEBUG] Combined file is empty: $combined_file" >&2
+  fi
   exit 1
 fi
 
