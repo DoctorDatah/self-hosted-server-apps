@@ -224,7 +224,7 @@ if [[ "$setup_cloudflare" == "true" ]]; then
   fi
 
   DEFAULT_TUNNEL_NAME="${FIRST_TAG}-tunnel"
-  read -r -p "Tunnel name [Default: ${DEFAULT_TUNNEL_NAME}]: " CLOUDFLARE_TUNNEL_NAME
+  read -r -p "Tunnel name [Default: ${DEFAULT_TUNNEL_NAME} (from selected tag)]: " CLOUDFLARE_TUNNEL_NAME
   CLOUDFLARE_TUNNEL_NAME="${CLOUDFLARE_TUNNEL_NAME// /}"
   if [[ -z "$CLOUDFLARE_TUNNEL_NAME" ]]; then
     CLOUDFLARE_TUNNEL_NAME="$DEFAULT_TUNNEL_NAME"
@@ -424,6 +424,13 @@ print("DNS record updated.")
 fi
 
 # --- Required env ---
+VMS_ENV_FILE="$REPO_ROOT/VMs/.env"
+if [[ -f "$VMS_ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$VMS_ENV_FILE"
+  set +a
+fi
 if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]; then
   echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (export it in-session or use --setup-cloudflare)." >&2
   exit 1
