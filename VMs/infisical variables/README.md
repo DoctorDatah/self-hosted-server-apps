@@ -21,9 +21,10 @@ cd "/home/malik/self-hosted-server-apps/VMs/Infisical Variables"
 
 ## What it does
 - Prompts for Infisical Project ID and token.
-- Asks whether to fetch all variables or a specific folder.
+- Asks whether to fetch all variables from `/` or a specific folder.
 - Lists available folders when you choose a specific folder.
 - Writes `VMs/.env` and locks it to `600` permissions.
+ - Prints the secret names after export.
 
 ## Output
 - `.env` is created at:
@@ -32,3 +33,4 @@ cd "/home/malik/self-hosted-server-apps/VMs/Infisical Variables"
 ## Notes
 - Default environment is `production` (you can override when prompted).
 - Keep the token private.
+ - The script uses the root path `/` to fetch all secrets available to the token.

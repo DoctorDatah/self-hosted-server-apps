@@ -61,7 +61,7 @@ list_folders() {
   return $status
 }
 
-read -r -p "Fetch all variables (including subfolders)? [y/N]: " FETCH_ALL
+read -r -p "Fetch all variables (root path /)? [y/N]: " FETCH_ALL
 FETCH_ALL=${FETCH_ALL,,}
 
 export_with_fallback() {
@@ -71,7 +71,7 @@ export_with_fallback() {
     --projectId="$PROJECT_ID" \
     --env="$ENV_NAME" \
     --path="$path" \
-    --recursive \
+    --include-imports \
     --format=dotenv \
     --output-file="$tmp_file"
   local status=$?
@@ -106,6 +106,7 @@ fi
 
 if [[ ! -s "$tmp_file" ]]; then
   echo "ERROR: No secrets were exported. The .env file would be empty." >&2
+  echo "Check: project ID, token permissions, environment slug, and folder path." >&2
   exit 1
 fi
 
