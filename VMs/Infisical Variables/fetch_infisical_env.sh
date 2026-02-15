@@ -124,10 +124,8 @@ write_env_from_response() {
   local response="$1"
   local include_path_comments="$2"
   local mode="$3" # "write" or "append"
-  local redir=">"
-  if [[ "$mode" == "append" ]]; then
-    redir=">>"
-  fi
+  local temp_file
+  temp_file=$(mktemp)
   if command -v jq >/dev/null 2>&1; then
     if [[ "$include_path_comments" == "1" ]]; then
       printf "%s\n" "$response" | jq -r '
@@ -136,13 +134,13 @@ write_env_from_response() {
         | group_by(.secretPath // .secretPath // "")
         | .[]
         | (if (.[0].secretPath // .secretPath // "") != "" then "# path: \(.[0].secretPath // .secretPath)" else "# path: /" end),
-          (.[] | "\(.secretKey)=\(.secretValue)")' $redir "$tmp_output"
+          (.[] | "\(.secretKey)=\(.secretValue)")' > "$temp_file"
     else
-      printf "%s\n" "$response" | jq -r '.secrets[] | "\(.secretKey)=\(.secretValue)"' $redir "$tmp_output"
+      printf "%s\n" "$response" | jq -r '.secrets[] | "\(.secretKey)=\(.secretValue)"' > "$temp_file"
     fi
   else
     if [[ "$include_path_comments" == "1" ]]; then
-      printf "%s\n" "$response" | python3 - <<'PY' $redir "$tmp_output"
+      printf "%s\n" "$response" | python3 - <<'PY' > "$temp_file"
 import json, sys
 data = sys.stdin.read().strip()
 obj = json.loads(data)
@@ -162,7 +160,7 @@ for s in secrets:
         print(f"{key}={val}")
 PY
     else
-      printf "%s\n" "$response" | python3 - <<'PY' $redir "$tmp_output"
+      printf "%s\n" "$response" | python3 - <<'PY' > "$temp_file"
 import json, sys
 data = sys.stdin.read().strip()
 obj = json.loads(data)
@@ -174,6 +172,12 @@ for s in obj.get("secrets", []):
 PY
     fi
   fi
+  if [[ "$mode" == "append" ]]; then
+    cat "$temp_file" >> "$tmp_output"
+  else
+    cat "$temp_file" > "$tmp_output"
+  fi
+  rm -f "$temp_file"
 }
 
 read -r -p "Fetch all variables from root (${DEFAULT_ALL_PATH}) and subfolders? [y/N]: " FETCH_ALL
