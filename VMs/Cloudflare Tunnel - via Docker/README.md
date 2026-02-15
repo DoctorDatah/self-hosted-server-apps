@@ -8,7 +8,7 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 - Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/install.sh" --setup-cloudflare` to create tunnel + DNS via API
   - Or export `CLOUDFLARE_TUNNEL_TOKEN` and run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/install.sh"`
 - Select tags and the target app network when prompted (default: `appnet`)
-- The app network must already exist (created by `VMs/0. Installations` and app deployment)
+- The app network must already exist (created by `VMs/Installations` and app deployment)
 
 ## Files (Hierarchy)
 ```
@@ -47,7 +47,7 @@ Setup required on the VM:
 ```bash
 echo 'INFISICAL_TOKEN=your_token_here' | sudo tee /etc/infisical.env
 echo 'your_project_id_here' | sudo tee /etc/infisical.project
-sudo -E "/home/malik/self-hosted-server-apps/VMs/0. Installations/install_all.sh" --only infisical
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh" --only infisical
 ```
 
 ## What install.sh does

@@ -26,5 +26,5 @@ sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-c
 ```
 
 ## Network
-This compose uses the shared `appnet` network (external). Ensure it exists first by running `VMs/0. Installations/install_all.sh`.
+This compose uses the shared `appnet` network (external). Ensure it exists first by running `VMs/Installations/install_all.sh`.
 Run the Cloudflare tunnel setup after this so it can attach to `appnet`.
