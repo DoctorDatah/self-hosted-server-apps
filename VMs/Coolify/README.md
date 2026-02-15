@@ -6,19 +6,19 @@ Single-file compose for running Coolify on this VM.
 - `docker-compose.yml` – full Coolify stack (app + postgres + redis + soketi)
 
 ## Required env
-Create `VMs/Coolify/.env` with the Coolify app variables, including:
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `DB_DATABASE` (optional, defaults to `coolify`)
-- `REDIS_PASSWORD`
-- `PUSHER_APP_ID`
-- `PUSHER_APP_KEY`
-- `PUSHER_APP_SECRET`
+Create `VMs/.env` with the Coolify app variables, including:
+- `COOLIFY_DB_USERNAME`
+- `COOLIFY_DB_PASSWORD`
+- `COOLIFY_DB_DATABASE` (optional, defaults to `coolify`)
+- `COOLIFY_REDIS_PASSWORD`
+- `COOLIFY_PUSHER_APP_ID`
+- `COOLIFY_PUSHER_APP_KEY`
+- `COOLIFY_PUSHER_APP_SECRET`
 
 Optional overrides:
-- `APP_PORT` (defaults to `8000`)
-- `SOKETI_PORT` (defaults to `6001`)
-- `REGISTRY_URL`, `LATEST_IMAGE`
+- `COOLIFY_APP_PORT` (defaults to `8000`)
+- `COOLIFY_SOKETI_PORT` (defaults to `6001`)
+- `COOLIFY_REGISTRY_URL`, `COOLIFY_LATEST_IMAGE`
 
 ## Run (on the VM)
 ```bash
