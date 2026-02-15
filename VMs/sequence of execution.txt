@@ -1,5 +1,5 @@
 0. Repo clone / pull
 1. Installation of libraries and packages (includes Infisical CLI)
-2. Infisical Setup and variabels fetch 
-2. App deployment (like Coolify)
+2. Infisical variabels fetch 
+2. App deployment (like Coolify, etc)
 3. Cloudflare tunnel container

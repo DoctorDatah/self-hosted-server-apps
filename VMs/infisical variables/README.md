@@ -1,0 +1,30 @@
+# Infisical Variables (VM)
+
+Fetch secrets from Infisical and write them to a `.env` file under `VMs/`.
+
+## High-level explanation
+This script connects to Infisical using the token you provide, exports secrets from either the entire project (including subfolders) or a specific folder, and writes them into `VMs/.env` so other VM scripts can load them as environment variables.
+
+## Prerequisites
+- Infisical CLI installed on the VM.
+- Network access to Infisical.
+
+## Run on the VM
+```bash
+chmod +x "/home/malik/self-hosted-server-apps/VMs/infisical variables/fetch_infisical_env.sh"
+"/home/malik/self-hosted-server-apps/VMs/infisical variables/fetch_infisical_env.sh"
+```
+
+## What it does
+- Prompts for Infisical Project ID and token.
+- Asks whether to fetch all variables or a specific folder.
+- Lists available folders when you choose a specific folder.
+- Writes `VMs/.env` and locks it to `600` permissions.
+
+## Output
+- `.env` is created at:
+  `/home/malik/self-hosted-server-apps/VMs/.env`
+
+## Notes
+- Default environment is `production` (you can override when prompted).
+- Keep the token private.
