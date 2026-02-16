@@ -37,3 +37,20 @@ run_root apt-get update
 run_root apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 echo "Docker installed."
+
+DEFAULT_DOCKER_USER="malik"
+DOCKER_USER=""
+if [[ -t 0 ]]; then
+  read -r -p "Add user to docker group [Default: ${DEFAULT_DOCKER_USER}]: " DOCKER_USER
+fi
+if [[ -z "${DOCKER_USER// }" ]]; then
+  DOCKER_USER="$DEFAULT_DOCKER_USER"
+fi
+
+if id "$DOCKER_USER" >/dev/null 2>&1; then
+  echo "Adding user '${DOCKER_USER}' to docker group..."
+  run_root usermod -aG docker "$DOCKER_USER" || true
+  echo "Note: log out and back in (or reboot) for group changes to apply."
+else
+  echo "User '${DOCKER_USER}' not found; skipping docker group update."
+fi

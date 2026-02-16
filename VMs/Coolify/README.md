@@ -24,6 +24,7 @@ Optional overrides:
 ```bash
 sudo docker compose --env-file "/home/malik/self-hosted-server-apps/VMs/.env" -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
+Note: `docker-compose.yml` hard-codes `/home/malik/self-hosted-server-apps/VMs/.env` as the env source.
 
 ## Network
 This compose uses the shared `appnet` network (external). Ensure it exists first by running `VMs/Installations/install_all.sh`.

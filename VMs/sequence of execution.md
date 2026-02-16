@@ -28,7 +28,7 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infis
 
 ## 3) App deployment (like Coolify, etc)
 ```bash
-sudo docker compose --env-file "/home/malik/self-hosted-server-apps/VMs/.env" -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
+sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
 
 ## 4) Cloudflare tunnel container
