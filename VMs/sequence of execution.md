@@ -21,15 +21,14 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh"
 ```
 After install, log out (comand: exit ) and log back in as `malik` so the docker group change applies.
 
-## 2) Infisical variables fetch
+## 2) Infisical variables fetch (writes VMs/.env + app-specific .env files)
 ```bash
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
 ```
 ### Note Get the Infisical Token from Infisical folder in homelab project
 
-## 3) Coolify env setup + app deployment
+## 3) App deployment (like Coolify, etc)
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VMs/Coolify/coolify_env_setup.sh"
 sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
 
@@ -44,4 +43,4 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Cleanup/cleanup_vm.sh"
 ```
 
 ## Note
-Coolify and Cloudflare use `VMs/.env` for variables created by the Infisical variables fetch. Coolify now writes `VMs/Coolify/.env` via `coolify_env_setup.sh` so compose can auto-load it.
+Infisical fetch writes `VMs/.env` and also overwrites app-specific `.env` files for Coolify and Cloudflare.

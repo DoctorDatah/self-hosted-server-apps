@@ -22,10 +22,10 @@ Optional overrides:
 
 ## Run (on the VM)
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VMs/Coolify/coolify_env_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infisical_env.sh"
 sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
-Note: `coolify_env_setup.sh` writes `VMs/Coolify/.env` from `VMs/.env`. Re-run it after updating `VMs/.env`.
+Note: Infisical fetch writes `VMs/.env` and overwrites `VMs/Coolify/.env`.
 
 ## Network
 This compose uses the shared `appnet` network (external). Ensure it exists first by running `VMs/Installations/install_all.sh`.

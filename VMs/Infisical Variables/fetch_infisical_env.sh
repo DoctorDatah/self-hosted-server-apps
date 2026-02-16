@@ -227,3 +227,18 @@ chmod 600 "$OUTPUT_FILE"
 
 step "Done"
 echo "Wrote: $OUTPUT_FILE"
+
+# --- Optional convenience copies ---
+COOLIFY_DIR="$VM_DIR/Coolify"
+if [[ -d "$COOLIFY_DIR" ]]; then
+  step "Writing Coolify .env (overwrite from VMs/.env)"
+  cp "$OUTPUT_FILE" "$COOLIFY_DIR/.env"
+  chmod 600 "$COOLIFY_DIR/.env"
+fi
+
+CLOUDFLARE_DIR="$VM_DIR/Cloudflare Tunnel - via Docker"
+if [[ -d "$CLOUDFLARE_DIR" ]]; then
+  step "Writing Cloudflare .env (overwrite from VMs/.env)"
+  cp "$OUTPUT_FILE" "$CLOUDFLARE_DIR/.env"
+  chmod 600 "$CLOUDFLARE_DIR/.env"
+fi
