@@ -7,6 +7,7 @@ This folder contains scripts to install common VM prerequisites.
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh"
 
 ```
+After install, log out and log back in as `malik` so the docker group change applies.
 
 ## Run Specific Tools
 ```bash

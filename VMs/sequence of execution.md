@@ -19,6 +19,7 @@ sudo -u malik git clone https://github.com/DoctorDatah/self-hosted-server-apps /
 ```bash
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh"
 ```
+After install, log out (comand: exit ) and log back in as `malik` so the docker group change applies.
 
 ## 2) Infisical variables fetch
 ```bash
@@ -26,8 +27,9 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Infisical Variables/fetch_infis
 ```
 ### Note Get the Infisical Token from Infisical folder in homelab project
 
-## 3) App deployment (like Coolify, etc)
+## 3) Coolify env setup + app deployment
 ```bash
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Coolify/coolify_env_setup.sh"
 sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
 
@@ -42,4 +44,4 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Cleanup/cleanup_vm.sh"
 ```
 
 ## Note
-Coolify and Cloudflare use `VMs/.env` for variables created by the Infisical variables fetch.
+Coolify and Cloudflare use `VMs/.env` for variables created by the Infisical variables fetch. Coolify now writes `VMs/Coolify/.env` via `coolify_env_setup.sh` so compose can auto-load it.
