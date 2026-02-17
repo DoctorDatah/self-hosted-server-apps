@@ -226,6 +226,21 @@ escape_env() {
   printf '%s' "$val"
 }
 
+get_env_val() {
+  local key="$1"
+  local file="$2"
+  awk -F= -v k="$key" '
+    $1==k { sub(/^[^=]*=/,""); print; exit }
+  ' "$file"
+}
+
+existing_token=""
+existing_id=""
+if [[ -f "$OUTPUT_FILE" ]]; then
+  existing_token="$(get_env_val "CLOUDFLARE_TUNNEL_TOKEN" "$OUTPUT_FILE")"
+  existing_id="$(get_env_val "CLOUDFLARE_TUNNEL_ID" "$OUTPUT_FILE")"
+fi
+
 {
   while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ -z "${line// }" || "${line:0:1}" == "#" ]]; then
@@ -237,6 +252,14 @@ escape_env() {
     printf '%s="%s"\n' "$key" "$(escape_env "$val")"
   done < "$tmp_output"
 } > "$OUTPUT_FILE"
+
+# Preserve existing token/id if Infisical did not return them
+if ! grep -qE '^CLOUDFLARE_TUNNEL_TOKEN=' "$OUTPUT_FILE" && [[ -n "$existing_token" ]]; then
+  printf 'CLOUDFLARE_TUNNEL_TOKEN="%s"\n' "$(escape_env "$existing_token")" >> "$OUTPUT_FILE"
+fi
+if ! grep -qE '^CLOUDFLARE_TUNNEL_ID=' "$OUTPUT_FILE" && [[ -n "$existing_id" ]]; then
+  printf 'CLOUDFLARE_TUNNEL_ID="%s"\n' "$(escape_env "$existing_id")" >> "$OUTPUT_FILE"
+fi
 
 # Ensure pinned defaults exist
 if [[ -f "$REQ_FILE" ]]; then

@@ -190,6 +190,25 @@ load_env_file() {
 if [[ -f "$LOCAL_ENV_FILE" ]]; then
   load_env_file "$LOCAL_ENV_FILE"
 fi
+
+require_env_var() {
+  local key="$1"
+  if [[ -z "${!key-}" ]]; then
+    echo "ERROR: ${key} is required. Run cloudflare_env_setup.sh first." >&2
+    exit 1
+  fi
+}
+
+require_env_var "CLOUDFLARE_IMAGE"
+require_env_var "CLOUDFLARE_IMAGE_TAG"
+require_env_var "CLOUDFLARE_CONFIG_PATH"
+require_env_var "CLOUDFLARE_APP_NETWORK"
+
+if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
+  echo "ERROR: Docker network '${CLOUDFLARE_APP_NETWORK}' not found." >&2
+  echo "Run the installation module (creates appnet) and deploy the app first." >&2
+  exit 1
+fi
 if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" && -n "${Cloudflare_Account_ID-}" ]]; then
   CLOUDFLARE_ACCOUNT_ID="$Cloudflare_Account_ID"
 fi
@@ -382,6 +401,38 @@ if not result.get("token") or not result.get("id"):
   CLOUDFLARE_TUNNEL_TOKEN=$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(data["result"]["token"])' <<<"$TUNNEL_CREATE_JSON")
 fi
 
+# --- Persist token locally (.env) ---
+LOCAL_ENV_FILE="$SCRIPT_DIR/.env"
+escape_env() {
+  local val="$1"
+  val="${val//\\/\\\\}"
+  val="${val//\"/\\\"}"
+  printf '%s' "$val"
+}
+upsert_env_var() {
+  local key="$1"
+  local val="$2"
+  local file="$3"
+  if [[ -f "$file" ]] && grep -qE "^${key}=" "$file"; then
+    awk -v k="$key" -v v="$val" '
+      BEGIN { updated=0 }
+      $0 ~ "^"k"=" { print k"=\""v"\""; updated=1; next }
+      { print }
+      END { if (!updated) print k"=\""v"\"" }
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+  else
+    printf '%s="%s"\n' "$key" "$val" >> "$file"
+  fi
+}
+
+if [[ -n "${CLOUDFLARE_TUNNEL_TOKEN-}" ]]; then
+  echo "Saving tunnel token to local .env..."
+  upsert_env_var "CLOUDFLARE_TUNNEL_TOKEN" "$(escape_env "$CLOUDFLARE_TUNNEL_TOKEN")" "$LOCAL_ENV_FILE"
+fi
+if [[ -n "${CLOUDFLARE_TUNNEL_ID-}" ]]; then
+  upsert_env_var "CLOUDFLARE_TUNNEL_ID" "$(escape_env "$CLOUDFLARE_TUNNEL_ID")" "$LOCAL_ENV_FILE"
+fi
+
 echo
 read -r -p "Public hostname (e.g. coolify.arshware.com) — must match the DNS record you want Cloudflare to update (CNAME to the tunnel): " CLOUDFLARE_DNS_HOSTNAME
 CLOUDFLARE_DNS_HOSTNAME="${CLOUDFLARE_DNS_HOSTNAME// /}"
@@ -436,7 +487,7 @@ if [[ -f "$VMS_ENV_FILE" ]]; then
   set +a
 fi
 if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]; then
-  echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (set it in VMs/.env or export it in-session)." >&2
+  echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (set it in local .env or export it in-session)." >&2
   exit 1
 fi
 

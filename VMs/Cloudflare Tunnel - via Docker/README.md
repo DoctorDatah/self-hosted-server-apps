@@ -46,3 +46,4 @@ The env setup script writes `.env` in this folder before starting.
 ## Notes
 - Update `config.yml` with your hostname(s) and service target(s).
 - `cloudflare_install_and_setup.sh` can filter `config.yml` by tag blocks and write `config.generated.yml`.
+- `cloudflare_env_setup.sh` preserves an existing tunnel token/ID in `.env` if Infisical doesn’t return them.
