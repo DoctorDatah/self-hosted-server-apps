@@ -219,7 +219,24 @@ if [[ ! -s "$tmp_output" ]]; then
 fi
 
 step "Writing output file"
-cp "$tmp_output" "$OUTPUT_FILE"
+escape_env() {
+  local val="$1"
+  val="${val//\\/\\\\}"
+  val="${val//\"/\\\"}"
+  printf '%s' "$val"
+}
+
+{
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "${line// }" || "${line:0:1}" == "#" ]]; then
+      echo "$line"
+      continue
+    fi
+    key="${line%%=*}"
+    val="${line#*=}"
+    printf '%s="%s"\n' "$key" "$(escape_env "$val")"
+  done < "$tmp_output"
+} > "$OUTPUT_FILE"
 
 # Ensure pinned defaults exist
 if [[ -f "$REQ_FILE" ]]; then
@@ -228,16 +245,16 @@ if [[ -f "$REQ_FILE" ]]; then
     key="$(echo "$key" | xargs)"
     val="$(echo "${val-}" | xargs)"
     if ! grep -qE "^${key}=" "$OUTPUT_FILE"; then
-      printf '%s=%s\n' "$key" "$val" >> "$OUTPUT_FILE"
+      printf '%s="%s"\n' "$key" "$(escape_env "$val")" >> "$OUTPUT_FILE"
     fi
   done < "$REQ_FILE"
 fi
 
 if ! grep -qE '^CLOUDFLARE_CONFIG_PATH=' "$OUTPUT_FILE"; then
-  printf 'CLOUDFLARE_CONFIG_PATH=%s\n' "$CONFIG_PATH" >> "$OUTPUT_FILE"
+  printf 'CLOUDFLARE_CONFIG_PATH="%s"\n' "$(escape_env "$CONFIG_PATH")" >> "$OUTPUT_FILE"
 fi
 if ! grep -qE '^CLOUDFLARE_APP_NETWORK=' "$OUTPUT_FILE"; then
-  printf 'CLOUDFLARE_APP_NETWORK=appnet\n' "$OUTPUT_FILE"
+  printf 'CLOUDFLARE_APP_NETWORK="%s"\n' "$(escape_env "appnet")" >> "$OUTPUT_FILE"
 fi
 
 chmod 600 "$OUTPUT_FILE"

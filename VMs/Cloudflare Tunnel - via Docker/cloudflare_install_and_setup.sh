@@ -172,13 +172,23 @@ if [[ -z "${CLOUDFLARE_API_TOKEN-}" && -n "${Cloudflare_Token-}" ]]; then
   CLOUDFLARE_API_TOKEN="$Cloudflare_Token"
 fi
 
-# Load from local .env if present
+# Load from local .env if present (safe parser; supports spaces)
 LOCAL_ENV_FILE="$SCRIPT_DIR/.env"
+load_env_file() {
+  local file="$1"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "${line// }" || "${line:0:1}" == "#" ]] && continue
+    key="${line%%=*}"
+    val="${line#*=}"
+    # Strip optional surrounding quotes
+    if [[ "${val:0:1}" == "\"" && "${val: -1}" == "\"" ]]; then
+      val="${val:1:${#val}-2}"
+    fi
+    export "$key=$val"
+  done < "$file"
+}
 if [[ -f "$LOCAL_ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$LOCAL_ENV_FILE"
-  set +a
+  load_env_file "$LOCAL_ENV_FILE"
 fi
 if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" && -n "${Cloudflare_Account_ID-}" ]]; then
   CLOUDFLARE_ACCOUNT_ID="$Cloudflare_Account_ID"
