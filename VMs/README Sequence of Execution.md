@@ -22,6 +22,7 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh"
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Coolify/coolify_env_setup.sh"
 ```
 #### Note Get the Infisical Token from Infisical folder in homelab project
+#### Ideal do not fetch all folders (select N ) and then specify the folder /coolify only
 
 ### Coolify deployment
 ```bash
@@ -36,6 +37,8 @@ Note: If you change DB/Redis secrets after the first run, recreate volumes (`doc
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare/cloudflare_env_setup.sh"
 ```
 #### Note Get the Infisical Token from Infisical folder in homelab project
+#### Ideal do not fetch all folders (select N ) and then specify the folder /cloudflare only
+
 
 ### Cloudflare tunnel container
 ```bash
