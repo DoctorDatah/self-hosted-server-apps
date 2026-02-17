@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fetches secrets from Infisical and writes a .env file in the VMs folder.
+# Fetches secrets from Infisical and writes VMs/Coolify/.env.
 # Ubuntu-only script.
 
 require_cmd() {
@@ -31,8 +31,8 @@ require_ubuntu() {
 }
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-VM_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
-OUTPUT_FILE="$VM_DIR/.env"
+OUTPUT_FILE="$SCRIPT_DIR/.env"
+LOCAL_OVERRIDE_FILE="$SCRIPT_DIR/.env.local"
 DEBUG="${DEBUG:-0}"
 DEFAULT_ENV_NAME="production"
 DEFAULT_ALL_PATH="/"
@@ -48,7 +48,7 @@ step() {
   echo "==> ${msg}"
 }
 
-step "Starting Infisical export script"
+step "Starting Infisical export for Coolify"
 step "Checking prerequisites"
 require_ubuntu
 require_cmd curl
@@ -190,7 +190,7 @@ if [[ "$FETCH_ALL" == "y" || "$FETCH_ALL" == "yes" ]]; then
   write_env_from_response "$response" "1" "write"
 else
   step "Mode: export a specific folder"
-  read -r -p "Enter folder path(s) (comma-separated, e.g. /cloudflare,/n8n): " PATH_NAME
+  read -r -p "Enter folder path(s) (comma-separated, e.g. /coolify): " PATH_NAME
   if [[ -z "${PATH_NAME// }" ]]; then
     echo "ERROR: Folder path is required." >&2
     exit 1
@@ -225,20 +225,38 @@ step "Writing output file"
 cp "$tmp_output" "$OUTPUT_FILE"
 chmod 600 "$OUTPUT_FILE"
 
+if [[ -f "$LOCAL_OVERRIDE_FILE" ]]; then
+  step "Merging local overrides from $(basename "$LOCAL_OVERRIDE_FILE")"
+  while IFS='=' read -r key _; do
+    [[ -z "${key// }" || "${key:0:1}" == "#" ]] && continue
+    if grep -qE "^${key}=" "$OUTPUT_FILE"; then
+      echo "WARN: override ${key} from $(basename "$LOCAL_OVERRIDE_FILE")"
+    fi
+  done < "$LOCAL_OVERRIDE_FILE"
+  cat "$LOCAL_OVERRIDE_FILE" >> "$OUTPUT_FILE"
+fi
+
+required_vars=(
+  COOLIFY_DB_USERNAME
+  COOLIFY_DB_PASSWORD
+  COOLIFY_DB_DATABASE
+  COOLIFY_REDIS_PASSWORD
+  COOLIFY_PUSHER_APP_ID
+  COOLIFY_PUSHER_APP_KEY
+  COOLIFY_PUSHER_APP_SECRET
+)
+
+missing=false
+for v in "${required_vars[@]}"; do
+  val="$(awk -F= -v k="$v" '$1==k { sub(/^[^=]*=/,""); print; exit }' "$OUTPUT_FILE")"
+  if [[ -z "${val}" ]]; then
+    echo "ERROR: $v is missing or empty in $(basename "$OUTPUT_FILE")" >&2
+    missing=true
+  fi
+done
+if [[ "$missing" == "true" ]]; then
+  exit 1
+fi
+
 step "Done"
 echo "Wrote: $OUTPUT_FILE"
-
-# --- Optional convenience copies ---
-COOLIFY_DIR="$VM_DIR/Coolify"
-if [[ -d "$COOLIFY_DIR" ]]; then
-  step "Writing Coolify .env (overwrite from VMs/.env)"
-  cp "$OUTPUT_FILE" "$COOLIFY_DIR/.env"
-  chmod 600 "$COOLIFY_DIR/.env"
-fi
-
-CLOUDFLARE_DIR="$VM_DIR/Cloudflare Tunnel - via Docker"
-if [[ -d "$CLOUDFLARE_DIR" ]]; then
-  step "Writing Cloudflare .env (overwrite from VMs/.env)"
-  cp "$OUTPUT_FILE" "$CLOUDFLARE_DIR/.env"
-  chmod 600 "$CLOUDFLARE_DIR/.env"
-fi

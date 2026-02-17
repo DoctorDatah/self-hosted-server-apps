@@ -172,12 +172,12 @@ if [[ -z "${CLOUDFLARE_API_TOKEN-}" && -n "${Cloudflare_Token-}" ]]; then
   CLOUDFLARE_API_TOKEN="$Cloudflare_Token"
 fi
 
-# Load from shared VMs/.env if present
-VMS_ENV_FILE="$REPO_ROOT/VMs/.env"
-if [[ -f "$VMS_ENV_FILE" ]]; then
+# Load from local .env if present
+LOCAL_ENV_FILE="$SCRIPT_DIR/.env"
+if [[ -f "$LOCAL_ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
-  source "$VMS_ENV_FILE"
+  source "$LOCAL_ENV_FILE"
   set +a
 fi
 if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" && -n "${Cloudflare_Account_ID-}" ]]; then
