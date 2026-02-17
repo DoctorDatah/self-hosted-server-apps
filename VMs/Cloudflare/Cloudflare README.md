@@ -5,8 +5,8 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ## Quick Steps (Do This)
 - Clone the repo to the VM (first time only) (pull later)
 - Update `config.yml` with your hostname(s) and service target(s)
-- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_env_setup.sh"` (writes `.env` from Infisical)
-- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"` (prompts for Cloudflare API setup; reads values from local `.env` and saves the tunnel token locally)
+- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare/cloudflare_env_setup.sh"` (writes `.env` from Infisical)
+- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare/cloudflare_install_and_setup.sh"` (prompts for Cloudflare API setup; reads values from local `.env` and saves the tunnel token locally)
 - Select tags and the target app network when prompted (default: `appnet`)
 - The app network must already exist (created by `VMs/Installations` and app deployment)
 
@@ -29,8 +29,8 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ## Usage (on the VM)
 ### Run (prompts for setup)
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_env_setup.sh"
-sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare/cloudflare_env_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare/cloudflare_install_and_setup.sh"
 ```
 The env setup script writes `.env` in this folder before starting.
 

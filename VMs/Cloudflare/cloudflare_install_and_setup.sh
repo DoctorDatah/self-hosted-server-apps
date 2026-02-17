@@ -13,9 +13,9 @@ Usage: ./cloudflare_install_and_setup.sh [--pull] [--down]
 Requires:
   - Repo cloned on the VM
   - VMs/install/install_all.sh has been run (Docker + deps installed)
-  - VMs/Cloudflare Tunnel - via Docker/config.yml
-  - VMs/Cloudflare Tunnel - via Docker/docker-compose.yml
-  - VMs/Cloudflare Tunnel - via Docker/requirements.txt
+  - VMs/Cloudflare/config.yml
+  - VMs/Cloudflare/docker-compose.yml
+  - VMs/Cloudflare/requirements.txt
 
 Flags:
   --pull         Pull latest images before starting
@@ -543,7 +543,7 @@ if [[ "$OVERRIDE_TAG" =~ ^[Yy]$ ]]; then
 fi
 
 if [[ -z "$CLOUDFLARE_IMAGE_TAG" || "$CLOUDFLARE_IMAGE_TAG" == "TBD" ]]; then
-  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VMs/Cloudflare Tunnel - via Docker/requirements.txt." >&2
+  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VMs/Cloudflare/requirements.txt." >&2
   exit 1
 fi
 
