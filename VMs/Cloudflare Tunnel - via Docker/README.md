@@ -6,7 +6,7 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 - Clone the repo to the VM (first time only) (pull later)
 - Update `config.yml` with your hostname(s) and service target(s)
 - Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_env_setup.sh"` (writes `.env` from Infisical)
-- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"` (prompts for Cloudflare API setup; reads values from local `.env`)
+- Run `sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_install_and_setup.sh"` (prompts for Cloudflare API setup; reads values from local `.env` and saves the tunnel token locally)
 - Select tags and the target app network when prompted (default: `appnet`)
 - The app network must already exist (created by `VMs/Installations` and app deployment)
 
@@ -47,3 +47,4 @@ The env setup script writes `.env` in this folder before starting.
 - Update `config.yml` with your hostname(s) and service target(s).
 - `cloudflare_install_and_setup.sh` can filter `config.yml` by tag blocks and write `config.generated.yml`.
 - `cloudflare_env_setup.sh` preserves an existing tunnel token/ID in `.env` if Infisical doesn’t return them.
+- `cloudflare_env_setup.sh` does not pull the tunnel token/ID from Infisical; the install script saves them locally.

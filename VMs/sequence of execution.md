@@ -31,6 +31,7 @@ sudo -E "/home/malik/self-hosted-server-apps/VMs/Coolify/coolify_env_setup.sh"
 ```bash
 sudo docker compose -f "/home/malik/self-hosted-server-apps/VMs/Coolify/docker-compose.yml" up -d
 ```
+Note: If you change DB/Redis secrets after the first run, recreate volumes (`docker compose down -v`) or Coolify will fail auth.
 
 ## 4) Cloudflare env setup
 ```bash

@@ -249,6 +249,9 @@ fi
     fi
     key="${line%%=*}"
     val="${line#*=}"
+    if [[ "$key" == "CLOUDFLARE_TUNNEL_TOKEN" || "$key" == "CLOUDFLARE_TUNNEL_ID" ]]; then
+      continue
+    fi
     printf '%s="%s"\n' "$key" "$(escape_env "$val")"
   done < "$tmp_output"
 } > "$OUTPUT_FILE"

@@ -478,14 +478,6 @@ else
   echo "Skipping DNS record creation (no hostname provided)."
 fi
 
-# --- Required env ---
-VMS_ENV_FILE="$REPO_ROOT/VMs/.env"
-if [[ -f "$VMS_ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$VMS_ENV_FILE"
-  set +a
-fi
 if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]; then
   echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (set it in local .env or export it in-session)." >&2
   exit 1
@@ -567,15 +559,27 @@ echo "Starting cloudflared with docker compose..."
 cd "$REPO_ROOT"
 
 if [[ "$down" == "true" ]]; then
-  docker compose -f "$COMPOSE_FILE" down
+  if [[ ! -f "$LOCAL_ENV_FILE" ]]; then
+    echo "ERROR: Missing local .env at $LOCAL_ENV_FILE. Run cloudflare_env_setup.sh first." >&2
+    exit 1
+  fi
+  docker compose --env-file "$LOCAL_ENV_FILE" -f "$COMPOSE_FILE" down
   exit 0
 fi
 
 if [[ "$pull" == "true" ]]; then
-  docker compose -f "$COMPOSE_FILE" pull
+  if [[ ! -f "$LOCAL_ENV_FILE" ]]; then
+    echo "ERROR: Missing local .env at $LOCAL_ENV_FILE. Run cloudflare_env_setup.sh first." >&2
+    exit 1
+  fi
+  docker compose --env-file "$LOCAL_ENV_FILE" -f "$COMPOSE_FILE" pull
 fi
 
-docker compose -f "$COMPOSE_FILE" up -d
+if [[ ! -f "$LOCAL_ENV_FILE" ]]; then
+  echo "ERROR: Missing local .env at $LOCAL_ENV_FILE. Run cloudflare_env_setup.sh first." >&2
+  exit 1
+fi
+docker compose --env-file "$LOCAL_ENV_FILE" -f "$COMPOSE_FILE" up -d
 
 echo "cloudflared is starting. Check logs with:"
-printf 'docker compose -f %q logs -f\n' "$COMPOSE_FILE"
+printf 'docker compose --env-file %q -f %q logs -f\n' "$LOCAL_ENV_FILE" "$COMPOSE_FILE"
