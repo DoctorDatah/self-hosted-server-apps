@@ -18,6 +18,14 @@ services:
       - /data/coolify/backups:/var/www/html/storage/app/backups
     environment:
       - APP_ENV=${COOLIFY_APP_ENV:-production}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=coolify-db
+      - DB_PORT=5432
+      - DB_DATABASE=${COOLIFY_DB_DATABASE:-coolify}
+      - DB_USERNAME=${COOLIFY_DB_USERNAME}
+      - DB_PASSWORD=${COOLIFY_DB_PASSWORD}
+      - REDIS_HOST=coolify-redis
+      - REDIS_PASSWORD=${COOLIFY_REDIS_PASSWORD}
       - PHP_MEMORY_LIMIT=${PHP_MEMORY_LIMIT:-256M}
       - PHP_FPM_PM_CONTROL=${PHP_FPM_PM_CONTROL:-dynamic}
       - PHP_FPM_PM_START_SERVERS=${PHP_FPM_PM_START_SERVERS:-1}

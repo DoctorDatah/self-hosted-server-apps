@@ -37,6 +37,7 @@ Note: If you change DB/Redis secrets after the first run, recreate volumes (`doc
 ```bash
 sudo -E "/home/malik/self-hosted-server-apps/VMs/Cloudflare Tunnel - via Docker/cloudflare_env_setup.sh"
 ```
+### Note Get the Infisical Token from Infisical folder in homelab project
 
 ## 5) Cloudflare tunnel container
 ```bash
