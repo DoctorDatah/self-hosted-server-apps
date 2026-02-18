@@ -3,7 +3,7 @@
 # Use Cloudflare Access to protect the hostname.
 
 ingress:
-  - hostname: ssh.vm.n8n.arshware.com
+  - hostname: ssh-vm-n8n.arshware.com
     service: ssh://localhost:22
 
   - service: http_status:404
