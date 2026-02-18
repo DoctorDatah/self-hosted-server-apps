@@ -4,9 +4,9 @@ Comprehensive cleanup for a VM (containers, volumes, images, networks, repo fold
 
 ## Run
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM Coolify/cleanup/cleanup_vm.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - Manual App Deployment (Inside VM)/cleanup/cleanup_vm.sh"
 or
-sudo -E "VM Coolify/Cleanup/cleanup_vm.sh"
+sudo -E "VM - Manual App Deployment (Inside VM)/Cleanup/cleanup_vm.sh"
 
 ```
 

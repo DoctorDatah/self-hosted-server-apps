@@ -12,21 +12,21 @@ sudo -u malik git clone https://github.com/DoctorDatah/self-hosted-server-apps /
 
 ## 2) Installation of libraries and packages (includes Infisical CLI)
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM Coolify/Installations/install_all.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - Manual App Deployment (Inside VM)/Installations/install_all.sh"
 ```
 
 ## 3) Coolify 
 
 ### Coolify env setup
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM Coolify/Coolify/coolify_env_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - Manual App Deployment (Inside VM)/Coolify/coolify_env_setup.sh"
 ```
 #### Note Get the Infisical Token from Infisical folder in homelab project
 #### Ideal do not fetch all folders (select N ) and then specify the folder /coolify only
 
 ### Coolify deployment
 ```bash
-sudo docker compose -f "/home/malik/self-hosted-server-apps/VM Coolify/Coolify/docker-compose.yml" up -d
+sudo docker compose -f "/home/malik/self-hosted-server-apps/VM - Manual App Deployment (Inside VM)/Coolify/docker-compose.yml" up -d
 ```
 Note: If you change DB/Redis secrets after the first run, recreate volumes (`docker compose down -v`) or Coolify will fail auth.
 
@@ -34,7 +34,7 @@ Note: If you change DB/Redis secrets after the first run, recreate volumes (`doc
 
 ### Cloudflare env setup
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM Coolify/Cloudflare/cloudflare_env_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - Manual App Deployment (Inside VM)/Cloudflare/cloudflare_env_setup.sh"
 ```
 #### Note Get the Infisical Token from Infisical folder in homelab project
 #### Ideal do not fetch all folders (select N ) and then specify the folder /cloudflare only
@@ -42,10 +42,10 @@ sudo -E "/home/malik/self-hosted-server-apps/VM Coolify/Cloudflare/cloudflare_en
 
 ### Cloudflare tunnel container
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM Coolify/Cloudflare/cloudflare_install_and_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - Manual App Deployment (Inside VM)/Cloudflare/cloudflare_install_and_setup.sh"
 ```
 
 ## 0) Optional cleanup (dangerous) (Do not do it when you have the funtional app - it wipes/deletes the databases)
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM Coolify/Cleanup/cleanup_vm.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - Manual App Deployment (Inside VM)/Cleanup/cleanup_vm.sh"
 ```

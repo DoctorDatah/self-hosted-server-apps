@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fetches secrets from Infisical and writes VM Coolify/Coolify/.env.
+# Fetches secrets from Infisical and writes VM - Manual App Deployment (Inside VM)/Coolify/.env.
 # Ubuntu-only script.
 
 require_cmd() {
