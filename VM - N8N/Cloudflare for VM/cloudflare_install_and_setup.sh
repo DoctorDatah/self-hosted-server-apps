@@ -12,7 +12,7 @@ Usage: ./cloudflare_install_and_setup.sh [--pull] [--down]
 
 Requires:
   - Repo cloned on the VM
-  - VM - N8N/install/install_all.sh has been run (Docker + deps installed)
+  - VM - N8N/Installations/install_all.sh has been run (Docker + deps installed)
   - VM - N8N/Cloudflare for VM/config.yml
   - VM - N8N/Cloudflare for VM/docker-compose.yml
   - VM - N8N/Cloudflare for VM/requirements.txt
@@ -61,7 +61,6 @@ if [[ -z "$REPO_ROOT" ]]; then
 fi
 
 CONFIG_PATH="$SCRIPT_DIR/config.yml"
-GENERATED_CONFIG_PATH="$SCRIPT_DIR/config.generated.yml"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 DEPS_FILE="$SCRIPT_DIR/requirements.txt"
 
@@ -82,7 +81,7 @@ fi
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
-    echo "ERROR: $1 is missing. Please execute the installation module first (VM - N8N/install/install_all.sh)." >&2
+    echo "ERROR: $1 is missing. Please execute the installation module first (VM - N8N/Installations/install_all.sh)." >&2
     exit 1
   }
 }
@@ -90,62 +89,14 @@ require_cmd() {
 echo "Checking dependencies..."
 require_cmd docker
 docker compose version >/dev/null 2>&1 || {
-  echo "ERROR: docker compose is missing. Please execute the installation module first (VM - N8N/install/install_all.sh)." >&2
+  echo "ERROR: docker compose is missing. Please execute the installation module first (VM - N8N/Installations/install_all.sh)." >&2
   exit 1
 }
 echo "Dependencies OK."
 
-# --- Tag selection (ingress) ---
+# --- Config (SSH-only) ---
 echo
-echo "Reading available tags from config..."
-mapfile -t TAGS < <(awk '/^[[:space:]]*# \[[^/].*\]/{gsub(/^[[:space:]]*# \[/,""); gsub(/\].*$/,""); print}' "$CONFIG_PATH")
-if [[ ${#TAGS[@]} -eq 0 ]]; then
-  echo "No tags found in $CONFIG_PATH." >&2
-  exit 1
-fi
-
-echo "Available tags:"
-for t in "${TAGS[@]}"; do
-  echo "- ${t}"
-done
-
-while true; do
-  echo
-read -r -p "Select tags (comma-separated, e.g. app-main,app-ws) [required]: " SELECTED_RAW
-  SELECTED_RAW="${SELECTED_RAW// /}"
-  if [[ -z "${SELECTED_RAW}" ]]; then
-    echo "Please select at least one tag."
-    continue
-  fi
-  break
-done
-
-# --- App network selection (Docker) ---
-IFS=',' read -r FIRST_TAG _ <<< "$SELECTED_RAW"
-DEFAULT_APP_NETWORK="appnet"
-
-if [[ "$SELECTED_RAW" == *","* ]]; then
-  echo "Note: Multiple tags selected. Ensure all services are reachable on the same network."
-fi
-
-echo
-echo "Selecting app network..."
-read -r -p "Docker network for target app [Default: ${DEFAULT_APP_NETWORK}]: " CLOUDFLARE_APP_NETWORK
-CLOUDFLARE_APP_NETWORK="${CLOUDFLARE_APP_NETWORK// /}"
-if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
-  CLOUDFLARE_APP_NETWORK="$DEFAULT_APP_NETWORK"
-fi
-
-if [[ -z "$CLOUDFLARE_APP_NETWORK" ]]; then
-  echo "ERROR: CLOUDFLARE_APP_NETWORK is required." >&2
-  exit 1
-fi
-
-if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
-  echo "ERROR: Docker network '${CLOUDFLARE_APP_NETWORK}' not found." >&2
-  echo "Run the installation module (creates appnet) and deploy the app first." >&2
-  exit 1
-fi
+echo "Using SSH-only config at: $CONFIG_PATH"
 
 
 # --- Cloudflare API setup (always) ---
@@ -202,13 +153,6 @@ require_env_var() {
 require_env_var "CLOUDFLARE_IMAGE"
 require_env_var "CLOUDFLARE_IMAGE_TAG"
 require_env_var "CLOUDFLARE_CONFIG_PATH"
-require_env_var "CLOUDFLARE_APP_NETWORK"
-
-if ! docker network inspect "$CLOUDFLARE_APP_NETWORK" >/dev/null 2>&1; then
-  echo "ERROR: Docker network '${CLOUDFLARE_APP_NETWORK}' not found." >&2
-  echo "Run the installation module (creates appnet) and deploy the app first." >&2
-  exit 1
-fi
 if [[ -z "${CLOUDFLARE_ACCOUNT_ID-}" && -n "${Cloudflare_Account_ID-}" ]]; then
   CLOUDFLARE_ACCOUNT_ID="$Cloudflare_Account_ID"
 fi
@@ -247,8 +191,8 @@ if [[ -z "${CLOUDFLARE_API_TOKEN-}" ]]; then
   exit 1
 fi
 
-DEFAULT_TUNNEL_NAME="${FIRST_TAG}-tunnel"
-read -r -p "Tunnel name [Default: ${DEFAULT_TUNNEL_NAME} (from selected tag)]: " CLOUDFLARE_TUNNEL_NAME
+DEFAULT_TUNNEL_NAME="vm-ssh-tunnel"
+read -r -p "Tunnel name [Default: ${DEFAULT_TUNNEL_NAME}]: " CLOUDFLARE_TUNNEL_NAME
 CLOUDFLARE_TUNNEL_NAME="${CLOUDFLARE_TUNNEL_NAME// /}"
 if [[ -z "$CLOUDFLARE_TUNNEL_NAME" ]]; then
   CLOUDFLARE_TUNNEL_NAME="$DEFAULT_TUNNEL_NAME"
@@ -483,30 +427,6 @@ if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]
   exit 1
 fi
 
-# --- Generate config based on tags ---
-echo "Generating tunnel config for selected tags..."
-awk -v selected_list="${SELECTED_RAW}" '
-  BEGIN {
-    split(selected_list, arr, ",");
-    for (i in arr) { sel[arr[i]] = 1; }
-    in_block = 0; emit = 1;
-  }
-  /^[[:space:]]*# \[[^/].*\]/ {
-    tag=$0; sub(/^[[:space:]]*# \[/, "", tag); sub(/\].*$/, "", tag);
-    in_block = 1;
-    emit = (tag in sel);
-    next;
-  }
-  /^[[:space:]]*# \[\/.*\]/ {
-    in_block = 0;
-    emit = 1;
-    next;
-  }
-  {
-    if (!in_block || emit) { print; }
-  }
-' "$CONFIG_PATH" > "$GENERATED_CONFIG_PATH"
-
 # --- Load pinned defaults ---
 echo "Loading pinned defaults (requirements.txt)..."
 while IFS='=' read -r key val; do
@@ -522,11 +442,7 @@ done < "$DEPS_FILE"
 CLOUDFLARE_IMAGE=${CLOUDFLARE_IMAGE:-cloudflare/cloudflared}
 CLOUDFLARE_IMAGE_TAG=${CLOUDFLARE_IMAGE_TAG:-}
 
-if [[ -f "$GENERATED_CONFIG_PATH" ]]; then
-  CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$GENERATED_CONFIG_PATH}
-else
-  CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$CONFIG_PATH}
-fi
+CLOUDFLARE_CONFIG_PATH=${CLOUDFLARE_CONFIG_PATH:-$CONFIG_PATH}
 
 # --- Image override prompt ---
 echo
@@ -551,7 +467,6 @@ fi
 export CLOUDFLARE_IMAGE
 export CLOUDFLARE_IMAGE_TAG
 export CLOUDFLARE_CONFIG_PATH
-export CLOUDFLARE_APP_NETWORK
 export CLOUDFLARE_TUNNEL_ID
 
 # --- Run docker compose ---

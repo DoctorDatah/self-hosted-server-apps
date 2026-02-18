@@ -279,9 +279,6 @@ fi
 if ! grep -qE '^CLOUDFLARE_CONFIG_PATH=' "$OUTPUT_FILE"; then
   printf 'CLOUDFLARE_CONFIG_PATH="%s"\n' "$(escape_env "$CONFIG_PATH")" >> "$OUTPUT_FILE"
 fi
-if ! grep -qE '^CLOUDFLARE_APP_NETWORK=' "$OUTPUT_FILE"; then
-  printf 'CLOUDFLARE_APP_NETWORK="%s"\n' "$(escape_env "appnet")" >> "$OUTPUT_FILE"
-fi
 
 chmod 600 "$OUTPUT_FILE"
 

@@ -5,10 +5,4 @@ services:
     command: tunnel --config /etc/cloudflared/config.yml run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     volumes:
       - ${CLOUDFLARE_CONFIG_PATH}:/etc/cloudflared/config.yml:ro
-    networks:
-      - appnet
-
-networks:
-  appnet:
-    name: ${CLOUDFLARE_APP_NETWORK}
-    external: true
+    network_mode: host
