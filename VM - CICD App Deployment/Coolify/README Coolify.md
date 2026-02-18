@@ -1,0 +1,33 @@
+# Coolify (Docker Compose)
+
+Single-file compose for running Coolify on this VM.
+
+## Files
+- `docker-compose.yml` – full Coolify stack (app + postgres + redis + soketi)
+
+## Required env
+Create `VM - CICD App Deployment/Coolify/.env` with the Coolify app variables, including:
+- `COOLIFY_DB_USERNAME`
+- `COOLIFY_DB_PASSWORD`
+- `COOLIFY_DB_DATABASE` (optional, defaults to `coolify`)
+- `COOLIFY_REDIS_PASSWORD`
+- `COOLIFY_PUSHER_APP_ID`
+- `COOLIFY_PUSHER_APP_KEY`
+- `COOLIFY_PUSHER_APP_SECRET`
+
+Optional overrides:
+- `COOLIFY_APP_PORT` (defaults to `8000`)
+- `COOLIFY_SOKETI_PORT` (defaults to `6001`)
+- `COOLIFY_REGISTRY_URL`, `COOLIFY_LATEST_IMAGE`
+
+## Run (on the VM)
+```bash
+sudo -E "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Coolify/coolify_env_setup.sh"
+sudo docker compose -f "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Coolify/docker-compose.yml" up -d
+```
+Note: `coolify_env_setup.sh` writes `VM - CICD App Deployment/Coolify/.env` directly from Infisical.
+Note: If you change DB/Redis secrets after the first run, you must recreate volumes (e.g., `docker compose down -v`), or Coolify will fail to authenticate.
+
+## Network
+This compose uses the shared `appnet` network (external). Ensure it exists first by running `VM - CICD App Deployment/Installations/install_all.sh`.
+Run the Cloudflare tunnel setup after this so it can attach to `appnet`.

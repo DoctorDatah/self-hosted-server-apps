@@ -1,0 +1,26 @@
+# When you run cloudflare_install_and_setup.sh, it can generate a filtered config based on tag blocks:
+# - Tags are defined between: "# [tag]" and "# [/tag]".
+# - cloudflare_install_and_setup.sh asks which tags to enable, then writes config.generated.yml.
+# - If you skip tag selection, this full config is used as-is.
+
+# Note: If cloudflared runs in Docker and your app is in another container,
+# use http://<container-name>:<port> instead of http://localhost:<port>.
+
+ingress:
+  # [coolify]
+  - hostname: coolify.arshware.com
+    service: http://coolify:8080
+  - hostname: coolify.arshware.com
+    path: /terminal/ws
+    service: http://coolify:8080
+  - hostname: coolify.arshware.com
+    path: /app
+    service: http://coolify:8080
+  # [/coolify]
+
+  # [n8n]
+  - hostname: n8n.arshware.com
+    service: http://n8n:5678
+  # [/n8n]
+
+  - service: http_status:404
