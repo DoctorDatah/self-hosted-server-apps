@@ -7,7 +7,7 @@ Dedicated setup for SSH access to the VM via Cloudflare Tunnel (no app routing).
 - Update `config.yml` with your SSH hostname (e.g., `ssh.yourdomain.com`)
 - Run `sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Cloudflare for VM/cloudflare_env_setup.sh"` (writes `.env` from Infisical)
 - Run `sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Cloudflare for VM/cloudflare_install_and_setup.sh"`
-- Create a Cloudflare Access SSH app for the hostname
+- The installer can create the Cloudflare Access SSH app + allow policy for the hostname
 
 ## Files (Hierarchy)
 ```
@@ -33,6 +33,7 @@ The env setup script writes `.env` in this folder before starting.
 ## What cloudflare_install_and_setup.sh does
 - Checks Docker + Compose (errors if missing)
 - Prompts for Cloudflare API setup (tunnel + DNS)
+- Optionally creates a Cloudflare Access SSH app + allow policy (email-based)
 - Reads pinned image/tag from `requirements.txt`
 - Uses `config.yml` as-is (SSH-only)
 - Runs cloudflared via Docker Compose using `network_mode: host`
@@ -40,4 +41,4 @@ The env setup script writes `.env` in this folder before starting.
 ## Notes
 - `config.yml` is SSH-only: `service: ssh://localhost:22`.
 - With `network_mode: host`, `localhost:22` points to the VM’s SSH service.
-- Protect the hostname with Cloudflare Access (recommended).
+- The API token must include **Access: Apps and Policies (read/write)** if you enable Access automation.

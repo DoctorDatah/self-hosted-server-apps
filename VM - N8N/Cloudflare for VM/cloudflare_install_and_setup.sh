@@ -426,6 +426,174 @@ else
   echo "Skipping DNS record creation (no hostname provided)."
 fi
 
+# --- Cloudflare Access app + policy (SSH) ---
+if [[ -n "$CLOUDFLARE_DNS_HOSTNAME" ]]; then
+  echo
+  read -r -p "Create/Update Cloudflare Access SSH app + allow policy for ${CLOUDFLARE_DNS_HOSTNAME}? [Default: Y]: " ACCESS_CREATE
+  ACCESS_CREATE="${ACCESS_CREATE:-Y}"
+  if [[ "$ACCESS_CREATE" =~ ^[Yy]$ ]]; then
+    DEFAULT_ACCESS_APP_NAME="SSH - ${CLOUDFLARE_DNS_HOSTNAME}"
+    read -r -p "Access app name [Default: ${DEFAULT_ACCESS_APP_NAME}]: " ACCESS_APP_NAME
+    ACCESS_APP_NAME="${ACCESS_APP_NAME// /}"
+    if [[ -z "$ACCESS_APP_NAME" ]]; then
+      ACCESS_APP_NAME="$DEFAULT_ACCESS_APP_NAME"
+    fi
+
+    DEFAULT_SESSION_DURATION="24h"
+    read -r -p "Access session duration [Default: ${DEFAULT_SESSION_DURATION}]: " ACCESS_SESSION_DURATION
+    ACCESS_SESSION_DURATION="${ACCESS_SESSION_DURATION// /}"
+    if [[ -z "$ACCESS_SESSION_DURATION" ]]; then
+      ACCESS_SESSION_DURATION="$DEFAULT_SESSION_DURATION"
+    fi
+
+    read -r -p "Allow email(s) for Access policy (comma-separated) [required]: " ACCESS_EMAILS
+    ACCESS_EMAILS="${ACCESS_EMAILS// /}"
+    export ACCESS_APP_NAME ACCESS_SESSION_DURATION ACCESS_EMAILS CLOUDFLARE_DNS_HOSTNAME
+
+    echo "Checking for existing Access app..."
+    ACCESS_LIST_JSON=$(curl -sS \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps?domain=${CLOUDFLARE_DNS_HOSTNAME}")
+
+    ACCESS_APP_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
+app_id=""
+for app in data.get("result") or []:
+  if app.get("domain") == sys.argv[1]:
+    app_id = app.get("id") or ""
+    break
+print(app_id)' "$CLOUDFLARE_DNS_HOSTNAME" <<<"$ACCESS_LIST_JSON")
+
+    if [[ -n "$ACCESS_APP_ID" ]]; then
+      echo "Access app already exists for ${CLOUDFLARE_DNS_HOSTNAME}."
+      read -r -p "Replace existing Access app (delete + recreate)? [Default: N]: " REPLACE_ACCESS_APP
+      REPLACE_ACCESS_APP="${REPLACE_ACCESS_APP:-N}"
+      if [[ "$REPLACE_ACCESS_APP" =~ ^[Yy]$ ]]; then
+        echo "Deleting existing Access app..."
+        ACCESS_DELETE_JSON=$(curl -sS \
+          -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -X DELETE \
+          "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps/${ACCESS_APP_ID}")
+        if ! python3 -c 'import json,sys; data=json.load(sys.stdin);
+sys.exit(0 if data.get("success") else 1)' <<<"$ACCESS_DELETE_JSON"; then
+          echo "WARN: Failed to delete Access app. Aborting Access setup." >&2
+          ACCESS_APP_ID=""
+        else
+          ACCESS_APP_ID=""
+        fi
+      fi
+    fi
+
+    if [[ -z "$ACCESS_APP_ID" ]]; then
+      echo "Creating Access app..."
+      ACCESS_CREATE_BODY=$(python3 - <<'PY'
+import json, os
+body = {
+  "name": os.environ.get("ACCESS_APP_NAME", "SSH Access"),
+  "domain": os.environ.get("CLOUDFLARE_DNS_HOSTNAME"),
+  "type": "ssh",
+  "session_duration": os.environ.get("ACCESS_SESSION_DURATION", "24h"),
+}
+print(json.dumps(body))
+PY
+)
+      ACCESS_CREATE_JSON=$(curl -sS \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -X POST \
+        "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps" \
+        --data "${ACCESS_CREATE_BODY}")
+      ACCESS_APP_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
+if not data.get("success"):
+  print("", end=""); sys.exit(0)
+print((data.get("result") or {}).get("id") or "")' <<<"$ACCESS_CREATE_JSON")
+      if [[ -z "$ACCESS_APP_ID" ]]; then
+        echo "WARN: Access app creation failed. Check API token permissions (Access: Apps and Policies)." >&2
+      fi
+    fi
+
+    if [[ -n "$ACCESS_APP_ID" ]]; then
+      if [[ -z "$ACCESS_EMAILS" ]]; then
+        echo "WARN: No emails provided; skipping Access policy creation." >&2
+      else
+        DEFAULT_POLICY_NAME="Allow SSH"
+        read -r -p "Access policy name [Default: ${DEFAULT_POLICY_NAME}]: " ACCESS_POLICY_NAME
+        ACCESS_POLICY_NAME="${ACCESS_POLICY_NAME// /}"
+        if [[ -z "$ACCESS_POLICY_NAME" ]]; then
+          ACCESS_POLICY_NAME="$DEFAULT_POLICY_NAME"
+        fi
+        export ACCESS_POLICY_NAME
+
+        echo "Checking for existing Access policy..."
+        POLICY_LIST_JSON=$(curl -sS \
+          -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+          -H "Content-Type: application/json" \
+          "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps/${ACCESS_APP_ID}/policies")
+
+        EXISTING_POLICY_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
+name=sys.argv[1];
+policy_id=""
+for p in data.get("result") or []:
+  if p.get("name") == name:
+    policy_id = p.get("id") or ""
+    break
+print(policy_id)' "$ACCESS_POLICY_NAME" <<<"$POLICY_LIST_JSON")
+
+        if [[ -n "$EXISTING_POLICY_ID" ]]; then
+          echo "Access policy '${ACCESS_POLICY_NAME}' already exists."
+          read -r -p "Replace existing Access policy (delete + recreate)? [Default: N]: " REPLACE_ACCESS_POLICY
+          REPLACE_ACCESS_POLICY="${REPLACE_ACCESS_POLICY:-N}"
+          if [[ "$REPLACE_ACCESS_POLICY" =~ ^[Yy]$ ]]; then
+            echo "Deleting existing Access policy..."
+            POLICY_DELETE_JSON=$(curl -sS \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -X DELETE \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps/${ACCESS_APP_ID}/policies/${EXISTING_POLICY_ID}")
+            if ! python3 -c 'import json,sys; data=json.load(sys.stdin);
+sys.exit(0 if data.get("success") else 1)' <<<"$POLICY_DELETE_JSON"; then
+              echo "WARN: Failed to delete Access policy. Skipping policy creation." >&2
+              EXISTING_POLICY_ID=""
+            else
+              EXISTING_POLICY_ID=""
+            fi
+          fi
+        fi
+        if [[ -z "$EXISTING_POLICY_ID" ]]; then
+          echo "Creating Access policy..."
+          ACCESS_POLICY_BODY=$(python3 - <<'PY'
+import json, os
+emails = [e for e in os.environ.get("ACCESS_EMAILS","").split(",") if e]
+include = [{"email": {"email": e}} for e in emails]
+body = {
+  "name": os.environ.get("ACCESS_POLICY_NAME", "Allow SSH"),
+  "decision": "allow",
+  "include": include,
+  "exclude": [],
+  "require": []
+}
+print(json.dumps(body))
+PY
+)
+          POLICY_CREATE_JSON=$(curl -sS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps/${ACCESS_APP_ID}/policies" \
+            --data "${ACCESS_POLICY_BODY}")
+          if ! python3 -c 'import json,sys; data=json.load(sys.stdin);
+sys.exit(0 if data.get("success") else 1)' <<<"$POLICY_CREATE_JSON"; then
+            echo "WARN: Access policy creation failed. Check inputs and API token permissions." >&2
+          else
+            echo "Access policy created."
+          fi
+        fi
+      fi
+    fi
+  fi
+fi
+
 if [[ -z "${CLOUDFLARE_TUNNEL_TOKEN-}" || "${CLOUDFLARE_TUNNEL_TOKEN}" == "." ]]; then
   echo "ERROR: CLOUDFLARE_TUNNEL_TOKEN is required (set it in local .env or export it in-session)." >&2
   exit 1
