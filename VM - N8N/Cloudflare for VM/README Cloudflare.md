@@ -41,4 +41,9 @@ The env setup script writes `.env` in this folder before starting.
 ## Notes
 - `config.yml` is SSH-only: `service: ssh://localhost:22`.
 - With `network_mode: host`, `localhost:22` points to the VM’s SSH service.
-- The API token must include **Access: Apps and Policies (read/write)** if you enable Access automation.
+- The API token must include:
+  - **Account → Cloudflare Tunnel → Edit**
+  - **Zone → DNS → Edit**
+  - **Account → Access: Apps → Edit**
+  - **Account → Access: Policies → Edit**
+  If you want least-privilege, scope the token to the specific account and zone.

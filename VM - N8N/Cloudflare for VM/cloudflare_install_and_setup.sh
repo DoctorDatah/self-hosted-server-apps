@@ -490,16 +490,32 @@ if [[ -n "$CLOUDFLARE_DNS_HOSTNAME" ]]; then
 
     ACCESS_APP_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
 app_id=""
+app_type=""
 for app in data.get("result") or []:
   if app.get("domain") == sys.argv[1]:
     app_id = app.get("id") or ""
+    app_type = (app.get("type") or "").lower()
     break
-print(app_id)' "$CLOUDFLARE_DNS_HOSTNAME" <<<"$ACCESS_LIST_JSON")
+print(app_id)
+print(app_type)' "$CLOUDFLARE_DNS_HOSTNAME" <<<"$ACCESS_LIST_JSON")
+    ACCESS_APP_ID_LINE=$(echo "$ACCESS_APP_ID" | sed -n '1p')
+    ACCESS_APP_TYPE=$(echo "$ACCESS_APP_ID" | sed -n '2p')
+    ACCESS_APP_ID="$ACCESS_APP_ID_LINE"
+
+    if [[ -n "$ACCESS_APP_TYPE" && "$ACCESS_APP_TYPE" != "ssh" ]]; then
+      echo "WARN: Existing Access app type is '${ACCESS_APP_TYPE}'. SSH requires type 'ssh'." >&2
+      echo "You should replace it so the app is created with type 'ssh'." >&2
+    fi
 
     if [[ -n "$ACCESS_APP_ID" ]]; then
       echo "Access app already exists for ${CLOUDFLARE_DNS_HOSTNAME}."
-      read -r -p "Replace existing Access app (delete + recreate)? [Default: N]: " REPLACE_ACCESS_APP
-      REPLACE_ACCESS_APP="${REPLACE_ACCESS_APP:-N}"
+      if [[ -n "$ACCESS_APP_TYPE" && "$ACCESS_APP_TYPE" != "ssh" ]]; then
+        read -r -p "Existing app is type '${ACCESS_APP_TYPE}'. Replace with SSH app? [Default: Y]: " REPLACE_ACCESS_APP
+        REPLACE_ACCESS_APP="${REPLACE_ACCESS_APP:-Y}"
+      else
+        read -r -p "Replace existing Access app (delete + recreate)? [Default: N]: " REPLACE_ACCESS_APP
+        REPLACE_ACCESS_APP="${REPLACE_ACCESS_APP:-N}"
+      fi
       if [[ "$REPLACE_ACCESS_APP" =~ ^[Yy]$ ]]; then
         echo "Deleting existing Access app..."
         ACCESS_DELETE_JSON=$(curl -sS \
