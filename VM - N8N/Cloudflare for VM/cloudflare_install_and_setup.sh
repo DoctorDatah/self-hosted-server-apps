@@ -146,6 +146,12 @@ if [[ -f "$LOCAL_ENV_FILE" ]]; then
   load_env_file "$LOCAL_ENV_FILE"
 fi
 
+# Normalize tunnel ID if it came with embedded quotes.
+if [[ -n "${CLOUDFLARE_TUNNEL_ID-}" ]]; then
+  CLOUDFLARE_TUNNEL_ID="${CLOUDFLARE_TUNNEL_ID//\"/}"
+  CLOUDFLARE_TUNNEL_ID="${CLOUDFLARE_TUNNEL_ID//\'/}"
+fi
+
 require_env_var() {
   local key="$1"
   if [[ -z "${!key-}" ]]; then
