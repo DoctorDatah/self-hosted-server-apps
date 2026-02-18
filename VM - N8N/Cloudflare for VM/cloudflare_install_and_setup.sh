@@ -135,7 +135,11 @@ load_env_file() {
     if [[ "${val:0:1}" == "\"" && "${val: -1}" == "\"" ]]; then
       val="${val:1:${#val}-2}"
     fi
-    export "$key=$val"
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      export "$key=$val"
+    else
+      echo "WARN: Skipping invalid env key '$key' from $file" >&2
+    fi
   done < "$file"
 }
 if [[ -f "$LOCAL_ENV_FILE" ]]; then

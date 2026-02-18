@@ -2,7 +2,7 @@ services:
   cloudflared:
     image: ${CLOUDFLARE_IMAGE}:${CLOUDFLARE_IMAGE_TAG}
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --protocol http2 --config /etc/cloudflared/config.yml run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     volumes:
       - ${CLOUDFLARE_CONFIG_PATH}:/etc/cloudflared/config.yml:ro
     network_mode: host
