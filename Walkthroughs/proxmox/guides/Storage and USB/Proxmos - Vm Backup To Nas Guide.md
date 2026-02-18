@@ -31,7 +31,7 @@ Why: this makes `/mnt/nas` an official backup target in Proxmox.
 2. Set:
 - `Node`: your Proxmox node
 - `Storage`: `WD-NAS-Backup`
-- `Selection mode`: `All` or selected VMs/CTs
+- `Selection mode`: `All` or selected VM Coolify/CTs
 - `Schedule`: example `02:00` daily
 - `Mode`: `Snapshot` (recommended)
 - `Compression`: `zstd` (recommended)

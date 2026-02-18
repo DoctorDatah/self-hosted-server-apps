@@ -12,10 +12,10 @@ Usage: ./cloudflare_install_and_setup.sh [--pull] [--down]
 
 Requires:
   - Repo cloned on the VM
-  - VMs/install/install_all.sh has been run (Docker + deps installed)
-  - VMs/Cloudflare/config.yml
-  - VMs/Cloudflare/docker-compose.yml
-  - VMs/Cloudflare/requirements.txt
+  - VM Coolify/install/install_all.sh has been run (Docker + deps installed)
+  - VM Coolify/Cloudflare/config.yml
+  - VM Coolify/Cloudflare/docker-compose.yml
+  - VM Coolify/Cloudflare/requirements.txt
 
 Flags:
   --pull         Pull latest images before starting
@@ -82,7 +82,7 @@ fi
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
-    echo "ERROR: $1 is missing. Please execute the installation module first (VMs/install/install_all.sh)." >&2
+    echo "ERROR: $1 is missing. Please execute the installation module first (VM Coolify/install/install_all.sh)." >&2
     exit 1
   }
 }
@@ -90,7 +90,7 @@ require_cmd() {
 echo "Checking dependencies..."
 require_cmd docker
 docker compose version >/dev/null 2>&1 || {
-  echo "ERROR: docker compose is missing. Please execute the installation module first (VMs/install/install_all.sh)." >&2
+  echo "ERROR: docker compose is missing. Please execute the installation module first (VM Coolify/install/install_all.sh)." >&2
   exit 1
 }
 echo "Dependencies OK."
@@ -543,7 +543,7 @@ if [[ "$OVERRIDE_TAG" =~ ^[Yy]$ ]]; then
 fi
 
 if [[ -z "$CLOUDFLARE_IMAGE_TAG" || "$CLOUDFLARE_IMAGE_TAG" == "TBD" ]]; then
-  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VMs/Cloudflare/requirements.txt." >&2
+  echo "ERROR: CLOUDFLARE_IMAGE_TAG is not set. Update VM Coolify/Cloudflare/requirements.txt." >&2
   exit 1
 fi
 

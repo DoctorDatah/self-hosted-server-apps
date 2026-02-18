@@ -10,10 +10,10 @@
 
 ## Per-VM Workflow (Order)
 Use this order for a new VM:
-1) Install prerequisites (`/home/malik/self-hosted-server-apps/VMs/Installations/install_all.sh`).
+1) Install prerequisites (`/home/malik/self-hosted-server-apps/VM Coolify/Installations/install_all.sh`).
 2) Clone this repo.
 3) Deploy the app stack (e.g., Coolify or other app). It should attach to the shared `appnet` network.
-4) Run Cloudflare Tunnel (`/home/malik/self-hosted-server-apps/VMs/Cloudflare/cloudflare_install_and_setup.sh`).
+4) Run Cloudflare Tunnel (`/home/malik/self-hosted-server-apps/VM Coolify/Cloudflare/cloudflare_install_and_setup.sh`).
 5) Follow the post-setup guide to map the tunnel to the app network.
 
 ## Variables
