@@ -14,13 +14,16 @@
           <mxGeometry height="30" width="90" x="620" y="280" as="geometry" />
         </mxCell>
         <mxCell id="szGTzVjW7majTDsCjo8U-4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;div&gt;/Cloudflare &amp;nbsp;mattermost&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="30" width="160" x="600" y="360" as="geometry" />
+          <mxGeometry height="30" width="160" x="600" y="340" as="geometry" />
         </mxCell>
         <mxCell id="szGTzVjW7majTDsCjo8U-5" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;span style=&quot;color: rgb(255, 5, 38);&quot;&gt;&amp;lt; Account Level Variables &amp;gt;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(255, 5, 38);&quot;&gt;E.g: CLOUDFLARE_TOKEN&lt;/span&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="30" width="170" x="620" y="240" as="geometry" />
         </mxCell>
         <mxCell id="szGTzVjW7majTDsCjo8U-6" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;span style=&quot;color: rgb(255, 5, 38);&quot;&gt;&amp;lt; n8n Level Variables &amp;gt;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(255, 5, 38);&quot;&gt;E.g: CLOUDFLARE_N8N_TUNNEL&amp;nbsp;&lt;/span&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="30" width="210" x="660" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="szGTzVjW7majTDsCjo8U-7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;span style=&quot;color: rgb(255, 5, 38);&quot;&gt;&amp;lt; mattermost Level Variables &amp;gt;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(255, 5, 38);&quot;&gt;E.g: CLOUDFLARE_MATTERMOST&lt;/span&gt;&lt;span style=&quot;color: rgb(255, 5, 38);&quot;&gt;_TUNNEL&amp;nbsp;&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="310" x="660" y="360" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
