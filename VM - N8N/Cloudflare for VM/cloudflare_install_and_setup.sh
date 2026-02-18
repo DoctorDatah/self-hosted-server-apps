@@ -429,6 +429,31 @@ print("DNS record updated.")
   else
     echo "DNS record created."
   fi
+
+  # Ensure record is proxied (orange cloud).
+  DNS_CHECK_JSON=$(curl -sS \
+    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+    -H "Content-Type: application/json" \
+    "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?type=CNAME&name=${CLOUDFLARE_DNS_HOSTNAME}")
+  DNS_RECORD_ID=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
+records=data.get("result") or []
+print(records[0]["id"] if records else "")' <<<"$DNS_CHECK_JSON")
+  DNS_PROXIED=$(python3 -c 'import json,sys; data=json.load(sys.stdin);
+records=data.get("result") or []
+print("true" if (records and records[0].get("proxied")) else "false")' <<<"$DNS_CHECK_JSON")
+  if [[ -n "$DNS_RECORD_ID" && "$DNS_PROXIED" != "true" ]]; then
+    echo "DNS record is not proxied; enabling proxy (orange cloud)..."
+    DNS_PROXY_JSON=$(curl -sS \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -X PATCH \
+      "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${DNS_RECORD_ID}" \
+      --data "{\"proxied\":true}")
+    python3 -c 'import json,sys; data=json.load(sys.stdin);
+if not data.get("success"):
+  print("WARN: Failed to enable proxy:", data.get("errors") or data, file=sys.stderr); sys.exit(0)
+print("DNS proxy enabled.")' <<<"$DNS_PROXY_JSON"
+  fi
 else
   echo "Skipping DNS record creation (no hostname provided)."
 fi
@@ -598,6 +623,31 @@ sys.exit(0 if data.get("success") else 1)' <<<"$POLICY_CREATE_JSON"; then
         fi
       fi
     fi
+  fi
+fi
+
+# --- Wait for TLS to become active (optional) ---
+if [[ -n "$CLOUDFLARE_DNS_HOSTNAME" ]]; then
+  echo
+  read -r -p "Wait for TLS to become active for https://${CLOUDFLARE_DNS_HOSTNAME}? [Default: Y]: " WAIT_TLS
+  WAIT_TLS="${WAIT_TLS:-Y}"
+  if [[ "$WAIT_TLS" =~ ^[Yy]$ ]]; then
+    MAX_WAIT_SECONDS=180
+    SLEEP_SECONDS=5
+    ELAPSED=0
+    echo "Waiting for TLS (up to ${MAX_WAIT_SECONDS}s)..."
+    while true; do
+      if curl -sS --max-time 5 -I "https://${CLOUDFLARE_DNS_HOSTNAME}" >/dev/null 2>&1; then
+        echo "TLS is active for https://${CLOUDFLARE_DNS_HOSTNAME}"
+        break
+      fi
+      sleep "$SLEEP_SECONDS"
+      ELAPSED=$((ELAPSED + SLEEP_SECONDS))
+      if [[ "$ELAPSED" -ge "$MAX_WAIT_SECONDS" ]]; then
+        echo "WARN: TLS not active yet. Try again in a few minutes." >&2
+        break
+      fi
+    done
   fi
 fi
 
