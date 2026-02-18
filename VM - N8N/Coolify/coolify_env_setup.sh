@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fetches secrets from Infisical and writes VM - CICD App Deployment/Coolify/.env.
+# Fetches secrets from Infisical and writes VM - N8N/Coolify/.env.
 # Ubuntu-only script.
 
 require_cmd() {

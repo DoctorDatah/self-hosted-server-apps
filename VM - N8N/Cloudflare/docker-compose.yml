@@ -1,0 +1,14 @@
+services:
+  cloudflared:
+    image: ${CLOUDFLARE_IMAGE}:${CLOUDFLARE_IMAGE_TAG}
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    volumes:
+      - ${CLOUDFLARE_CONFIG_PATH}:/etc/cloudflared/config.yml:ro
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    name: ${CLOUDFLARE_APP_NETWORK}
+    external: true

@@ -4,14 +4,14 @@ This folder contains scripts to install common VM prerequisites.
 
 ## Quick Start
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Installations/install_all.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Installations/install_all.sh"
 
 ```
 After install, log out and log back in as `malik` so the docker group change applies.
 
 ## Run Specific Tools
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Installations/install_all.sh" --only docker,git,python
+sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Installations/install_all.sh" --only docker,git,python
 ```
 
 ## Scripts

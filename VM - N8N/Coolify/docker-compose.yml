@@ -18,11 +18,11 @@ services:
       - /data/coolify/backups:/var/www/html/storage/app/backups
     environment:
       - APP_ENV=${COOLIFY_APP_ENV:-production}
-      - APP_KEY=${COOLIFY_APP_KEY:?set in VM - CICD App Deployment/Coolify/.env}
+      - APP_KEY=${COOLIFY_APP_KEY:?set in VM - N8N/Coolify/.env}
       - APP_NAME=${COOLIFY_APP_NAME:-Coolify}
-      - PUSHER_APP_ID=${COOLIFY_PUSHER_APP_ID:?set in VM - CICD App Deployment/Coolify/.env}
-      - PUSHER_APP_KEY=${COOLIFY_PUSHER_APP_KEY:?set in VM - CICD App Deployment/Coolify/.env}
-      - PUSHER_APP_SECRET=${COOLIFY_PUSHER_APP_SECRET:?set in VM - CICD App Deployment/Coolify/.env}
+      - PUSHER_APP_ID=${COOLIFY_PUSHER_APP_ID:?set in VM - N8N/Coolify/.env}
+      - PUSHER_APP_KEY=${COOLIFY_PUSHER_APP_KEY:?set in VM - N8N/Coolify/.env}
+      - PUSHER_APP_SECRET=${COOLIFY_PUSHER_APP_SECRET:?set in VM - N8N/Coolify/.env}
       - DB_CONNECTION=pgsql
       - DB_HOST=coolify-db
       - DB_PORT=5432
@@ -64,9 +64,9 @@ services:
     volumes:
       - coolify-db:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: "${COOLIFY_DB_USERNAME:?set in VM - CICD App Deployment/Coolify/.env}"
-      POSTGRES_PASSWORD: "${COOLIFY_DB_PASSWORD:?set in VM - CICD App Deployment/Coolify/.env}"
-      POSTGRES_DB: "${COOLIFY_DB_DATABASE:?set in VM - CICD App Deployment/Coolify/.env}"
+      POSTGRES_USER: "${COOLIFY_DB_USERNAME:?set in VM - N8N/Coolify/.env}"
+      POSTGRES_PASSWORD: "${COOLIFY_DB_PASSWORD:?set in VM - N8N/Coolify/.env}"
+      POSTGRES_DB: "${COOLIFY_DB_DATABASE:?set in VM - N8N/Coolify/.env}"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${COOLIFY_DB_USERNAME}", "-d", "${COOLIFY_DB_DATABASE}" ]
       interval: 5s
@@ -79,9 +79,9 @@ services:
     image: redis:7-alpine
     container_name: coolify-redis
     restart: always
-    command: redis-server --save 20 1 --loglevel warning --requirepass ${COOLIFY_REDIS_PASSWORD:?set in VM - CICD App Deployment/Coolify/.env}
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${COOLIFY_REDIS_PASSWORD:?set in VM - N8N/Coolify/.env}
     environment:
-      REDIS_PASSWORD: "${COOLIFY_REDIS_PASSWORD:?set in VM - CICD App Deployment/Coolify/.env}"
+      REDIS_PASSWORD: "${COOLIFY_REDIS_PASSWORD:?set in VM - N8N/Coolify/.env}"
     volumes:
       - coolify-redis:/data
     healthcheck:
@@ -106,9 +106,9 @@ services:
     environment:
       APP_NAME: "${COOLIFY_APP_NAME:-Coolify}"
       SOKETI_DEBUG: "${COOLIFY_SOKETI_DEBUG:-false}"
-      SOKETI_DEFAULT_APP_ID: "${COOLIFY_PUSHER_APP_ID:?set in VM - CICD App Deployment/Coolify/.env}"
-      SOKETI_DEFAULT_APP_KEY: "${COOLIFY_PUSHER_APP_KEY:?set in VM - CICD App Deployment/Coolify/.env}"
-      SOKETI_DEFAULT_APP_SECRET: "${COOLIFY_PUSHER_APP_SECRET:?set in VM - CICD App Deployment/Coolify/.env}"
+      SOKETI_DEFAULT_APP_ID: "${COOLIFY_PUSHER_APP_ID:?set in VM - N8N/Coolify/.env}"
+      SOKETI_DEFAULT_APP_KEY: "${COOLIFY_PUSHER_APP_KEY:?set in VM - N8N/Coolify/.env}"
+      SOKETI_DEFAULT_APP_SECRET: "${COOLIFY_PUSHER_APP_SECRET:?set in VM - N8N/Coolify/.env}"
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:6001/ready && wget -qO- http://127.0.0.1:6002/ready || exit 1" ]
       interval: 5s

@@ -1,0 +1,17 @@
+name: "VM N8N - Packages and Tools Installations"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install:
+    name: "Run install_all.sh"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Run installation script"
+        shell: bash
+        run: |
+          bash "VM - N8N/Installations/install_all.sh"

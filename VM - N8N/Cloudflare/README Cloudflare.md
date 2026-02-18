@@ -5,10 +5,10 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ## Quick Steps (Do This)
 - Clone the repo to the VM (first time only) (pull later)
 - Update `config.yml` with your hostname(s) and service target(s)
-- Run `sudo -E "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Cloudflare/cloudflare_env_setup.sh"` (writes `.env` from Infisical)
-- Run `sudo -E "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Cloudflare/cloudflare_install_and_setup.sh"` (prompts for Cloudflare API setup; reads values from local `.env` and saves the tunnel token locally)
+- Run `sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Cloudflare/cloudflare_env_setup.sh"` (writes `.env` from Infisical)
+- Run `sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Cloudflare/cloudflare_install_and_setup.sh"` (prompts for Cloudflare API setup; reads values from local `.env` and saves the tunnel token locally)
 - Select tags and the target app network when prompted (default: `appnet`)
-- The app network must already exist (created by `VM - CICD App Deployment/Installations` and app deployment)
+- The app network must already exist (created by `VM - N8N/Installations` and app deployment)
 
 ## Files (Hierarchy)
 ```
@@ -29,13 +29,13 @@ Flat, self-contained setup to run Cloudflare Tunnel on a VM via Docker Compose.
 ## Usage (on the VM)
 ### Run (prompts for setup)
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Cloudflare/cloudflare_env_setup.sh"
-sudo -E "/home/malik/self-hosted-server-apps/VM - CICD App Deployment/Cloudflare/cloudflare_install_and_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Cloudflare/cloudflare_env_setup.sh"
+sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/Cloudflare/cloudflare_install_and_setup.sh"
 ```
 The env setup script writes `.env` in this folder before starting.
 
 ## What cloudflare_install_and_setup.sh does
-- Checks Docker + Compose (errors if missing; run `VM - CICD App Deployment/install/install_all.sh`)
+- Checks Docker + Compose (errors if missing; run `VM - N8N/install/install_all.sh`)
 - Prompts for tag selection and generates `config.generated.yml` if chosen
 - Prompts for the target app network (default: `appnet`)
 - Prompts for Cloudflare API setup (tunnel + DNS)
