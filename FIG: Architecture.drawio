@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15" version="29.4.0">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15" version="29.5.1">
   <diagram name="Page-1" id="AsuDa472JdryXYnKKzkA">
-    <mxGraphModel dx="1604" dy="464" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1478" dy="387" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -90,6 +90,18 @@
         </mxCell>
         <mxCell id="szGTzVjW7majTDsCjo8U-34" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Text" vertex="1">
           <mxGeometry height="30" width="60" x="220" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="q1HNZZy7gu1iyKD9hKNi-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Clone the Repo" vertex="1">
+          <mxGeometry height="60" width="220" x="-840" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="q1HNZZy7gu1iyKD9hKNi-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Run Installations" vertex="1">
+          <mxGeometry height="60" width="230" x="-840" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="q1HNZZy7gu1iyKD9hKNi-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="USB Setup for ISO Installation" vertex="1">
+          <mxGeometry height="60" width="230" x="-710" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="q1HNZZy7gu1iyKD9hKNi-6" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="USB 1&lt;br&gt;8 GB" vertex="1">
+          <mxGeometry height="80" width="60" x="-810" y="480" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
