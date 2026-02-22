@@ -1,7 +1,7 @@
 # Proxmox External HDD NAS Setup Script Guide
 
 ## Script
-- `Walkthroughs/proxmox/scripts/proxmox-external-hdd-nas-setup.sh`
+- `/root/self-hosted-server-apps/Walkthroughs/proxmox/scripts/proxmox-external-hdd-nas-setup.sh`
 
 ## What this script configures
 1. Mounts an external disk partition to a mountpoint.
@@ -18,7 +18,8 @@
 
 ## Run
 ```bash
-sudo bash Walkthroughs/proxmox/scripts/proxmox-external-hdd-nas-setup.sh
+chmod +x "/root/self-hosted-server-apps/Walkthroughs/proxmox/scripts/proxmox-external-hdd-nas-setup.sh"
+"/root/self-hosted-server-apps/Walkthroughs/proxmox/scripts/proxmox-external-hdd-nas-setup.sh"
 ```
 
 ## Prompt-by-prompt usage

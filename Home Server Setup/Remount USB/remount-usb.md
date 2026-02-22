@@ -3,15 +3,16 @@
 Small helper to remount the USB device used for ISO storage (or any USB mount).
 
 ## Script
-- `remount-usb.sh`
+- `/root/self-hosted-server-apps/Home Server Setup/Remount USB/remount-usb.sh`
 
 ## Usage
 ```bash
-./remount-usb.sh
-./remount-usb.sh /mnt/usb-iso
-./remount-usb.sh /mnt/usb-iso /dev/sdb1
-./remount-usb.sh --kill /mnt/usb-iso /dev/sdb1
-./remount-usb.sh --label usb-iso /mnt/usb-iso
+chmod +x "/root/self-hosted-server-apps/Home Server Setup/Remount USB/remount-usb.sh"
+"/root/self-hosted-server-apps/Home Server Setup/Remount USB/remount-usb.sh"
+"/root/self-hosted-server-apps/Home Server Setup/Remount USB/remount-usb.sh" /mnt/usb-iso
+"/root/self-hosted-server-apps/Home Server Setup/Remount USB/remount-usb.sh" /mnt/usb-iso /dev/sdb1
+"/root/self-hosted-server-apps/Home Server Setup/Remount USB/remount-usb.sh" --kill /mnt/usb-iso /dev/sdb1
+"/root/self-hosted-server-apps/Home Server Setup/Remount USB/remount-usb.sh" --label usb-iso /mnt/usb-iso
 ```
 
 ## Notes

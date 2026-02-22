@@ -14,9 +14,9 @@ Prevents a Proxmox laptop host from suspending or hibernating when the lid close
 1. Run on your Proxmox host as root:
 
    ```bash
-   chmod +x proxmox-lid-keepalive.sh
-   sudo ./proxmox-lid-keepalive.sh
-   ```
+   chmod +x "/root/self-hosted-server-apps/Home Server Setup/LID Keep Alive/proxmox-lid-keepalive.sh"
+   "/root/self-hosted-server-apps/Home Server Setup/LID Keep Alive/proxmox-lid-keepalive.sh"
+```
 
 2. Confirm the prompt. The script creates drop-ins under `/etc/systemd/logind.conf.d/` and `/etc/systemd/sleep.conf.d/`, then masks the sleep targets.
 3. Close the lid and ensure the host stays reachable (no suspend/hibernate).

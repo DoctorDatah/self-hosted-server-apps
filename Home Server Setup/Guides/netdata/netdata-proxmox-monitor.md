@@ -17,9 +17,9 @@ This script installs Netdata on a Proxmox host, locks the Netdata UI to localhos
 1. Copy `netdata-proxmox-monitor.sh` to your Proxmox host (or run in place) and make it executable:
 
    ```bash
-   chmod +x netdata-proxmox-monitor.sh
-   sudo ./netdata-proxmox-monitor.sh
-   ```
+   chmod +x "/root/self-hosted-server-apps/Home Server Setup/Guides/netdata/netdata-proxmox-monitor.sh"
+   "/root/self-hosted-server-apps/Home Server Setup/Guides/netdata/netdata-proxmox-monitor.sh"
+```
 
 2. Follow the prompts:
    - Proxmox monitoring user (default `netdata@pam`) and role name.

@@ -16,11 +16,12 @@ This wizard script prepares a USB drive (or any block device) to host ISO images
 ## Usage
 
 1. Copy the script to your Proxmox host (or keep it in-place if already there).
-2. Run as root:
+2. Make it executable and run as root:
 
    ```bash
-   sudo ./proxmox-usb-iso-wizard.sh
-   ```
+   chmod +x "/root/self-hosted-server-apps/Home Server Setup/USB Setup for ISO/proxmox-usb-iso-wizard.sh"
+   "/root/self-hosted-server-apps/Home Server Setup/USB Setup for ISO/proxmox-usb-iso-wizard.sh"
+```
 
 3. Follow the prompts:
    - Choose the device/partition number from the presented table.

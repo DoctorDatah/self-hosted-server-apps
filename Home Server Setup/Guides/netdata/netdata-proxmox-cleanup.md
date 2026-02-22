@@ -15,9 +15,9 @@ Use this script to undo the Netdata + Proxmox setup deployed by `netdata-proxmox
 1. Copy to your Proxmox host and run as root:
 
    ```bash
-   chmod +x netdata-proxmox-cleanup.sh
-   sudo ./netdata-proxmox-cleanup.sh
-   ```
+   chmod +x "/root/self-hosted-server-apps/Home Server Setup/Guides/netdata/netdata-proxmox-cleanup.sh"
+   "/root/self-hosted-server-apps/Home Server Setup/Guides/netdata/netdata-proxmox-cleanup.sh"
+```
 
 2. Follow the prompts:
    - User/role/token base to target (defaults match the deploy script).
