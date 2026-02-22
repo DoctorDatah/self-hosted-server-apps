@@ -16,6 +16,7 @@ set -euo pipefail
 
 DEFAULT_MNT="/mnt/usb-iso"
 DEFAULT_STORAGE="USB-ISO"
+DEFAULT_LOCAL_ISO_DIR="/var/lib/vz/template/iso"
 
 echo
 echo "=============================="
@@ -293,17 +294,25 @@ ls -lh "$ISO_DIR" || true
 echo
 
 # -------------------------
-# 5) Optional: download Ubuntu ISO directly into the right folder
+# 5) Optional: download Ubuntu ISO (default to local storage)
 # -------------------------
-read -rp "Download Ubuntu ISO into $ISO_DIR now? (y/N): " DL
+read -rp "Download Ubuntu ISO now? (y/N): " DL
 if [[ "${DL,,}" == "y" ]]; then
   echo
+  echo "Note: Default is local storage so VMs can boot even if the USB is unplugged."
+  read -rp "Download location? [default: $DEFAULT_LOCAL_ISO_DIR] " DL_DIR
+  DL_DIR="${DL_DIR:-$DEFAULT_LOCAL_ISO_DIR}"
+  if [[ "$DL_DIR" != "$ISO_DIR" ]]; then
+    echo "Using download directory: $DL_DIR"
+  fi
+  mkdir -p "$DL_DIR"
+
   echo "Choose Ubuntu ISO:"
   echo "  1) Ubuntu 24.04.3 Server (smaller, recommended for ~8GB USB)"
   echo "  2) Ubuntu 24.04.3 Desktop (larger)"
   read -rp "Select (1/2): " WHICH
 
-  cd "$ISO_DIR"
+  cd "$DL_DIR"
   if [[ "$WHICH" == "1" ]]; then
     URL="https://releases.ubuntu.com/noble/ubuntu-24.04.3-live-server-amd64.iso"
   else
