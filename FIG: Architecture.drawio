@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15" version="29.5.1">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15" version="29.5.2">
   <diagram name="Page-1" id="AsuDa472JdryXYnKKzkA">
-    <mxGraphModel dx="1478" dy="387" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1604" dy="464" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -102,6 +102,12 @@
         </mxCell>
         <mxCell id="q1HNZZy7gu1iyKD9hKNi-6" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="USB 1&lt;br&gt;8 GB" vertex="1">
           <mxGeometry height="80" width="60" x="-810" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="8gbo3iQZQyZSSIgbvYu8-2" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;" value="&lt;blockquote style=&quot;margin: 0px 0px 0px 40px; border: medium; padding: 0px;&quot;&gt;&lt;span style=&quot;&quot;&gt;&lt;b&gt;Promoxmox Host OS:&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;/blockquote&gt;&lt;blockquote style=&quot;margin: 0px 0px 0px 40px; border: medium; padding: 0px;&quot;&gt;&lt;span style=&quot;&quot;&gt;&lt;br&gt;&lt;/span&gt;&lt;/blockquote&gt;&lt;blockquote style=&quot;margin: 0px 0px 0px 40px; border: medium; padding: 0px;&quot;&gt;&lt;span style=&quot;&quot;&gt;PRETTY_NAME=&quot;Debian GNU/Linux 13 (trixie)&quot;&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;NAME=&quot;Debian GNU/Linux&quot;&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;VERSION_ID=&quot;13&quot;&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;VERSION=&quot;13 (trixie)&quot;&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;VERSION_CODENAME=trixie&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;DEBIAN_VERSION_FULL=13.2&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;ID=debian&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;HOME_URL=&quot;https://www.debian.org/&quot;&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;SUPPORT_URL=&quot;https://www.debian.org/support&quot;&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;BUG_REPORT_URL=&quot;https://bugs.debian.org/&quot;&lt;/span&gt;&lt;/blockquote&gt;" vertex="1">
+          <mxGeometry height="220" width="330" x="-750" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="8gbo3iQZQyZSSIgbvYu8-3" parent="1" style="text;whiteSpace=wrap;fontColor=#FF0526;" value="cat /etc/os-release" vertex="1">
+          <mxGeometry height="40" width="130" x="-580" y="640" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
