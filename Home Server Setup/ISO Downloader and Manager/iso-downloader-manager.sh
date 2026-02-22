@@ -22,6 +22,9 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ISO_URL_FILE="$SCRIPT_DIR/iso-url.txt"
+
 read -rp "Store ISO in Proxmox local storage ($DEFAULT_LOCAL_ISO_DIR)? (Y/n): " USE_LOCAL
 USE_LOCAL="${USE_LOCAL:-y}"
 
@@ -159,10 +162,35 @@ TARGET_DIR="$ISO_DIR/$OS_NAME/$OS_VER"
 mkdir -p "$TARGET_DIR"
 echo "ISO target directory: $TARGET_DIR"
 
-read -rp "ISO download URL (e.g., https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-live-server-amd64.iso): " ISO_URL
+ISO_URL=""
+if [[ -f "$ISO_URL_FILE" ]]; then
+  mapfile -t URLS < <(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$ISO_URL_FILE" | awk 'NF && $0 !~ /^#/')
+  if [[ ${#URLS[@]} -gt 0 ]]; then
+    echo "Available ISO URLs (from $ISO_URL_FILE):"
+    i=0
+    for u in "${URLS[@]}"; do
+      ((++i))
+      printf "%-4s %s\n" "$i" "$u"
+    done
+    read -rp "Pick a number, or press Enter to paste a custom URL: " URL_PICK
+    if [[ -n "${URL_PICK:-}" ]]; then
+      if ! [[ "$URL_PICK" =~ ^[0-9]+$ ]] || (( URL_PICK < 1 || URL_PICK > i )); then
+        echo "Invalid selection."
+        exit 1
+      fi
+      ISO_URL="${URLS[$((URL_PICK-1))]}"
+    fi
+  fi
+else
+  echo "Note: $ISO_URL_FILE not found. You can paste a URL manually."
+fi
+
 if [[ -z "${ISO_URL:-}" ]]; then
-  echo "No URL provided."
-  exit 1
+  read -rp "ISO download URL (e.g., https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-live-server-amd64.iso): " ISO_URL
+  if [[ -z "${ISO_URL:-}" ]]; then
+    echo "No URL provided."
+    exit 1
+  fi
 fi
 
 BASE_URL="${ISO_URL%%\?*}"

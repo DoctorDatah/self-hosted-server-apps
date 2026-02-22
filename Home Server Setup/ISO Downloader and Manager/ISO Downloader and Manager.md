@@ -26,6 +26,10 @@ Follow the prompts:
 - Optionally delete an existing ISO.
 - Choose OS family (Ubuntu or Debian) and enter a version.
 - Provide the Proxmox storage ID (default `local` for local storage or `USB-ISO` for a disk).
-- Paste the ISO download URL.
+- Pick an ISO URL from the list (from `iso-url.txt`) or paste a custom URL.
 
 After completion, refresh the storage in the Proxmox UI to see the ISO under the chosen storage ID. If your storage isn’t configured yet, point it to the mount path you used (e.g., `/mnt/usb-iso`) with content type `ISO` only.
+
+## ISO URL list
+
+Edit `iso-url.txt` to add or remove ISO download links. Lines starting with `#` are ignored.

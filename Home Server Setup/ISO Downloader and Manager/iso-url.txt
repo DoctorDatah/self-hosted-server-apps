@@ -1,0 +1,7 @@
+# ISO URL list (one per line). Lines starting with # are ignored.
+# Ubuntu 24.04.4 LTS
+https://releases.ubuntu.com/24.04.3/ubuntu-24.04.4-live-server-amd64.iso
+https://releases.ubuntu.com/24.04.3/ubuntu-24.04.4-desktop-amd64.iso
+
+# Debian 13 (Trixie) netinst
+https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.3.0-amd64-netinst.iso
