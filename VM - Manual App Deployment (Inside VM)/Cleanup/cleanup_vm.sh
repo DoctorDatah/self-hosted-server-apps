@@ -96,6 +96,16 @@ else
   echo "npm not found; skipping Codex CLI uninstall."
 fi
 
+# --- Node.js/npm cleanup ---
+if command -v npm >/dev/null 2>&1 || command -v node >/dev/null 2>&1; then
+  if do_step "Remove Node.js and npm?"; then
+    run_root apt-get remove -y nodejs npm || true
+    run_root apt-get autoremove -y || true
+  fi
+else
+  echo "Node.js/npm not found; skipping removal."
+fi
+
 # --- Repo cleanup ---
 if do_step "Remove repo folders (/home/malik/self-hosted-server-apps and /root/self-hosted-server-apps)?"; then
   run_root rm -rf /home/malik/self-hosted-server-apps

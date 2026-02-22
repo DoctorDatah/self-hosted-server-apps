@@ -43,6 +43,33 @@ run_script() {
   bash "$script"
 }
 
+confirm() {
+  local prompt="$1"
+  local reply
+  if [[ ! -t 0 ]]; then
+    return 1
+  fi
+  read -r -p "${prompt} [y/N]: " reply
+  [[ "${reply,,}" == "y" || "${reply,,}" == "yes" ]]
+}
+
+should_run_script() {
+  local script="$1"
+  local base
+  base="$(basename "$script")"
+  if [[ "$base" == "codex.sh" ]]; then
+    if [[ ! -t 0 ]]; then
+      return 0
+    fi
+    if confirm "Install codex (requires Node.js/npm)?"; then
+      return 0
+    fi
+    echo "Skipping codex."
+    return 1
+  fi
+  return 0
+}
+
 mapfile -t scripts < <(ls -1 "$SCRIPTS_DIR"/*.sh 2>/dev/null || true)
 if [[ ${#scripts[@]} -eq 0 ]]; then
   echo "No install scripts found in $SCRIPT_DIR" >&2
@@ -67,5 +94,7 @@ if [[ -n "$ONLY" ]]; then
 fi
 
 for script in "${scripts[@]}"; do
-  run_script "$script"
+  if should_run_script "$script"; then
+    run_script "$script"
+  fi
 done
