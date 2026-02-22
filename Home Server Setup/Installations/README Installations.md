@@ -11,12 +11,13 @@ After install, log out and log back in as `malik` so the docker group change app
 
 ## Run Specific Tools
 ```bash
-"/root/self-hosted-server-apps/Home Server Setup/Installations/install_all.sh" --only docker,git,python
+"/root/self-hosted-server-apps/Home Server Setup/Installations/install_all.sh" --only docker,git,python,codex
 ```
 
 ## Scripts
 Scripts live in `scripts/`:
 - `scripts/docker.sh` installs Docker Engine + Docker Compose plugin
+- `scripts/codex.sh` installs the OpenAI Codex CLI
 - `scripts/git.sh` installs Git
 - `scripts/infisical.sh` installs the Infisical CLI
 - `scripts/network.sh` creates the shared `appnet` Docker network

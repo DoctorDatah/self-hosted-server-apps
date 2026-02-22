@@ -16,4 +16,5 @@ sudo -E "VM - Manual App Deployment (Inside VM)/Cleanup/cleanup_vm.sh"
 
 ## Notes
 - Removes `/data/coolify` if you approve that step
+- Uninstalls the OpenAI Codex CLI (`@openai/codex`) if you approve that step
 - Removes repo folders in `/home/malik` and `/root` if approved

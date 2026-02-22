@@ -87,6 +87,15 @@ if do_step "Remove app data directories (e.g., /data/coolify)?"; then
   run_root rm -rf /data/coolify
 fi
 
+# --- Codex CLI cleanup ---
+if command -v npm >/dev/null 2>&1; then
+  if do_step "Uninstall Codex CLI (@openai/codex)?"; then
+    run_root npm uninstall -g @openai/codex || true
+  fi
+else
+  echo "npm not found; skipping Codex CLI uninstall."
+fi
+
 # --- Repo cleanup ---
 if do_step "Remove repo folders (/home/malik/self-hosted-server-apps and /root/self-hosted-server-apps)?"; then
   run_root rm -rf /home/malik/self-hosted-server-apps

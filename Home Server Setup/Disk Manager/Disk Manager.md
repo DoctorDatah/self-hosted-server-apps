@@ -9,11 +9,7 @@ A terminal-based disk management tool for Linux guests and libvirt hosts. It hel
 
 ```bash
 chmod +x "/root/self-hosted-server-apps/Home Server Setup/Disk Manager/Disk Manager.sh"
-```
 
-3. Run the script (as root):
-
-```bash
 "/root/self-hosted-server-apps/Home Server Setup/Disk Manager/Disk Manager.sh"
 
 ```
