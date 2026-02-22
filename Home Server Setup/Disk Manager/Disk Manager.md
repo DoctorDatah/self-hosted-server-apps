@@ -4,11 +4,17 @@ A terminal-based disk management tool for Linux guests and libvirt hosts. It hel
 
 ## How to Run
 
-1. Open a terminal in the project root.
-2. Run the script as root:
+1. Open a terminal.
+2. Ensure the script is executable:
 
 ```bash
-"/home/root/self-hosted-server-apps/Home Server Setup/Disk Manager/Disk Manager.sh"
+chmod +x "/root/self-hosted-server-apps/Home Server Setup/Disk Manager/Disk Manager.sh"
+```
+
+3. Run the script (as root):
+
+```bash
+"/root/self-hosted-server-apps/Home Server Setup/Disk Manager/Disk Manager.sh"
 
 ```
 
@@ -32,6 +38,6 @@ A terminal-based disk management tool for Linux guests and libvirt hosts. It hel
 
 ## Requirements
 
-- Run as root (`sudo`).
+- Run as root (no `sudo` needed if you are already root).
 - Core tools: `lsblk`, `findmnt`, `mount`, `umount`, `e2fsck`, `resize2fs`, `xfs_growfs`, `parted`, `blkid`, `wipefs`.
 - Optional (for hypervisor menu): `virsh`, `qemu-img`.
