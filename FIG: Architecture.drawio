@@ -125,10 +125,10 @@
           <mxGeometry height="60" width="120" x="-1610" y="880" as="geometry" />
         </mxCell>
         <mxCell id="8gbo3iQZQyZSSIgbvYu8-12" parent="1" style="text;whiteSpace=wrap;" value="- sdc (1.8T, physical USB HDD)&#xa;      - Model: WDC WD20NMVW-11EDZS2&#xa;      - Transport: usb&#xa;      - sdc1 (1.8T, ext4)&#xa;          - Label: nas_data&#xa;          - mounted at /mnt/nas&#xa;          - purpose: your external data storage&#xa;          - usage: ~1% used, ~1.7T free" vertex="1">
-          <mxGeometry height="140" width="260" x="-1050" y="1040" as="geometry" />
+          <mxGeometry height="140" width="260" x="-800" y="1040" as="geometry" />
         </mxCell>
         <mxCell id="8gbo3iQZQyZSSIgbvYu8-13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="External Hard drive" vertex="1">
-          <mxGeometry height="60" width="120" x="-1090" y="890" as="geometry" />
+          <mxGeometry height="60" width="120" x="-820" y="930" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
