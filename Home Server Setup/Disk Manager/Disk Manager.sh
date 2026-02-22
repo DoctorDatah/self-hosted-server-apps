@@ -21,6 +21,7 @@ DRY_RUN=false
 VERBOSE=false
 ROOT_OVERRIDE=false
 NO_COLOR=false
+COLOR_ENABLED=true
 
 trap 'on_exit $?' EXIT
 trap 'on_interrupt' INT TERM
@@ -106,12 +107,66 @@ print_success() {
   fi
 }
 
+set_colors() {
+  if $NO_COLOR; then
+    COLOR_ENABLED=false
+  fi
+  if $COLOR_ENABLED; then
+    C_RESET="\033[0m"
+    C_BOLD="\033[1m"
+    C_DIM="\033[2m"
+    C_CYAN="\033[36m"
+    C_BLUE="\033[34m"
+    C_YELLOW="\033[33m"
+    C_GREEN="\033[32m"
+    C_RED="\033[31m"
+  else
+    C_RESET=""
+    C_BOLD=""
+    C_DIM=""
+    C_CYAN=""
+    C_BLUE=""
+    C_YELLOW=""
+    C_GREEN=""
+    C_RED=""
+  fi
+}
+
+hr() {
+  printf "%s\n" "------------------------------------------------------------"
+}
+
+title() {
+  local t="$1"
+  printf "%b%s%b\n" "$C_BOLD$C_CYAN" "$t" "$C_RESET"
+}
+
+subtitle() {
+  local t="$1"
+  printf "%b%s%b\n" "$C_BOLD$C_BLUE" "$t" "$C_RESET"
+}
+
+option() {
+  local key="$1"
+  local label="$2"
+  local desc="$3"
+  printf "%b%s%b %-28s %b%s%b\n" "$C_BOLD$C_YELLOW" "$key)" "$C_RESET" "$label" "$C_DIM" "$desc" "$C_RESET"
+}
+
+hint() {
+  local t="$1"
+  printf "%b%s%b\n" "$C_DIM" "$t" "$C_RESET"
+}
+
 pause_screen() {
   read -r -p "Press Enter to continue..."
 }
 
 pre_action() {
   local key="$1"
+  clear || true
+  title "Action Details"
+  hr
   case "$key" in
     lsblk_summary)
       cat <<'EOF'
@@ -324,6 +379,7 @@ EOF
     *)
       ;;
   esac
+  hr
   read -r -p "Press Enter to run this action..."
 }
 
@@ -907,16 +963,18 @@ EOF
 main_menu() {
   while true; do
     clear || true
-    echo "VM Disk Manager"
-    echo "1) Guest: View & Status        - Inspect disks, filesystems, and mounts (read-only status)"
-    echo "2) Guest: Mount Operations     - Mount/unmount devices and manage /etc/fstab entries"
-    echo "3) Guest: Provision / Format   - Create partitions and format filesystems (data-destructive)"
-    echo "4) Guest: Resize Filesystem    - Grow/shrink filesystems after disk changes"
-    echo "5) Guest: Destructive Operations - Wipe signatures or remove partitions (high risk)"
-    echo "6) Knowledge Base / Help Center - Learn disk concepts and safe workflows"
-    echo "7) Hypervisor (libvirt)        - Manage VM disks on the host (requires virsh/qemu-img)"
-    echo "8) Settings                    - Toggle dry-run, logging, and root-disk safeguards"
-    echo "9) Exit                        - Quit the tool"
+    title "VM Disk Manager"
+    hr
+    option "1" "Guest: View & Status" "Inspect disks, filesystems, and mounts (read-only status)"
+    option "2" "Guest: Mount Operations" "Mount/unmount devices and manage /etc/fstab entries"
+    option "3" "Guest: Provision / Format" "Create partitions and format filesystems (data-destructive)"
+    option "4" "Guest: Resize Filesystem" "Grow/shrink filesystems after disk changes"
+    option "5" "Guest: Destructive Operations" "Wipe signatures or remove partitions (high risk)"
+    option "6" "Knowledge Base / Help Center" "Learn disk concepts and safe workflows"
+    option "7" "Hypervisor (libvirt)" "Manage VM disks on the host (requires virsh/qemu-img)"
+    option "8" "Settings" "Toggle dry-run, logging, and root-disk safeguards"
+    option "9" "Exit" "Quit the tool"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) menu_guest_view ;;
@@ -936,14 +994,16 @@ main_menu() {
 menu_guest_view() {
   while true; do
     clear || true
-    echo "Guest: View & Status"
-    echo "1) lsblk summary       - Disk/partition tree, sizes, types, mountpoints"
-    echo "2) df -hT              - Filesystem usage and types (space used/available)"
-    echo "3) blkid               - Filesystem UUIDs and labels (for stable fstab entries)"
-    echo "4) show fstab entries  - Boot-time mount configuration (/etc/fstab)"
-    echo "5) detect root disk    - Identify the disk backing / (protects against mistakes)"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Guest: View & Status"
+    hr
+    option "1" "lsblk summary" "Disk/partition tree, sizes, types, mountpoints"
+    option "2" "df -hT" "Filesystem usage and types (space used/available)"
+    option "3" "blkid" "Filesystem UUIDs and labels (for stable fstab entries)"
+    option "4" "show fstab entries" "Boot-time mount configuration (/etc/fstab)"
+    option "5" "detect root disk" "Identify the disk backing / (protects against mistakes)"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) pre_action lsblk_summary; lsblk_summary ;;
@@ -962,14 +1022,16 @@ menu_guest_view() {
 menu_guest_mount() {
   while true; do
     clear || true
-    echo "Guest: Mount Operations"
-    echo "1) Mount wizard       - Attach a device to a directory (makes it accessible)"
-    echo "2) Unmount            - Safely detach a mounted device"
-    echo "3) Remount ro/rw      - Flip a mount between read-only and read-write"
-    echo "4) Add fstab entry    - Auto-mount at boot using a UUID (persistent mapping)"
-    echo "5) Remove fstab entry - Stop auto-mounting a device at boot"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Guest: Mount Operations"
+    hr
+    option "1" "Mount wizard" "Attach a device to a directory (makes it accessible)"
+    option "2" "Unmount" "Safely detach a mounted device"
+    option "3" "Remount ro/rw" "Flip a mount between read-only and read-write"
+    option "4" "Add fstab entry" "Auto-mount at boot using a UUID (persistent mapping)"
+    option "5" "Remove fstab entry" "Stop auto-mounting a device at boot"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) pre_action mount_wizard; mount_wizard ;;
@@ -988,13 +1050,15 @@ menu_guest_mount() {
 menu_guest_provision() {
   while true; do
     clear || true
-    echo "Guest: Provision / Format"
-    echo "1) Create GPT partition table       - Initialize disk with modern partition map"
-    echo "2) Create single partition using full disk - One big partition for simplicity"
-    echo "3) Format ext4                      - General-purpose Linux filesystem"
-    echo "4) Format xfs                       - High-performance filesystem (grow only)"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Guest: Provision / Format"
+    hr
+    option "1" "Create GPT partition table" "Initialize disk with modern partition map"
+    option "2" "Create single partition using full disk" "One big partition for simplicity"
+    option "3" "Format ext4" "General-purpose Linux filesystem"
+    option "4" "Format xfs" "High-performance filesystem (grow only)"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) pre_action create_gpt; create_gpt ;;
@@ -1012,13 +1076,15 @@ menu_guest_provision() {
 menu_guest_resize() {
   while true; do
     clear || true
-    echo "Guest: Resize Filesystem"
-    echo "1) ext4 grow          - Expand ext4 to fill available space"
-    echo "2) ext4 shrink        - Reduce ext4 size (must be unmounted)"
-    echo "3) xfs grow           - Expand xfs (must be mounted)"
-    echo "4) xfs shrink (blocked) - Not supported; requires backup/recreate"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Guest: Resize Filesystem"
+    hr
+    option "1" "ext4 grow" "Expand ext4 to fill available space"
+    option "2" "ext4 shrink" "Reduce ext4 size (must be unmounted)"
+    option "3" "xfs grow" "Expand xfs (must be mounted)"
+    option "4" "xfs shrink (blocked)" "Not supported; requires backup/recreate"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) pre_action ext4_grow; ext4_grow ;;
@@ -1036,11 +1102,13 @@ menu_guest_resize() {
 menu_guest_destructive() {
   while true; do
     clear || true
-    echo "Guest: Destructive Operations"
-    echo "1) Delete partition   - Remove filesystem signatures (data loss)"
-    echo "2) wipefs -a          - Wipe all filesystem signatures (data loss)"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Guest: Destructive Operations"
+    hr
+    option "1" "Delete partition" "Remove filesystem signatures (data loss)"
+    option "2" "wipefs -a" "Wipe all filesystem signatures (data loss)"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) pre_action delete_partition; delete_partition ;;
@@ -1056,13 +1124,15 @@ menu_guest_destructive() {
 menu_kb() {
   while true; do
     clear || true
-    echo "Knowledge Base / Help Center"
-    echo "1) Beginner Path  - Guided learning sequence"
-    echo "2) Browse Topics  - Read explanations by topic"
-    echo "3) Search         - Find topics by keyword"
-    echo "4) Glossary       - Quick definitions of key terms"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Knowledge Base / Help Center"
+    hr
+    option "1" "Beginner Path" "Guided learning sequence"
+    option "2" "Browse Topics" "Read explanations by topic"
+    option "3" "Search" "Find topics by keyword"
+    option "4" "Glossary" "Quick definitions of key terms"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) kb_beginner_path ;;
@@ -1085,15 +1155,17 @@ menu_hypervisor() {
   fi
   while true; do
     clear || true
-    echo "Hypervisor (libvirt)"
-    echo "1) List VMs          - Show all defined VMs"
-    echo "2) Show VM disks     - View a VM's attached disks"
-    echo "3) Create qcow2 disk - Create a new virtual disk file"
-    echo "4) Resize qcow2 disk - Grow a virtual disk file"
-    echo "5) Attach disk to VM - Add a disk to a VM"
-    echo "6) Detach disk from VM - Remove a disk from a VM"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Hypervisor (libvirt)"
+    hr
+    option "1" "List VMs" "Show all defined VMs"
+    option "2" "Show VM disks" "View a VM's attached disks"
+    option "3" "Create qcow2 disk" "Create a new virtual disk file"
+    option "4" "Resize qcow2 disk" "Grow a virtual disk file"
+    option "5" "Attach disk to VM" "Add a disk to a VM"
+    option "6" "Detach disk from VM" "Remove a disk from a VM"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) pre_action hv_list_vms; hv_list_vms ;;
@@ -1113,13 +1185,15 @@ menu_hypervisor() {
 menu_settings() {
   while true; do
     clear || true
-    echo "Settings"
-    echo "1) Toggle dry-run mode (current: $DRY_RUN) - Show commands without executing"
-    echo "2) Toggle verbose logging (current: $VERBOSE) - Echo commands to the screen"
-    echo "3) Toggle root-disk override (current: $ROOT_OVERRIDE) - Allow root disk ops"
-    echo "4) Show current configuration - Display active settings"
-    echo "0) Back"
-    echo "M) Main menu"
+    subtitle "Settings"
+    hr
+    option "1" "Toggle dry-run mode (current: $DRY_RUN)" "Show commands without executing"
+    option "2" "Toggle verbose logging (current: $VERBOSE)" "Echo commands to the screen"
+    option "3" "Toggle root-disk override (current: $ROOT_OVERRIDE)" "Allow root disk ops"
+    option "4" "Show current configuration" "Display active settings"
+    option "0" "Back" "Return to previous menu"
+    option "M" "Main menu" "Return to main menu"
+    hr
     read -r -p "Select: " choice
     case "$choice" in
       1) DRY_RUN=$([[ "$DRY_RUN" == "true" ]] && echo "false" || echo "true") ;;
@@ -1147,6 +1221,7 @@ menu_settings() {
 }
 
 # ---------- Entry ----------
+set_colors
 require_root
 main_menu
 
