@@ -26,15 +26,15 @@ Use this order for a new VM:
 1) SSH to the VM as `malik`. (or through proxmos terminal)
 2) Install Git if missing:
 ```bash
-sudo apt-get update && sudo apt-get install -y git
+ apt-get update && sudo apt-get install -y git
 ```
 3) Quick setup to avoid repeated auth prompts:
 ```bash
-sudo -u malik git config --global credential.helper store
+git config --global credential.helper store
 ```
 4) Clone the repo (first time):
 ```bash
-sudo -u malik git clone https://github.com/DoctorDatah/self-hosted-server-apps /home/malik/self-hosted-server-apps
+git clone https://github.com/DoctorDatah/self-hosted-server-apps /root/self-hosted-server-apps
 ```
 When prompted: username = `doctordatah`, password = your PAT.
 

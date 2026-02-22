@@ -4,10 +4,10 @@ Comprehensive cleanup for a VM (containers, volumes, images, networks, repo fold
 
 ## Run
 ```bash
-sudo -E "/home/malik/self-hosted-server-apps/VM - N8N/cleanup/cleanup_vm.sh"
-or
-sudo -E "VM - N8N/Cleanup/cleanup_vm.sh"
 
+chmod +x "/root/self-hosted-server-apps/Home Server Setup/Cleanup/cleanup_vm.sh"
+
+"/root/self-hosted-server-apps/Home Server Setup/Cleanup/cleanup_vm.sh"
 ```
 
 ## Behavior

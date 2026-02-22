@@ -30,9 +30,9 @@ require_root_or_sudo
 run_root apt-get update
 run_root apt-get install -y ca-certificates curl gnupg
 run_root install -m 0755 -d /etc/apt/keyrings
-run_root curl -fsSL https://download.docker.com/linux/ubuntu/gpg | run_root gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+run_root curl -fsSL https://download.docker.com/linux/debian/gpg | run_root gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 run_root chmod a+r /etc/apt/keyrings/docker.gpg
-run_root bash -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list'
+run_root bash -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list'
 run_root apt-get update
 run_root apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
