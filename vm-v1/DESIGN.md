@@ -290,7 +290,7 @@ vm-codex-v2/
 │
 └─ .github/
    └─ workflows/
-      ├─ vm-codex-v2-validate.yml
+      ├─ vm-repo-validate.yml
       ├─ _vm-codex-v2-execute.yml
       ├─ install-n8n-vm.yml
       ├─ deploy-n8n-prod.yml
@@ -1754,7 +1754,7 @@ The repo must be validated before infrastructure mutation begins.
 
 ### Workflow
 
-`vm-codex-v2-validate.yml`
+`vm-repo-validate.yml`
 
 ### Example
 
@@ -2650,7 +2650,7 @@ Restore remains staging-only and auditable.
 
 ## Validation
 
-* `vm-codex-v2-validate.yml`
+* `vm-repo-validate.yml`
 
 ## Reusable execution
 

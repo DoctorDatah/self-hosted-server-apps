@@ -210,11 +210,16 @@ def _validate_structure(repo_root: Path) -> List[str]:
         "requirements",
         "policies",
         "tools",
-        ".github/workflows",
     ]
     for d in required_dirs:
         if not (repo_root / d).exists():
             errors.append(f"missing directory: {d}")
+
+    # Workflows may live in repo root or one level above when vm-v1 is nested.
+    local_workflows = repo_root / ".github" / "workflows"
+    parent_workflows = repo_root.parent / ".github" / "workflows"
+    if not local_workflows.exists() and not parent_workflows.exists():
+        errors.append("missing directory: .github/workflows")
     return errors
 
 

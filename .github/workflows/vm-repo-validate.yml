@@ -1,0 +1,40 @@
+name: vm-repo-validate
+on:
+  pull_request:
+    paths:
+      - 'vm-v1/**'
+      - 'runtime/**'
+      - 'stages/**'
+      - 'apps/**'
+      - 'inventory/**'
+      - 'profiles/**'
+      - 'requirements/**'
+      - 'policies/**'
+      - 'tools/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect project root
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -x vm-v1/runtime/vmcx ]]; then
+            echo "root=vm-v1" >> "$GITHUB_OUTPUT"
+          elif [[ -x runtime/vmcx ]]; then
+            echo "root=." >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not find runtime/vmcx in vm-v1/ or repo root" >&2
+            exit 1
+          fi
+      - name: Quick validate
+        working-directory: ${{ steps.detect.outputs.root }}
+        run: python3 tools/quick_validate.py
+      - name: Runtime doctor
+        working-directory: ${{ steps.detect.outputs.root }}
+        run: ./runtime/vmcx doctor --ci

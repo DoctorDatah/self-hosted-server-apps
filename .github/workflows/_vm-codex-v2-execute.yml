@@ -30,22 +30,35 @@ jobs:
   execute:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    defaults:
-      run:
-        working-directory: vm-v1
     steps:
       - uses: actions/checkout@v4
+      - name: Detect project root
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -x vm-v1/runtime/vmcx ]]; then
+            echo "root=vm-v1" >> "$GITHUB_OUTPUT"
+          elif [[ -x runtime/vmcx ]]; then
+            echo "root=." >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not find runtime/vmcx in vm-v1/ or repo root" >&2
+            exit 1
+          fi
 
       - name: Preflight validation
+        working-directory: ${{ steps.detect.outputs.root }}
         run: ./runtime/vmcx doctor --ci
 
       - name: Resolve secrets (placeholder)
+        working-directory: ${{ steps.detect.outputs.root }}
         run: |
           echo "Secrets are resolved at runtime through tools/infisical_resolve.sh"
 
       - name: Execute plan
         if: ${{ inputs.operation == 'plan' }}
         shell: bash
+        working-directory: ${{ steps.detect.outputs.root }}
         run: |
           set -euo pipefail
           cmd=(./runtime/vmcx plan)
@@ -67,6 +80,7 @@ jobs:
       - name: Execute run
         if: ${{ inputs.operation == 'run' }}
         shell: bash
+        working-directory: ${{ steps.detect.outputs.root }}
         run: |
           set -euo pipefail
           cmd=(./runtime/vmcx run)
@@ -91,4 +105,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vm-v1-local-state
-          path: vm-v1/local-state/
+          path: ${{ steps.detect.outputs.root }}/local-state/
