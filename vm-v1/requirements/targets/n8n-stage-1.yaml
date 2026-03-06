@@ -1,0 +1,3 @@
+{
+  "required_paths": ["/opt/vm-codex-v2", "/var/lib/n8n"]
+}

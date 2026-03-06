@@ -1,4 +1,0 @@
-interface:
-  display_name: "VM Codex Backup Restore"
-  short_description: "Run backup and guarded restore"
-  default_prompt: "Plan and run backup_app or restore_app with staging guardrails and explicit confirmation."

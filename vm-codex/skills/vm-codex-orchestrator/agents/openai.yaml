@@ -1,4 +1,0 @@
-interface:
-  display_name: "VM Codex Orchestrator"
-  short_description: "Plan and run multi-stage VM workflows"
-  default_prompt: "Plan and execute VM operations using aliases or target/stage selection with explicit confirmation."

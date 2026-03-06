@@ -1,0 +1,61 @@
+{
+  "aliases": {
+    "n8n-vm-install": {
+      "target_selector": "target_id=n8n-stage-1",
+      "default_stages": [
+        "repo_clone_or_update",
+        "vm_install",
+        "cloudflare_vm_access"
+      ],
+      "default_params": {},
+      "requires_confirmation": true,
+      "description": "Prepare the n8n staging VM for operations"
+    },
+    "n8n-app-deploy": {
+      "target_selector": "target_id=n8n-prod-1",
+      "default_stages": [
+        "repo_clone_or_update",
+        "app_deploy"
+      ],
+      "default_params": {
+        "app_id": "n8n"
+      },
+      "requires_confirmation": true,
+      "description": "Deploy n8n app layer to production"
+    },
+    "n8n-app-backup": {
+      "target_selector": "target_id=n8n-prod-1",
+      "default_stages": ["backup_app"],
+      "default_params": {
+        "app_id": "n8n"
+      },
+      "requires_confirmation": true,
+      "description": "Backup n8n production state"
+    },
+    "n8n-app-restore-staging": {
+      "target_selector": "target_id=n8n-stage-1",
+      "default_stages": ["restore_app"],
+      "default_params": {
+        "app_id": "n8n"
+      },
+      "requires_confirmation": true,
+      "description": "Restore n8n in staging from backup"
+    },
+    "coolify-vm-install": {
+      "target_selector": "target_id=coolify-prod-1",
+      "default_stages": ["repo_clone_or_update", "vm_install"],
+      "default_params": {},
+      "requires_confirmation": true,
+      "description": "Prepare coolify VM"
+    },
+    "coolify-app-deploy": {
+      "target_selector": "target_id=coolify-prod-1",
+      "default_stages": ["repo_clone_or_update", "app_deploy"],
+      "default_params": {
+        "app_id": "coolify"
+      },
+      "requires_confirmation": true,
+      "description": "Deploy coolify app layer"
+    }
+  }
+}

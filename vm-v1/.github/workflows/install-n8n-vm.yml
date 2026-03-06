@@ -1,0 +1,13 @@
+name: install-n8n-vm
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install:
+    uses: ./.github/workflows/_vm-codex-v2-execute.yml
+    with:
+      operation: run
+      alias: n8n-vm-install
+      exec_mode: ssh
+      environment: stage

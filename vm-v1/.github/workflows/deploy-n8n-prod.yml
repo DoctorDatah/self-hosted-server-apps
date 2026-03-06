@@ -1,0 +1,18 @@
+name: deploy-n8n-prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_vm-codex-v2-execute.yml
+    with:
+      operation: run
+      alias: n8n-app-deploy
+      params_json: ${{ inputs.image_tag && format('{{"image_tag":"{0}"}}', inputs.image_tag) || '' }}
+      exec_mode: ssh
+      environment: prod

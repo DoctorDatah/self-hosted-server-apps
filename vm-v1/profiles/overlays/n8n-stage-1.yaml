@@ -1,0 +1,8 @@
+{
+  "repo": {
+    "path": "/opt/vm-codex-v2"
+  },
+  "vars": {
+    "public_hostname": "n8n-stage.example.com"
+  }
+}

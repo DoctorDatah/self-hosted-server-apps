@@ -1,0 +1,21 @@
+{
+  "stage_id": "vm_install",
+  "description": "Prepare VM baseline packages and runtime dependencies",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": true,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": [],
+  "optional_params": [
+    "install_utils",
+    "install_git",
+    "install_python",
+    "install_docker",
+    "create_network",
+    "network_name",
+    "install_infisical",
+    "install_codex"
+  ],
+  "policy_tags": ["install", "mutating"]
+}

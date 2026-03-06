@@ -1,0 +1,9 @@
+{
+  "docker": {
+    "install": true
+  },
+  "packages": ["curl", "git", "docker.io"],
+  "vars": {
+    "app_id": "n8n"
+  }
+}

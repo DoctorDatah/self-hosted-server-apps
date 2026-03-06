@@ -1,0 +1,4 @@
+services:
+  app:
+    image: ${APP_IMAGE:-busybox}:${APP_TAG:-latest}
+    command: ["sh", "-c", "sleep 3600"]

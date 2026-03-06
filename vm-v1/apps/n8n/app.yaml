@@ -1,0 +1,25 @@
+{
+  "app_id": "n8n",
+  "default_target_group": "n8n-prod-cluster",
+  "deploy_stage_params": {
+    "compose_file": "docker-compose.yml",
+    "health_timeout": 120
+  },
+  "backup_stage_params": {
+    "backup_paths": ["/var/lib/n8n"],
+    "include_db": true
+  },
+  "restore_stage_params": {
+    "allowed_environments": ["stage"]
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "url": "https://n8n.example.com/healthz"
+    }
+  ],
+  "artifacts_policy": {
+    "retain_logs": true,
+    "retain_manifests": true
+  }
+}

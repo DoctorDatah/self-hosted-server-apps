@@ -20,3 +20,13 @@ vm-codex/local-state/logs/
 vm-codex/local-state/backups/
 vm-codex/installation/.state/
 vm-codex/installation/logs/
+
+# vm-codex-v2 local runtime state
+vm-codex-v2/local-state/runs/
+vm-codex-v2/local-state/logs/
+vm-codex-v2/local-state/backups/
+vm-codex-v2/local-state/checkpoints/
+vm-codex-v2/local-state/locks/
+vm-codex-v2/local-state/backups-index/
+vm-codex-v2/install/.state/
+vm-codex-v2/install/logs/

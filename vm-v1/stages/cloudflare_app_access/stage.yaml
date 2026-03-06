@@ -1,0 +1,12 @@
+{
+  "stage_id": "cloudflare_app_access",
+  "description": "Configure Cloudflare app-level exposure and access policy",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": true,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": ["app_id"],
+  "optional_params": ["compose_file", "action", "public_hostname"],
+  "policy_tags": ["network", "app-access", "mutating"]
+}

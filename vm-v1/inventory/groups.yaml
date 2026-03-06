@@ -1,0 +1,16 @@
+{
+  "groups": {
+    "n8n-stage": {
+      "members": ["n8n-stage-1"]
+    },
+    "prod-app-vms": {
+      "members": ["n8n-prod-1", "coolify-prod-1"]
+    },
+    "n8n-prod-cluster": {
+      "members": ["n8n-prod-1"]
+    },
+    "coolify-prod": {
+      "members": ["coolify-prod-1"]
+    }
+  }
+}

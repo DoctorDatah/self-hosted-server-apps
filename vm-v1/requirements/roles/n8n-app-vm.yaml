@@ -1,0 +1,4 @@
+{
+  "required_binaries": ["docker", "git"],
+  "required_paths": ["/var/lib/n8n"]
+}

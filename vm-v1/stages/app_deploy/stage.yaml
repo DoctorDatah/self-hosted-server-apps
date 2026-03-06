@@ -1,0 +1,12 @@
+{
+  "stage_id": "app_deploy",
+  "description": "Deploy or update application workloads on target",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": true,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": ["app_id"],
+  "optional_params": ["compose_file", "section", "image_tag", "health_timeout"],
+  "policy_tags": ["deploy", "mutating"]
+}

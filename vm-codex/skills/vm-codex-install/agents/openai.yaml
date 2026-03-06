@@ -1,4 +1,0 @@
-interface:
-  display_name: "VM Codex Install"
-  short_description: "Run vm_install stage safely"
-  default_prompt: "Plan and run vm_install for selected targets with explicit confirmation."

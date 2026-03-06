@@ -1,3 +1,0 @@
-schema_version: 1
-defaults:
-  install_only: docker,git,python
