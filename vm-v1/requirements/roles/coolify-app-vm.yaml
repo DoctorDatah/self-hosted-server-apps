@@ -1,4 +1,0 @@
-{
-  "required_binaries": ["docker", "git"],
-  "required_paths": ["/data/coolify"]
-}

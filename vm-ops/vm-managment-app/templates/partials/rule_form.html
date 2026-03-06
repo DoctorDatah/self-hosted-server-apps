@@ -1,0 +1,64 @@
+{% set r = rule or {} %}
+{% set envs = r.allowed_environments or [] %}
+<div class="drawer-form-wrap">
+  <form id="rule-form" class="form-grid" hx-target="#preview-box" hx-swap="innerHTML">
+    <input type="hidden" name="original_setup_id" value="{{ setup_id }}" />
+
+    <label>
+      setup_id
+      <select name="setup_id" {% if mode == 'edit' %}disabled{% endif %} required>
+        <option value="">Select setup</option>
+        {% for sid in stage_ids %}
+          <option value="{{ sid }}" {% if setup_id == sid %}selected{% endif %}>{{ sid }}</option>
+        {% endfor %}
+      </select>
+      {% if mode == 'edit' %}
+        <input type="hidden" name="setup_id" value="{{ setup_id }}" />
+      {% endif %}
+    </label>
+
+    <label class="checkline">
+      <input type="checkbox" name="requires_confirmation" {% if r.requires_confirmation %}checked{% endif %} />
+      <span>Requires confirmation</span>
+    </label>
+
+    <fieldset class="fieldset">
+      <legend>Allowed Environments</legend>
+      <div class="checks-grid env-grid">
+        {% for env in ['dev', 'stage', 'prod'] %}
+          <label class="checkbox-chip">
+            <input type="checkbox" name="allowed_environments" value="{{ env }}" {% if env in envs %}checked{% endif %} />
+            <span>{{ env }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="hint">If none selected, rule applies to any environment.</p>
+    </fieldset>
+
+    <div class="actions-row">
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="/rules/preview"
+        hx-include="#rule-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Preview Diff</button>
+
+      <button
+        class="btn"
+        type="button"
+        hx-post="/rules/save"
+        hx-include="#rule-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Save</button>
+
+      <button type="button" class="btn ghost" data-close-drawer="true">Close</button>
+    </div>
+  </form>
+
+  <div id="preview-box" class="preview-placeholder">
+    <p>Click "Preview Diff" before saving to inspect changes.</p>
+  </div>
+</div>

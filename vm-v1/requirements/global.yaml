@@ -1,4 +1,0 @@
-{
-  "required_binaries": ["bash", "git"],
-  "required_paths": ["/opt/vm-codex-v2"]
-}

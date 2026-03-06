@@ -37,12 +37,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -x vm-v1/runtime/vmcx ]]; then
-            echo "root=vm-v1" >> "$GITHUB_OUTPUT"
+          if [[ -x vm-ops/runtime/vmcx ]]; then
+            echo "root=vm-ops" >> "$GITHUB_OUTPUT"
           elif [[ -x runtime/vmcx ]]; then
             echo "root=." >> "$GITHUB_OUTPUT"
           else
-            echo "Could not find runtime/vmcx in vm-v1/ or repo root" >&2
+            echo "Could not find runtime/vmcx in vm-ops/ or repo root" >&2
             exit 1
           fi
 
@@ -104,5 +104,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vm-v1-local-state
+          name: vm-ops-local-state
           path: ${{ steps.detect.outputs.root }}/local-state/

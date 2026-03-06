@@ -1,8 +1,0 @@
-{
-  "repo": {
-    "path": "/opt/vm-codex-v2"
-  },
-  "vars": {
-    "public_hostname": "coolify.example.com"
-  }
-}

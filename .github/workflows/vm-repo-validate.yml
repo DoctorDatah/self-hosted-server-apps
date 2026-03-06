@@ -2,14 +2,15 @@ name: vm-repo-validate
 on:
   pull_request:
     paths:
-      - 'vm-v1/**'
+      - 'vm-ops/**'
+      - 'vm-ops/vm-configs/**'
+      - 'vm-ops/ai-skills/**'
+      - 'vm-ops/vm-setups/**'
       - 'runtime/**'
-      - 'stages/**'
+      - 'ai-skills/**'
+      - 'vm-setups/**'
       - 'apps/**'
-      - 'inventory/**'
-      - 'profiles/**'
-      - 'requirements/**'
-      - 'policies/**'
+      - 'vm-configs/**'
       - 'tools/**'
       - '.github/workflows/**'
   workflow_dispatch:
@@ -24,12 +25,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -x vm-v1/runtime/vmcx ]]; then
-            echo "root=vm-v1" >> "$GITHUB_OUTPUT"
+          if [[ -x vm-ops/runtime/vmcx ]]; then
+            echo "root=vm-ops" >> "$GITHUB_OUTPUT"
           elif [[ -x runtime/vmcx ]]; then
             echo "root=." >> "$GITHUB_OUTPUT"
           else
-            echo "Could not find runtime/vmcx in vm-v1/ or repo root" >&2
+            echo "Could not find runtime/vmcx in vm-ops/ or repo root" >&2
             exit 1
           fi
       - name: Quick validate
