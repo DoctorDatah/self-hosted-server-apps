@@ -1,0 +1,8 @@
+schema_version: 1
+defaults:
+  install_only: ""
+  deploy_section: all
+  group_concurrency: 2
+versions:
+  codex_cli: 0.34.0
+  docker: latest

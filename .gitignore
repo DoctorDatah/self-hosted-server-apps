@@ -14,3 +14,9 @@ Thumbs.db
 # .env.*
 .venv/
 
+# vm-codex local runtime state
+vm-codex/local-state/runs/
+vm-codex/local-state/logs/
+vm-codex/local-state/backups/
+vm-codex/installation/.state/
+vm-codex/installation/logs/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "VM Codex Cloudflare"
+  short_description: "Run cloudflare stages"
+  default_prompt: "Plan and run Cloudflare VM/app access stages with explicit confirmation."

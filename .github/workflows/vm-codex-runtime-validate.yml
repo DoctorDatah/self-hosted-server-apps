@@ -1,0 +1,70 @@
+name: vm-codex-runtime-validate
+
+on:
+  push:
+    paths:
+      - 'vm-codex/**'
+      - '.github/workflows/vm-codex-runtime-validate.yml'
+  pull_request:
+    paths:
+      - 'vm-codex/**'
+      - '.github/workflows/vm-codex-runtime-validate.yml'
+
+jobs:
+  validate-runtime:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps for validation
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Ensure executables
+        run: |
+          chmod +x ./vm-codex/runtime/vmcx
+          chmod +x ./vm-codex/tools/install_skills.sh
+          chmod +x ./vm-codex/runtime/stages/*.sh
+
+      - name: Shell static checks
+        run: |
+          bash -n ./vm-codex/tools/install_skills.sh
+          for f in ./vm-codex/runtime/stages/*.sh; do
+            bash -n "$f"
+          done
+
+      - name: Runtime unit tests
+        run: |
+          python3 -m unittest discover -s vm-codex/runtime/tests -p 'test_*.py'
+
+      - name: Runtime smoke commands
+        run: |
+          ./vm-codex/runtime/vmcx list-targets
+          ./vm-codex/runtime/vmcx list-groups
+          ./vm-codex/runtime/vmcx list-aliases
+          ./vm-codex/runtime/vmcx plan --alias n8n-vm-setup
+
+      - name: Skill installer integration checks
+        run: |
+          ./vm-codex/tools/install_skills.sh --list
+          ./vm-codex/tools/install_skills.sh --dry-run
+          ./vm-codex/tools/install_skills.sh --dest /tmp/vm-codex-skill-install-test
+          test -f /tmp/vm-codex-skill-install-test/vm-codex-orchestrator/SKILL.md
+          test -f /tmp/vm-codex-skill-install-test/vm-codex-install/SKILL.md
+          test -f /tmp/vm-codex-skill-install-test/vm-codex-deploy/SKILL.md
+          test -f /tmp/vm-codex-skill-install-test/vm-codex-cloudflare/SKILL.md
+          test -f /tmp/vm-codex-skill-install-test/vm-codex-backup-restore/SKILL.md
+
+      - name: Skill structure validation
+        run: |
+          for skill in ./vm-codex/skills/vm-codex-*; do
+            python3 ./vm-codex/tools/quick_validate.py "$skill"
+          done

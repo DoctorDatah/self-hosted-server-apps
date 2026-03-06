@@ -1,0 +1,5 @@
+schema_version: 1
+name: app-vm
+stage_config:
+  vm_install:
+    risk: medium

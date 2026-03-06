@@ -1,0 +1,4 @@
+schema_version: 1
+defaults:
+  deploy_section: all
+  backup_retention_days: 14

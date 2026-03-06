@@ -1,0 +1,7 @@
+schema_version: 1
+name: n8n-vm
+stage_config:
+  app_deploy:
+    risk: high
+  backup_app:
+    risk: high

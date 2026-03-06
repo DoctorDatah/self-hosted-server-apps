@@ -1,0 +1,19 @@
+schema_version: 1
+name: manual-app-deploy
+description: Baseline VM profile migrated from manual app deployment flow.
+os_family: debian
+os_version_constraints: ">=22.04"
+tools:
+  - utils
+  - git
+  - python
+  - docker
+  - network
+  - infisical
+  - codex
+required_binaries:
+  - bash
+  - sudo
+  - apt-get
+tool_versions:
+  codex: 0.34.0

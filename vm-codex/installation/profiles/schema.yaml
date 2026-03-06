@@ -1,0 +1,18 @@
+schema_version: 1
+required_fields:
+  - schema_version
+  - name
+  - os_family
+  - os_version_constraints
+  - tools
+  - required_binaries
+allowed_fields:
+  - schema_version
+  - name
+  - description
+  - os_family
+  - os_version_constraints
+  - tools
+  - required_binaries
+  - required_env_vars
+  - tool_versions

@@ -1,0 +1,4 @@
+interface:
+  display_name: "VM Codex Deploy"
+  short_description: "Run section-aware app deploy"
+  default_prompt: "Plan and run app_deploy with the requested section and explicit confirmation."
