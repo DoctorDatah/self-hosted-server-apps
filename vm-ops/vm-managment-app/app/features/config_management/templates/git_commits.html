@@ -3,9 +3,11 @@
 <section class="panel">
   <h3>Branch and Commit</h3>
   <p>
-    This feature creates or switches to an isolated branch, stages VM config files, and commits.
-    It does not auto-push and does not auto-create PRs.
+    Manage a UI target branch from here without changing your main local checked-out branch.
+    Commits happen in an isolated worktree.
   </p>
+  <p class="muted">Branch default uses timezone: <code>{{ app_timezone or 'UTC' }}</code></p>
+  <p class="muted">UI target branch: <code>{{ preferred_config_branch or default_branch }}</code></p>
 </section>
 
 <section class="panel two-col">
@@ -27,20 +29,42 @@
   <div>
     <h3>Tracked Config Files</h3>
     <ul class="simple-list">
-      <li><code>vm-configs/vm-machines.yaml</code></li>
-      <li><code>vm-configs/vm-operations.yaml</code></li>
-      <li><code>vm-configs/vm-env-rules.yaml</code></li>
-      <li><code>vm-configs/config-backups/**</code> (if changed)</li>
+      {% for tracked in tracked_files %}
+        <li><code>{{ tracked }}</code></li>
+      {% endfor %}
     </ul>
   </div>
 </section>
 
 <section class="panel">
+  <h3>Set Active Branch</h3>
+  <form
+    class="form-grid"
+    hx-post="/config-management/git-commits/switch"
+    hx-target="#git-action-result"
+    hx-swap="innerHTML"
+  >
+    <label>
+      Branch Name
+      <input type="text" name="branch_name" value="{{ preferred_config_branch or default_branch or '' }}" required />
+    </label>
+    <div class="actions-row">
+      <button type="submit" class="btn">Create/Switch Branch</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
   <h3>Prepare Branch + Commit</h3>
-  <form id="git-prepare-form" class="form-grid" data-git-prepare="true">
+  <form
+    class="form-grid"
+    hx-post="/config-management/git-commits/prepare"
+    hx-target="#git-action-result"
+    hx-swap="innerHTML"
+  >
     <label>
       Branch Name (optional)
-      <input type="text" name="branch_name" value="{{ default_branch or '' }}" />
+      <input type="text" name="branch_name" value="{{ preferred_config_branch or '' }}" />
     </label>
 
     <label>
@@ -52,7 +76,38 @@
       <button type="submit" class="btn">Create Branch + Commit</button>
     </div>
   </form>
+</section>
 
-  <div id="git-prepare-result" class="result-box"></div>
+<section class="panel">
+  <h3>Push Branch</h3>
+  <form
+    class="form-grid"
+    hx-post="/config-management/git-commits/push"
+    hx-target="#git-action-result"
+    hx-swap="innerHTML"
+  >
+    <div class="field-row two-col">
+      <label>
+        Branch Name
+        <input type="text" name="branch_name" value="{{ preferred_config_branch or '' }}" />
+      </label>
+      <label>
+        Remote Name
+        <input type="text" name="remote_name" value="origin" />
+      </label>
+    </div>
+    <label class="checkline">
+      <input type="checkbox" name="set_upstream" checked />
+      <span>Set upstream tracking (`git push -u`)</span>
+    </label>
+    <div class="actions-row">
+      <button type="submit" class="btn">Push Branch</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h3>Result</h3>
+  <div id="git-action-result" class="result-box"></div>
 </section>
 {% endblock %}

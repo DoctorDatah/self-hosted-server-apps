@@ -347,14 +347,18 @@
       var backupSummary = String(backupStatus.summary || '');
 
       var branchNode = qs('#pill-branch');
+      var targetBranchNode = qs('#pill-target-branch');
       var changesNode = qs('#pill-changes');
       var validationNode = qs('#pill-validation');
+      var timezoneNode = qs('#pill-timezone');
       var backupNode = qs('#pill-backup');
       var statusText = qs('#top-status-text');
 
       if (branchNode) branchNode.textContent = 'branch: ' + (data.branch || '-');
+      if (targetBranchNode) targetBranchNode.textContent = 'ui target: ' + (data.preferred_config_branch || '-');
       if (changesNode) changesNode.textContent = 'changes: ' + changed;
       if (validationNode) validationNode.textContent = 'validation: ' + (validation ? 'errors' : 'ok');
+      if (timezoneNode) timezoneNode.textContent = 'timezone: ' + (data.app_timezone || 'UTC');
       if (backupNode) {
         backupNode.classList.remove('ok', 'warn');
         if (backupState === 'backed_up' || backupState === 'backed_up_restored') {

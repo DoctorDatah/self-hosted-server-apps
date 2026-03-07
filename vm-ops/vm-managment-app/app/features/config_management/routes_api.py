@@ -13,7 +13,7 @@ from ...shared.schemas import (
     DeletePreviewRequest,
     model_to_dict,
 )
-from .services import backups, config_store, git_ops, validators
+from .services import backups, config_store, git_ops, settings as app_settings, validators
 from .services.cascade import preview_cascade
 from .services.integrity import IntegrityError, build_delete_impact_report, summarize_dependents
 
@@ -59,20 +59,36 @@ def _changed_files(parts) -> list[str]:
 @router.get("/api/status")
 def status() -> Dict[str, Any]:
     paths = config_store.get_paths()
+    cfg = app_settings.load_settings(paths.repo_root)
+    timezone_name = str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE))
+    preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
     bundle = config_store.load_bundle(paths)
     git_status = git_ops.get_status(paths.repo_root)
     validation_errors = validators.validate_bundle(bundle, paths.repo_root)
     backup_status = backups.get_backup_status(paths)
+    backup_status["latest_backup_created_at_display"] = app_settings.format_iso_datetime(
+        str(backup_status.get("latest_backup_created_at") or ""),
+        timezone_name,
+    )
+    backup_status["last_restore_at_display"] = app_settings.format_iso_datetime(
+        str(backup_status.get("last_restore_at") or ""),
+        timezone_name,
+    )
     return {
         **git_status,
         "validation_errors": validation_errors,
         "backup_status": backup_status,
+        "app_timezone": timezone_name,
+        "preferred_config_branch": preferred_branch,
     }
 
 
 @router.post("/api/git/prepare-commit")
 async def prepare_commit(request: Request) -> Dict[str, Any]:
     paths = config_store.get_paths()
+    cfg = app_settings.load_settings(paths.repo_root)
+    timezone_name = str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE))
+    preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
 
     branch_name = ""
     commit_message = ""
@@ -92,14 +108,19 @@ async def prepare_commit(request: Request) -> Dict[str, Any]:
         "vm-configs/vm-operations.yaml",
         "vm-configs/vm-env-rules.yaml",
     ]
+    if (paths.repo_root / "vm-configs" / "config-backups").exists():
+        tracked_files.append("vm-configs/config-backups")
 
     try:
         result = git_ops.prepare_commit(
             paths.repo_root,
             tracked_files=tracked_files,
             branch_name=branch_name or None,
+            preferred_branch=preferred_branch or None,
+            fallback_tz=timezone_name,
             commit_message=commit_message or None,
         )
+        app_settings.save_preferred_config_branch(paths.repo_root, str(result.get("branch", "")))
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

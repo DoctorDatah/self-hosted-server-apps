@@ -91,6 +91,7 @@
 <section class="panel">
   <h3>Available Backups (Newest First)</h3>
   <p>Restoring a backup overwrites current <code>vm-configs/*.yaml</code> files directly in this repo.</p>
+  <p class="hint">Displayed times use timezone: <code>{{ backup_timezone or app_timezone or 'UTC' }}</code></p>
 
   <div class="table-wrap">
     <table class="data-table">
@@ -108,7 +109,7 @@
         {% for backup in backups %}
           <tr>
             <td><code>{{ backup.backup_id }}</code></td>
-            <td>{{ backup.created_at or "-" }}</td>
+            <td>{{ backup.created_at_display or backup.created_at or "-" }}</td>
             <td>{{ backup.label or "-" }}</td>
             <td>{{ backup.remark or "-" }}</td>
             <td><code>{{ backup.backup_path or "-" }}</code></td>

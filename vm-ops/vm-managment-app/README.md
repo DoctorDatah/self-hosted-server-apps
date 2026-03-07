@@ -46,7 +46,10 @@ app/
 ## Key Behaviors
 
 - Config forms with validation + diff preview.
-- Dedicated Branch and Commit feature page creates isolated branch + commit on demand.
+- Dedicated Branch and Commit feature page lets you manage a UI target branch, commit on demand, and push from UI.
+  - Default branch pattern: `config_update/update-YYYYMMDD-HHMMSS`
+  - Reuses an existing related branch by default; creates new branch only when none exists
+  - Branch operations do not switch your main local checked-out branch
 - Referential-integrity-aware delete flow:
   - Analyze dependencies first
   - Explicit cascade confirmation when required
@@ -61,6 +64,12 @@ app/
   - Delete backups directly from the UI
   - Restore any backup directly back into `vm-configs/*.yaml`
   - Top status shows whether current config is backed up, last backup date, and last restore source
+- Settings:
+  - Global app settings available from main menu
+  - Timezone selection is saved in app data and reused across UI timestamps and default branch naming
+  - Full timezone list is available for selection
+  - UI target branch preference is saved and reused by commit/push actions
+  - Settings file path: `vm-managment-app/app-data/settings.json`
 
 ## Run
 

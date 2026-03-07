@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h3>Global App Settings</h3>
+  <p>
+    Pick the app timezone used for branch default naming and all displayed timestamps across VM Management.
+  </p>
+  <p class="muted">Current timezone: <code>{{ current_timezone }}</code></p>
+  <p class="muted">UI target branch: <code>{{ preferred_config_branch or "-" }}</code></p>
+
+  <form
+    class="form-grid"
+    hx-post="/settings/save"
+    hx-target="#settings-feedback"
+    hx-swap="innerHTML"
+  >
+    <label>
+      UI Target Branch (optional)
+      <input
+        type="text"
+        name="preferred_config_branch"
+        value="{{ preferred_config_branch or '' }}"
+        placeholder="config_update/update-YYYYMMDD-HHMMSS"
+      />
+      <span class="hint">Commits and pushes will default to this branch when branch input is left empty.</span>
+    </label>
+
+    <label>
+      Timezone ({{ timezone_options|length }} available zones)
+      <select name="timezone" required>
+        {% for tz in timezone_options %}
+          <option value="{{ tz }}" {% if tz == current_timezone %}selected{% endif %}>{{ tz }}</option>
+        {% endfor %}
+      </select>
+      <span class="hint">Scroll or type letters while focused to jump through the timezone list.</span>
+    </label>
+
+    <div class="actions-row">
+      <button type="submit" class="btn">Save Settings</button>
+    </div>
+  </form>
+
+  <div id="settings-feedback" class="result-box"></div>
+</section>
+{% endblock %}

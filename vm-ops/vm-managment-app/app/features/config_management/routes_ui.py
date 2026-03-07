@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from ...core.app_meta import APP_DISPLAY_NAME
 from ...core.realtime_bus import bus
 from ..ui_system.service import ui_system_template_dirs
-from .services import backups, config_store, git_ops, validators
+from .services import backups, config_store, git_ops, settings as app_settings, validators
 
 router = APIRouter(tags=["config-management-ui"])
 templates = Jinja2Templates(directory=ui_system_template_dirs())
@@ -20,15 +20,31 @@ def _paths() -> config_store.ConfigPaths:
 
 
 def _ctx(request: Request, **extra: Any) -> Dict[str, Any]:
+    paths = _paths()
+    app_timezone = app_settings.DEFAULT_TIMEZONE
     backup_status: Dict[str, Any] = {}
     try:
-        backup_status = backups.get_backup_status(_paths())
+        app_timezone = app_settings.get_timezone(paths.repo_root)
+    except Exception:
+        app_timezone = app_settings.DEFAULT_TIMEZONE
+
+    try:
+        backup_status = backups.get_backup_status(paths)
+        backup_status["latest_backup_created_at_display"] = app_settings.format_iso_datetime(
+            str(backup_status.get("latest_backup_created_at") or ""),
+            app_timezone,
+        )
+        backup_status["last_restore_at_display"] = app_settings.format_iso_datetime(
+            str(backup_status.get("last_restore_at") or ""),
+            app_timezone,
+        )
     except Exception:
         backup_status = {}
 
     return {
         "request": request,
         "app_display_name": APP_DISPLAY_NAME,
+        "app_timezone": app_timezone,
         "nav_mode": "config",
         "backup_status": backup_status,
         "config_feature_paths": {
@@ -59,6 +75,18 @@ def _split_csv(raw: str) -> List[str]:
 def _introduced_errors(before: List[str], after: List[str]) -> List[str]:
     base = set(before)
     return [e for e in after if e not in base]
+
+
+def _git_tracked_paths(paths: config_store.ConfigPaths) -> List[str]:
+    tracked = [
+        "vm-configs/vm-machines.yaml",
+        "vm-configs/vm-operations.yaml",
+        "vm-configs/vm-env-rules.yaml",
+    ]
+    backups_dir = paths.repo_root / "vm-configs" / "config-backups"
+    if backups_dir.exists():
+        tracked.append("vm-configs/config-backups")
+    return tracked
 
 
 def _machine_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
@@ -180,16 +208,157 @@ def dashboard(request: Request):
 @router.get("/features/config-management/git-commits")
 def git_commits_page(request: Request):
     paths = _paths()
+    cfg = app_settings.load_settings(paths.repo_root)
+    timezone_name = str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE))
+    preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
     status = git_ops.get_status(paths.repo_root)
+    default_branch = preferred_branch or git_ops.default_branch_name(timezone_name)
     return templates.TemplateResponse(
         "git_commits.html",
         _ctx(
             request,
             page_title="Branch and Commit",
             git_status=status,
-            default_branch=git_ops.default_branch_name(),
+            default_branch=default_branch,
+            preferred_config_branch=preferred_branch,
             default_message=git_ops.default_commit_message(),
+            tracked_files=_git_tracked_paths(paths),
         ),
+    )
+
+
+@router.get("/settings")
+def settings_page(request: Request):
+    paths = _paths()
+    cfg = app_settings.load_settings(paths.repo_root)
+    timezone_name = str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE))
+    preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
+    return templates.TemplateResponse(
+        "settings.html",
+        _ctx(
+            request,
+            page_title="Settings",
+            nav_mode="home" if request.url.path == "/settings" else "config",
+            current_timezone=timezone_name,
+            preferred_config_branch=preferred_branch,
+            timezone_options=app_settings.all_timezones(),
+        ),
+    )
+
+
+@router.post("/settings/save")
+async def save_settings(request: Request):
+    paths = _paths()
+    form = await request.form()
+    timezone_name = str(form.get("timezone", "")).strip()
+    preferred_branch = str(form.get("preferred_config_branch", "")).strip()
+    try:
+        saved = app_settings.save_settings(
+            paths.repo_root,
+            timezone_name=timezone_name,
+            preferred_config_branch=preferred_branch,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<div class='flash error'>Settings save failed: {exc}</div>", status_code=200)
+
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"Settings saved. Timezone: <code>{saved['timezone']}</code>. "
+            f"UI target branch: <code>{saved.get('preferred_config_branch', '') or '-'}</code>."
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/config-management/git-commits/switch")
+async def git_switch_branch(request: Request):
+    paths = _paths()
+    form = await request.form()
+    branch_name = str(form.get("branch_name", "")).strip()
+    try:
+        result = git_ops.switch_branch(paths.repo_root, branch_name)
+        app_settings.save_preferred_config_branch(paths.repo_root, result["branch"])
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<div class='flash error'>Branch switch failed: {exc}</div>", status_code=200)
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"UI target branch set to <code>{result['branch']}</code>. "
+            "Your local checked-out branch was not changed."
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/config-management/git-commits/prepare")
+async def git_prepare_commit(request: Request):
+    paths = _paths()
+    form = await request.form()
+    branch_name = str(form.get("branch_name", "")).strip()
+    commit_message = str(form.get("commit_message", "")).strip()
+    cfg = app_settings.load_settings(paths.repo_root)
+    timezone_name = str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE))
+    preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
+    try:
+        result = git_ops.prepare_commit(
+            paths.repo_root,
+            tracked_files=_git_tracked_paths(paths),
+            branch_name=branch_name or None,
+            preferred_branch=preferred_branch or None,
+            fallback_tz=timezone_name,
+            commit_message=commit_message or None,
+        )
+        app_settings.save_preferred_config_branch(paths.repo_root, str(result.get("branch", "")))
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<div class='flash error'>Commit failed: {exc}</div>", status_code=200)
+
+    files_html = "".join(f"<li><code>{f}</code></li>" for f in result.get("changed_files", []))
+    next_cmds = "".join(f"<li><code>{c}</code></li>" for c in result.get("next_commands", []))
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"Committed on <code>{result['branch']}</code> at <code>{result['commit_sha']}</code>."
+            "</div>"
+            "<div class='panel'>"
+            "<h4>Changed Files</h4>"
+            f"<ul class='simple-list'>{files_html or '<li>-</li>'}</ul>"
+            "<h4>Next Commands</h4>"
+            f"<ul class='simple-list'>{next_cmds or '<li>-</li>'}</ul>"
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/config-management/git-commits/push")
+async def git_push_branch(request: Request):
+    paths = _paths()
+    form = await request.form()
+    branch_name = str(form.get("branch_name", "")).strip()
+    remote_name = str(form.get("remote_name", "origin")).strip() or "origin"
+    set_upstream = str(form.get("set_upstream", "")).strip().lower() in {"1", "true", "on", "yes"}
+    preferred_branch = app_settings.get_preferred_config_branch(paths.repo_root)
+
+    try:
+        result = git_ops.push_branch(
+            paths.repo_root,
+            branch_name=branch_name or preferred_branch or None,
+            remote_name=remote_name,
+            set_upstream=set_upstream,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<div class='flash error'>Push failed: {exc}</div>", status_code=200)
+
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"Pushed <code>{result['branch']}</code> to <code>{result['remote']}</code>."
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
     )
 
 
@@ -275,6 +444,7 @@ def backups_page(
     last_n: str = "",
 ):
     paths = _paths()
+    timezone_name = app_settings.get_timezone(paths.repo_root)
     parsed_last_n = None
     filter_errors: List[str] = []
 
@@ -296,17 +466,27 @@ def backups_page(
             date_from=date_from,
             date_to=date_to,
             last_n=parsed_last_n,
+            tz_name=timezone_name,
         )
     except Exception as exc:  # noqa: BLE001
         filter_errors.append(str(exc))
-        records = backups.list_backups(paths)
+        records = backups.list_backups(paths, tz_name=timezone_name)
+
+    rendered_records: List[Dict[str, Any]] = []
+    for item in records:
+        enriched = dict(item)
+        enriched["created_at_display"] = app_settings.format_iso_datetime(
+            str(item.get("created_at", "")),
+            timezone_name,
+        )
+        rendered_records.append(enriched)
 
     return templates.TemplateResponse(
         "backups.html",
         _ctx(
             request,
             page_title="Config Backups",
-            backups=records,
+            backups=rendered_records,
             filter_errors=filter_errors,
             backup_filters={
                 "label_q": label_q,
@@ -315,6 +495,7 @@ def backups_page(
                 "date_to": date_to,
                 "last_n": last_n_value,
             },
+            backup_timezone=timezone_name,
         ),
     )
 

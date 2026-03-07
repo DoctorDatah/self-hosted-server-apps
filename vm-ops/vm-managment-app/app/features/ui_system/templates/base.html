@@ -22,6 +22,7 @@
         {% if nav_mode == "home" %}
           <h4 class="nav-group-title">Main Menu</h4>
           <a href="/config-management" class="nav-link {% if request.url.path.startswith('/config-management') or request.url.path.startswith('/features/config-management') %}active{% endif %}">Config Management</a>
+          <a href="/settings" class="nav-link {% if request.url.path in ['/settings'] %}active{% endif %}">Settings</a>
         {% else %}
           <h4 class="nav-group-title">Config Management</h4>
           <a href="/config-management" class="nav-link {% if request.url.path in ['/config-management','/features/config-management'] %}active{% endif %}">Dashboard</a>
@@ -45,8 +46,10 @@
         </div>
         <div class="pill-row">
           <span class="pill" id="pill-branch">branch: -</span>
+          <span class="pill" id="pill-target-branch">ui target: -</span>
           <span class="pill" id="pill-changes">changes: -</span>
           <span class="pill" id="pill-validation">validation: -</span>
+          <span class="pill" id="pill-timezone">timezone: {{ app_timezone or 'UTC' }}</span>
           {% if nav_mode != "home" %}
             <span class="pill" id="pill-backup">backup: -</span>
           {% endif %}
@@ -60,13 +63,13 @@
           <p class="muted">
             Latest backup:
             <code>{{ backup_status.latest_backup_id or "-" }}</code>
-            at {{ backup_status.latest_backup_created_at or "-" }}
+            at {{ backup_status.latest_backup_created_at_display or "-" }}
           </p>
           {% if backup_status.last_restore_backup_id %}
             <p class="muted">
               Last restore:
               <code>{{ backup_status.last_restore_backup_id }}</code>
-              at {{ backup_status.last_restore_at or "-" }}
+              at {{ backup_status.last_restore_at_display or "-" }}
             </p>
           {% endif %}
         </section>

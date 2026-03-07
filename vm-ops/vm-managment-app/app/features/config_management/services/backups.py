@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from . import config_store
 
@@ -196,13 +197,13 @@ def _load_metadata(path: Path) -> Dict[str, Any]:
     return metadata
 
 
-def _utc_day_range(date_str: str) -> Tuple[int, int]:
+def _day_range(date_str: str, tz_name: str = "UTC") -> Tuple[int, int]:
     try:
-        day = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        day = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=ZoneInfo(tz_name))
     except ValueError as exc:
         raise BackupError(f"Invalid date format '{date_str}'. Expected YYYY-MM-DD.") from exc
-    start = int(day.timestamp())
-    end = int((day + timedelta(days=1)).timestamp()) - 1
+    start = int(day.astimezone(timezone.utc).timestamp())
+    end = int((day + timedelta(days=1)).astimezone(timezone.utc).timestamp()) - 1
     return (start, end)
 
 
@@ -213,6 +214,7 @@ def list_backups(
     date_from: str = "",
     date_to: str = "",
     last_n: Optional[int] = None,
+    tz_name: str = "UTC",
 ) -> List[Dict[str, Any]]:
     root = _backup_root(paths.repo_root)
     if not root.exists():
@@ -245,14 +247,14 @@ def list_backups(
         ]
 
     if date_exact:
-        start, end = _utc_day_range(date_exact)
+        start, end = _day_range(date_exact, tz_name=tz_name)
         records = [r for r in records if start <= int(r.get("created_at_epoch", 0)) <= end]
     else:
         if date_from:
-            start, _ = _utc_day_range(date_from)
+            start, _ = _day_range(date_from, tz_name=tz_name)
             records = [r for r in records if int(r.get("created_at_epoch", 0)) >= start]
         if date_to:
-            _, end = _utc_day_range(date_to)
+            _, end = _day_range(date_to, tz_name=tz_name)
             records = [r for r in records if int(r.get("created_at_epoch", 0)) <= end]
 
     if last_n is not None and last_n > 0:
