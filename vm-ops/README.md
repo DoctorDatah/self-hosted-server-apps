@@ -4,16 +4,21 @@
 
 All machine configuration lives under `vm-configs/`:
 - `vm-configs/vm-machines.yaml`
-- `vm-configs/vm-operations.yaml`
-- `vm-configs/vm-env-rules.yaml`
+- Optional legacy files:
+  - `vm-configs/vm-operations.yaml`
+  - `vm-configs/vm-env-rules.yaml`
+
+Primary config is machine-first:
+- per-machine setup allow-list: `enabled_setups`
+- per-machine operation sets: `set_of_operations`
 
 ## Quick start
 
 ```bash
 cd vm-ops
 ./runtime/vmcx doctor --ci
-./runtime/vmcx plan --alias n8n-app-deploy --exec-mode ssh
-./runtime/vmcx run --alias n8n-app-deploy --confirm --exec-mode local
+./runtime/vmcx plan --target n8n-stage-1 --stages vm_install --exec-mode local
+./runtime/vmcx run --target n8n-stage-1 --stages vm_install --confirm --exec-mode local
 ```
 
 ## Notes

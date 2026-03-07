@@ -53,9 +53,11 @@ def get_paths(repo_root: Optional[Path] = None) -> ConfigPaths:
     )
 
 
-def _read_json_doc(path: Path) -> Dict[str, Any]:
+def _read_json_doc(path: Path, *, required: bool = True) -> Dict[str, Any]:
     if not path.exists():
-        raise ConfigStoreError(f"Missing config file: {path}")
+        if required:
+            raise ConfigStoreError(f"Missing config file: {path}")
+        return {}
     raw = path.read_text(encoding="utf-8")
     try:
         parsed = json.loads(raw)
@@ -66,7 +68,11 @@ def _read_json_doc(path: Path) -> Dict[str, Any]:
     return parsed
 
 
-def _read_text(path: Path) -> str:
+def _read_text(path: Path, *, required: bool = True) -> str:
+    if not path.exists():
+        if required:
+            raise ConfigStoreError(f"Missing config file: {path}")
+        return "{}\n"
     return path.read_text(encoding="utf-8")
 
 
@@ -75,9 +81,9 @@ def dump_doc(doc: Dict[str, Any]) -> str:
 
 
 def load_bundle(paths: ConfigPaths) -> ConfigBundle:
-    machines_doc = _read_json_doc(paths.machines_path)
-    operations_doc = _read_json_doc(paths.operations_path)
-    rules_doc = _read_json_doc(paths.rules_path)
+    machines_doc = _read_json_doc(paths.machines_path, required=True)
+    operations_doc = _read_json_doc(paths.operations_path, required=False)
+    rules_doc = _read_json_doc(paths.rules_path, required=False)
 
     machines_doc.setdefault("machines", {})
     machines_doc.setdefault("groups", {})
@@ -97,9 +103,9 @@ def load_bundle(paths: ConfigPaths) -> ConfigBundle:
         machines_doc=machines_doc,
         operations_doc=operations_doc,
         rules_doc=rules_doc,
-        machines_text=_read_text(paths.machines_path),
-        operations_text=_read_text(paths.operations_path),
-        rules_text=_read_text(paths.rules_path),
+        machines_text=_read_text(paths.machines_path, required=True),
+        operations_text=_read_text(paths.operations_path, required=False),
+        rules_text=_read_text(paths.rules_path, required=False),
     )
 
 

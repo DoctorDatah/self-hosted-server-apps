@@ -57,14 +57,14 @@ Practical example from current repo:
 
 ## 3. How It Relates to Other Components
 - `vm-configs/vm-machines.yaml` chooses machines and connectivity.
-- `vm-configs/vm-operations.yaml` maps operation names to machine + setup list.
-- `vm-configs/vm-env-rules.yaml` controls what is allowed.
+- `vm-configs/vm-machines.yaml` maps machine setup permissions and machine `set_of_operations`.
+- Optional legacy: `vm-configs/vm-operations.yaml`, `vm-configs/vm-env-rules.yaml`.
 - `runtime/vmcx` merges all that context and executes stages.
 - `vm-setups/app_deploy`, `vm-setups/backup_app`, and `vm-setups/restore_app` consume app-specific params.
 
 Simple flow:
 1. User runs `./runtime/vmcx run --alias n8n-app-deploy ...`
-2. Alias resolves machine/setups from `vm-configs/vm-operations.yaml`
+2. Alias resolves machine/setups from machine `set_of_operations` (or optional legacy alias file)
 3. Runtime merges profile + alias + CLI params
 4. Stage runs with app context from `app.yaml`
 
@@ -75,7 +75,7 @@ Use `apps/` when you need to onboard a new app or tune app behavior.
 - Add a new app:
   1. Create `apps/<new-app>/app.yaml`
   2. Set `app_id`, defaults, health checks, artifact policy
-  3. Add matching operations in `vm-configs/vm-operations.yaml`
+  3. Add matching machine `set_of_operations` entries in `vm-configs/vm-machines.yaml`
   4. Validate with `python3 tools/quick_validate.py`
 
 - Tune deploy defaults:
@@ -132,4 +132,4 @@ Scale pattern:
 If you add 10+ apps:
 - Standardize required keys in every `app.yaml`.
 - Keep naming consistent (`app_id`, group names, health endpoints).
-- Add operation entries in `vm-configs/vm-operations.yaml` for each app (`<app>-deploy`, `<app>-backup`, etc.).
+- Add machine `set_of_operations` entries per app machine (`<app>-deploy`, `<app>-backup`, etc.).

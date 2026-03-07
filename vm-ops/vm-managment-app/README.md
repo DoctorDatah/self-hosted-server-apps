@@ -7,10 +7,11 @@
 VM Management is a local-first web UI for editing:
 
 - `vm-configs/vm-machines.yaml`
-- `vm-configs/vm-operations.yaml`
-- `vm-configs/vm-env-rules.yaml`
+- optional legacy files:
+  - `vm-configs/vm-operations.yaml`
+  - `vm-configs/vm-env-rules.yaml`
 
-These files remain source of truth.
+Machine config is primary source of truth (`enabled_setups`, `set_of_operations`).
 
 ## Feature-Isolated Structure
 

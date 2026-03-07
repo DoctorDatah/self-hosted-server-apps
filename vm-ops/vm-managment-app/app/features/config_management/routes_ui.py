@@ -522,11 +522,11 @@ def _config_scoped_changes(changed_files: List[str]) -> List[str]:
 
 
 def _git_tracked_paths(paths: config_store.ConfigPaths) -> List[str]:
-    tracked = [
-        "vm-configs/vm-machines.yaml",
-        "vm-configs/vm-operations.yaml",
-        "vm-configs/vm-env-rules.yaml",
-    ]
+    tracked = ["vm-configs/vm-machines.yaml"]
+    if paths.operations_path.exists():
+        tracked.append("vm-configs/vm-operations.yaml")
+    if paths.rules_path.exists():
+        tracked.append("vm-configs/vm-env-rules.yaml")
     backups_dir = paths.repo_root / "vm-configs" / "config-backups"
     if backups_dir.exists():
         tracked.append("vm-configs/config-backups")
@@ -1574,16 +1574,17 @@ def config_readme_page(request: Request, topic: str):
 @router.get("/features/config-management/source-of-truth")
 def source_of_truth_page(request: Request):
     paths = _paths()
+    files = [str(paths.machines_path.relative_to(paths.repo_root))]
+    if paths.operations_path.exists():
+        files.append(str(paths.operations_path.relative_to(paths.repo_root)))
+    if paths.rules_path.exists():
+        files.append(str(paths.rules_path.relative_to(paths.repo_root)))
     return templates.TemplateResponse(
         "source_of_truth.html",
         _ctx(
             request,
             page_title="Source of Truth for Config",
-            files=[
-                str(paths.machines_path.relative_to(paths.repo_root)),
-                str(paths.operations_path.relative_to(paths.repo_root)),
-                str(paths.rules_path.relative_to(paths.repo_root)),
-            ],
+            files=files,
         ),
     )
 

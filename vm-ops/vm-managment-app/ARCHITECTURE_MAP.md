@@ -61,13 +61,8 @@ This file exists for humans and AI agents to quickly find where to work.
 
 ## 6) Compatibility Shims
 
-Top-level modules in `app/` are shims forwarding imports to feature modules:
+Compatibility shims were removed.
 
-- `app/routes_ui.py`
-- `app/routes_api.py`
-- `app/config_store.py`
-- `app/validators.py`
-- `app/git_ops.py`
-- `app/schemas.py`
-
-Use feature modules for new work; keep shims for backwards compatibility.
+Use feature modules directly for all new imports:
+- `app/features/config_management/...`
+- `app/features/ui_system/...`

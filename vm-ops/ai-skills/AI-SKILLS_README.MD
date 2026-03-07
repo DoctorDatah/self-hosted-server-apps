@@ -20,7 +20,7 @@ Why this exists:
 - Mistake: Treating skill docs as executable stage logic.
   Fix: Real logic remains in `vm-setups/` and `runtime/`.
 - Mistake: Using stale alias names in skill prompts.
-  Fix: Keep skill examples synced with `vm-configs/vm-operations.yaml`.
+  Fix: Keep skill examples synced with machine `set_of_operations` aliases.
 
 ## 0.3 Edit vs Do Not Edit
 - Edit skills for operator UX and intent mapping guidance.
@@ -43,7 +43,7 @@ Current skill folders and purpose:
 Each folder contains `SKILL.md` that defines behavior and expected interaction contract.
 
 ## 3. How It Relates to Other Components
-- Skills resolve to aliases/targets/stages from `vm-configs/vm-operations.yaml`.
+- Skills resolve to aliases/targets/stages from machine `set_of_operations` (or optional legacy alias file).
 - Skills call `runtime/vmcx`; they do not execute stage logic directly.
 - Stage behavior remains in `vm-setups/`.
 - CI workflows can mirror the same resolved operations for consistency.

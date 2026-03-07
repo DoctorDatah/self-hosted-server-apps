@@ -215,8 +215,6 @@ def _validate_structure(repo_root: Path) -> List[str]:
 
     required_config_files = [
         "vm-configs/vm-machines.yaml",
-        "vm-configs/vm-operations.yaml",
-        "vm-configs/vm-env-rules.yaml",
     ]
     for f in required_config_files:
         if not (repo_root / f).exists():

@@ -54,11 +54,14 @@ def _atomic_write(path: Path, text: str) -> None:
 
 
 def _backup_files(paths: config_store.ConfigPaths) -> Dict[str, Path]:
-    return {
+    files: Dict[str, Path] = {
         "vm-machines.yaml": paths.machines_path,
-        "vm-operations.yaml": paths.operations_path,
-        "vm-env-rules.yaml": paths.rules_path,
     }
+    if paths.operations_path.exists():
+        files["vm-operations.yaml"] = paths.operations_path
+    if paths.rules_path.exists():
+        files["vm-env-rules.yaml"] = paths.rules_path
+    return files
 
 
 def _hash_payload(parts: List[tuple[str, str]]) -> str:
@@ -82,12 +85,12 @@ def _current_config_fingerprint(paths: config_store.ConfigPaths) -> str:
 
 
 def _backup_dir_fingerprint(backup_dir: Path) -> str:
-    names = ["vm-machines.yaml", "vm-operations.yaml", "vm-env-rules.yaml"]
+    names = [name for name in ["vm-machines.yaml", "vm-operations.yaml", "vm-env-rules.yaml"] if (backup_dir / name).exists()]
+    if not names:
+        return ""
     parts: List[tuple[str, str]] = []
     for name in names:
         fp = backup_dir / name
-        if not fp.exists():
-            return ""
         parts.append((name, fp.read_text(encoding="utf-8")))
     return _hash_payload(parts)
 
@@ -322,10 +325,21 @@ def restore_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str,
 
     files = _backup_files(paths)
     staged: Dict[str, str] = {}
-    for name in files:
+    # vm-machines.yaml remains the only mandatory file.
+    required_names = ["vm-machines.yaml"]
+    optional_names = ["vm-operations.yaml", "vm-env-rules.yaml"]
+    names_to_restore: List[str] = []
+    for name in required_names:
         src = backup_dir / name
         if not src.exists():
             raise BackupError(f"Backup is missing required file: {name}")
+        names_to_restore.append(name)
+    for name in optional_names:
+        if (backup_dir / name).exists():
+            names_to_restore.append(name)
+
+    for name in names_to_restore:
+        src = backup_dir / name
         text = src.read_text(encoding="utf-8")
         try:
             parsed = json.loads(text)
@@ -335,8 +349,16 @@ def restore_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str,
             raise BackupError(f"Backup file top-level must be an object: {name}")
         staged[name] = text
 
-    for name, dest in files.items():
+    destination_map = {
+        "vm-machines.yaml": paths.machines_path,
+        "vm-operations.yaml": paths.operations_path,
+        "vm-env-rules.yaml": paths.rules_path,
+    }
+    restored_paths: List[Path] = []
+    for name in names_to_restore:
+        dest = destination_map[name]
         _atomic_write(dest, staged[name])
+        restored_paths.append(dest)
 
     metadata = _load_metadata(backup_dir)
     restored_at = _now_utc()
@@ -353,7 +375,7 @@ def restore_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str,
 
     return {
         "backup": metadata,
-        "restored_files": [str(path.relative_to(paths.repo_root)) for path in files.values()],
+        "restored_files": [str(path.relative_to(paths.repo_root)) for path in restored_paths],
     }
 
 

@@ -44,6 +44,12 @@ def repo_root_from_script(script_path: Path) -> Path:
     return script_path.resolve().parents[1]
 
 
+def _load_optional_data_file(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    return load_data_file(path)
+
+
 def _group_members(raw_group: Any) -> List[str]:
     if isinstance(raw_group, list):
         return [str(x) for x in raw_group]
@@ -87,21 +93,100 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
         "labels": [str(x) for x in labels],
         "enabled_stages": [str(x) for x in enabled],
         "exec_mode": _normalize_machine_exec_mode(machine.get("exec_mode", "vm-local")),
-        "repo_path": machine.get("repo_path", "/opt/vm-codex-v2"),
+        "repo_path": machine.get("repo_path", "/opt/vm-ops"),
         "ssh": machine.get("ssh", {}),
         "params": params,
         # Keep vars for stage/runtime compatibility.
         "vars": params,
         "defaults": defaults,
         "groups": [str(x) for x in groups],
+        "set_of_operations": machine.get("set_of_operations", machine.get("operation_sets", {})),
         "target_id": machine_id,
     }
+
+
+def _normalize_setups(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(x).strip() for x in value if str(x).strip()]
+    if isinstance(value, str):
+        return [x.strip() for x in value.split(",") if x.strip()]
+    return []
+
+
+def _merge_alias(aliases: Dict[str, Dict[str, Any]], alias_name: str, alias_data: Dict[str, Any]) -> None:
+    aliases[str(alias_name)] = alias_data
+
+
+def _aliases_from_machine_sets(targets: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    aliases: Dict[str, Dict[str, Any]] = {}
+    plain_name_candidates: Dict[str, Dict[str, Any]] = {}
+    plain_name_collisions: set[str] = set()
+
+    for machine_id, target in targets.items():
+        raw_sets = target.get("set_of_operations", target.get("operation_sets", {}))
+        if not raw_sets:
+            continue
+        if not isinstance(raw_sets, dict):
+            raise ConfigError(
+                f"vm-machines.yaml: machine {machine_id} set_of_operations must be an object"
+            )
+
+        for set_name_raw, set_cfg in raw_sets.items():
+            set_name = str(set_name_raw).strip()
+            if not set_name:
+                continue
+            if not isinstance(set_cfg, dict):
+                raise ConfigError(
+                    f"vm-machines.yaml: machine {machine_id} set_of_operations {set_name} must be an object"
+                )
+
+            setups = _normalize_setups(set_cfg.get("setups", set_cfg.get("default_stages", [])))
+            if not setups:
+                raise ConfigError(
+                    f"vm-machines.yaml: machine {machine_id} set_of_operations {set_name} must define non-empty setups"
+                )
+
+            params = set_cfg.get("params", set_cfg.get("default_params", {}))
+            if not isinstance(params, dict):
+                raise ConfigError(
+                    f"vm-machines.yaml: machine {machine_id} set_of_operations {set_name} params must be an object"
+                )
+
+            requires_confirmation = bool(set_cfg.get("requires_confirmation", True))
+            description = str(set_cfg.get("description", "")).strip() or (
+                f"{set_name} on {machine_id}"
+            )
+
+            alias_data = {
+                "target_selector": f"target_id={machine_id}",
+                "default_stages": setups,
+                "default_params": params,
+                "requires_confirmation": requires_confirmation,
+                "description": description,
+            }
+
+            # Always expose a machine-scoped alias key.
+            scoped_alias = f"{machine_id}--{set_name}"
+            _merge_alias(aliases, scoped_alias, alias_data)
+
+            # Also expose plain set name when globally unique.
+            if set_name in plain_name_candidates:
+                plain_name_collisions.add(set_name)
+            else:
+                plain_name_candidates[set_name] = alias_data
+
+    for set_name, alias_data in plain_name_candidates.items():
+        if set_name in plain_name_collisions:
+            continue
+        _merge_alias(aliases, set_name, alias_data)
+
+    return aliases
 
 
 def load_inventory(repo_root: Path) -> Dict[str, Dict[str, Any]]:
     config_dir = repo_root / "vm-configs"
     machines_cfg = load_data_file(config_dir / "vm-machines.yaml")
-    operations_cfg = load_data_file(config_dir / "vm-operations.yaml")
+    operations_cfg = _load_optional_data_file(config_dir / "vm-operations.yaml")
 
     raw_machines = machines_cfg.get("machines", machines_cfg.get("targets", {}))
     if not isinstance(raw_machines, dict):
@@ -139,45 +224,51 @@ def load_inventory(repo_root: Path) -> Dict[str, Dict[str, Any]]:
             if machine_id not in groups[group_name]["members"]:
                 groups[group_name]["members"].append(machine_id)
 
-    raw_operations = operations_cfg.get("operations", operations_cfg.get("aliases", {}))
-    if not isinstance(raw_operations, dict):
-        raise ConfigError("vm-operations.yaml: operations must be a map")
-
     aliases: Dict[str, Dict[str, Any]] = {}
-    for op_id, op in raw_operations.items():
-        if not isinstance(op, dict):
-            raise ConfigError(f"vm-operations.yaml: operation {op_id} must be an object")
 
-        target_selector = str(op.get("target_selector", "")).strip()
-        machine_id = str(op.get("machine", "")).strip()
-        if not target_selector:
-            if not machine_id:
-                raise ConfigError(
-                    f"vm-operations.yaml: operation {op_id} must define machine or target_selector"
-                )
-            target_selector = f"target_id={machine_id}"
+    # Legacy alias source (optional): vm-operations.yaml
+    raw_operations = operations_cfg.get("operations", operations_cfg.get("aliases", {}))
+    if raw_operations:
+        if not isinstance(raw_operations, dict):
+            raise ConfigError("vm-operations.yaml: operations must be a map")
+        for op_id, op in raw_operations.items():
+            if not isinstance(op, dict):
+                raise ConfigError(f"vm-operations.yaml: operation {op_id} must be an object")
 
-        setups = op.get("setups", op.get("default_stages", []))
-        if not isinstance(setups, list):
-            raise ConfigError(f"vm-operations.yaml: operation {op_id} setups must be a list")
+            target_selector = str(op.get("target_selector", "")).strip()
+            machine_id = str(op.get("machine", "")).strip()
+            if not target_selector:
+                if not machine_id:
+                    raise ConfigError(
+                        f"vm-operations.yaml: operation {op_id} must define machine or target_selector"
+                    )
+                target_selector = f"target_id={machine_id}"
 
-        params = op.get("params", op.get("default_params", {}))
-        if not isinstance(params, dict):
-            raise ConfigError(f"vm-operations.yaml: operation {op_id} params must be an object")
+            setups = op.get("setups", op.get("default_stages", []))
+            if not isinstance(setups, list):
+                raise ConfigError(f"vm-operations.yaml: operation {op_id} setups must be a list")
 
-        aliases[str(op_id)] = {
-            "target_selector": target_selector,
-            "default_stages": [str(x) for x in setups],
-            "default_params": params,
-            "requires_confirmation": op.get("requires_confirmation", True),
-            "description": op.get("description", ""),
-        }
+            params = op.get("params", op.get("default_params", {}))
+            if not isinstance(params, dict):
+                raise ConfigError(f"vm-operations.yaml: operation {op_id} params must be an object")
+
+            aliases[str(op_id)] = {
+                "target_selector": target_selector,
+                "default_stages": [str(x) for x in setups],
+                "default_params": params,
+                "requires_confirmation": op.get("requires_confirmation", True),
+                "description": op.get("description", ""),
+            }
+
+    # Machine-first alias source: vm-machines.yaml -> set_of_operations
+    machine_set_aliases = _aliases_from_machine_sets(targets)
+    aliases.update(machine_set_aliases)
 
     return {"targets": targets, "groups": groups, "aliases": aliases}
 
 
 def load_policy(repo_root: Path) -> Dict[str, Any]:
-    return load_data_file(repo_root / "vm-configs" / "vm-env-rules.yaml")
+    return _load_optional_data_file(repo_root / "vm-configs" / "vm-env-rules.yaml")
 
 
 def load_stage_meta(repo_root: Path, stage_id: str) -> Dict[str, Any]:
