@@ -27,7 +27,7 @@ class BackupsTest(unittest.TestCase):
                             "env": "stage",
                             "enabled_setups": ["vm_install"],
                             "exec_mode": "local",
-                            "repo_path": "/opt/vm-ops",
+                            "repo_path": "/repo/vm-ops",
                             "ssh": {"host": "", "user": "", "port": 22, "key_ref": ""},
                             "groups": ["demo"],
                         }

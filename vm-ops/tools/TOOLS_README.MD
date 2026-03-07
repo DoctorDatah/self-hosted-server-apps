@@ -79,7 +79,7 @@ Use these scripts as operational helpers.
 ## 5. Examples
 ### Example: Ensure remote repo exists before SSH stage run
 ```bash
-bash tools/ensure_repo.sh https://github.com/DoctorDatah/self-hosted-server-apps.git /opt/vm-ops main
+bash tools/ensure_repo.sh https://github.com/DoctorDatah/self-hosted-server-apps.git /repo/vm-ops main
 ```
 
 ### Example: Resolve a secret reference

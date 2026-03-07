@@ -42,7 +42,7 @@ class ConfigStoreRoundtripTest(unittest.TestCase):
                     "groups": ["demo"],
                     "enabled_setups": ["vm_install"],
                     "exec_mode": "local",
-                    "repo_path": "/opt/vm-ops",
+                    "repo_path": "/repo/vm-ops",
                     "ssh": {"host": "", "user": "", "port": 22, "key_ref": ""},
                     "params": {},
                     "defaults": {},

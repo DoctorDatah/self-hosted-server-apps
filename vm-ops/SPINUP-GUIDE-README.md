@@ -23,6 +23,21 @@ From this point onward, commands assume your current directory is:
 .../self-hosted-server-apps/vm-ops
 ```
 
+For VM-hosted runtime path alignment (no `vm-ops/vm-ops` nesting), use:
+
+```bash
+sudo mkdir -p /repo
+sudo chown -R "$USER":"$USER" /repo
+git clone <YOUR_REPO_URL> /repo
+cd /repo/vm-ops
+```
+
+Then keep machine `repo_path` set to:
+
+```text
+/repo/vm-ops
+```
+
 ## 3. Verify Python
 
 ```bash

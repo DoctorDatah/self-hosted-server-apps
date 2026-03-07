@@ -82,6 +82,84 @@ def _introduced_errors(before: List[str], after: List[str]) -> List[str]:
     return [e for e in after if e not in base]
 
 
+def _build_clone_repo_instructions(paths: config_store.ConfigPaths, machine: Dict[str, Any]) -> Dict[str, Any]:
+    ssh = machine.get("ssh", {}) if isinstance(machine.get("ssh"), dict) else {}
+    repo_path = str(machine.get("repo_path", "/repo/vm-ops") or "/repo/vm-ops").strip() or "/repo/vm-ops"
+    default_branch = "main"
+    defaults = machine.get("defaults", {})
+    if isinstance(defaults, dict):
+        repo_defaults = defaults.get("repo", {})
+        if isinstance(repo_defaults, dict):
+            branch_raw = str(repo_defaults.get("branch", "") or "").strip()
+            if branch_raw:
+                default_branch = branch_raw
+
+    clone_url = str(git_ops.origin_clone_url(paths.repo_root) or "").strip()
+    repo_url_for_cmd = clone_url or "<repo-url>"
+    local_cmd = "\n".join(
+        [
+            f"REPO_URL={shlex.quote(repo_url_for_cmd)}",
+            f"REPO_PATH={shlex.quote(repo_path)}",
+            f"BRANCH={shlex.quote(default_branch)}",
+            "if [ -z \"$REPO_PATH\" ] || [ \"$REPO_PATH\" = \"/\" ] || [ \"$REPO_PATH\" = \".\" ]; then",
+            "  echo \"Invalid REPO_PATH. Use /repo/vm-ops\" >&2",
+            "  exit 2",
+            "fi",
+            "REPO_PARENT=\"$(dirname \"$REPO_PATH\")\"",
+            "MONOREPO_HINT=false",
+            "if [ \"$(basename \"$REPO_PATH\")\" = \"vm-ops\" ] && echo \"$REPO_URL\" | grep -q 'self-hosted-server-apps'; then",
+            "  MONOREPO_HINT=true",
+            "fi",
+            "if [ -d \"$REPO_PATH/.git\" ]; then",
+            "  WORKTREE=\"$REPO_PATH\"",
+            "elif [ -d \"$REPO_PARENT/.git\" ] && [ -d \"$REPO_PATH\" ]; then",
+            "  WORKTREE=\"$REPO_PARENT\"",
+            "elif [ \"$MONOREPO_HINT\" = true ]; then",
+            "  mkdir -p \"$REPO_PARENT\"",
+            "  if [ ! -d \"$REPO_PARENT/.git\" ]; then",
+            "    git clone --branch \"$BRANCH\" \"$REPO_URL\" \"$REPO_PARENT\"",
+            "  fi",
+            "  WORKTREE=\"$REPO_PARENT\"",
+            "else",
+            "  mkdir -p \"$(dirname \"$REPO_PATH\")\"",
+            "  git clone --branch \"$BRANCH\" \"$REPO_URL\" \"$REPO_PATH\"",
+            "  WORKTREE=\"$REPO_PATH\"",
+            "fi",
+            "cd \"$WORKTREE\"",
+            "git fetch --all --prune",
+            "git checkout \"$BRANCH\"",
+            "git pull --ff-only origin \"$BRANCH\"",
+            "if [ \"$WORKTREE\" != \"$REPO_PATH\" ] && [ -d \"$WORKTREE/vm-ops\" ]; then",
+            "  echo \"Runtime path: $WORKTREE/vm-ops\"",
+            "else",
+            "  echo \"Runtime path: $REPO_PATH\"",
+            "fi",
+        ]
+    )
+
+    ssh_host = str(ssh.get("host", "") or "").strip()
+    ssh_user = str(ssh.get("user", "") or "").strip()
+    ssh_port = int(ssh.get("port", 22) or 22)
+    ssh_cmd = ""
+    if ssh_host and ssh_user:
+        target = f"{ssh_user}@{ssh_host}"
+        ssh_cmd = (
+            f"ssh -p {ssh_port} {shlex.quote(target)} 'bash -s' <<'EOF'\n"
+            f"{local_cmd}\n"
+            "EOF"
+        )
+    return {
+        "clone_url": clone_url,
+        "repo_path": repo_path,
+        "default_branch": default_branch,
+        "local_clone_command": local_cmd,
+        "ssh_clone_command": ssh_cmd,
+        "ssh_host": ssh_host,
+        "ssh_user": ssh_user,
+        "ssh_port": ssh_port,
+    }
+
+
 def _md_inline_render(text: str) -> str:
     value = html.escape(str(text or ""))
     # Inline code first to avoid nested replacements interfering.
@@ -692,7 +770,7 @@ def _machine_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
         "current_setup_checklist": _split_csv(str(form.get("current_setup_checklist_csv", ""))),
         "set_of_operations": operation_sets,
         "exec_mode": exec_mode,
-        "repo_path": str(form.get("repo_path", "/opt/vm-ops")).strip() or "/opt/vm-ops",
+        "repo_path": str(form.get("repo_path", "/repo/vm-ops")).strip() or "/repo/vm-ops",
         "ssh": {
             "host": str(form.get("ssh_host", "")).strip(),
             "user": str(form.get("ssh_user", "")).strip(),
@@ -728,7 +806,7 @@ def _machine_access_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
 
     payload = {
         "machine_id": machine_id,
-        "repo_path": str(form.get("repo_path", "/opt/vm-ops")).strip() or "/opt/vm-ops",
+        "repo_path": str(form.get("repo_path", "/repo/vm-ops")).strip() or "/repo/vm-ops",
         "ssh": {
             "host": str(form.get("ssh_host", "")).strip(),
             "user": str(form.get("main_user", "")).strip(),
@@ -2127,49 +2205,7 @@ def machine_clone_repo_help(request: Request, machine_id: str):
     if not isinstance(machine, dict) or not machine:
         return HTMLResponse(f"<div class='flash error'>Machine not found: {machine_key}</div>", status_code=404)
 
-    ssh = machine.get("ssh", {}) if isinstance(machine.get("ssh"), dict) else {}
-    repo_path = str(machine.get("repo_path", "/opt/vm-ops") or "/opt/vm-ops").strip() or "/opt/vm-ops"
-    default_branch = "main"
-    defaults = machine.get("defaults", {})
-    if isinstance(defaults, dict):
-        repo_defaults = defaults.get("repo", {})
-        if isinstance(repo_defaults, dict):
-            branch_raw = str(repo_defaults.get("branch", "") or "").strip()
-            if branch_raw:
-                default_branch = branch_raw
-
-    clone_url = str(git_ops.origin_clone_url(paths.repo_root) or "").strip()
-    repo_url_for_cmd = clone_url or "<repo-url>"
-
-    local_cmd = "\n".join(
-        [
-            f"REPO_URL={shlex.quote(repo_url_for_cmd)}",
-            f"REPO_PATH={shlex.quote(repo_path)}",
-            f"BRANCH={shlex.quote(default_branch)}",
-            "if [ ! -d \"$REPO_PATH/.git\" ]; then",
-            "  mkdir -p \"$(dirname \"$REPO_PATH\")\"",
-            "  git clone --branch \"$BRANCH\" \"$REPO_URL\" \"$REPO_PATH\"",
-            "else",
-            "  cd \"$REPO_PATH\"",
-            "  git fetch --all --prune",
-            "  git checkout \"$BRANCH\"",
-            "  git pull --ff-only origin \"$BRANCH\"",
-            "fi",
-        ]
-    )
-
-    ssh_host = str(ssh.get("host", "") or "").strip()
-    ssh_user = str(ssh.get("user", "") or "").strip()
-    ssh_port = int(ssh.get("port", 22) or 22)
-
-    ssh_cmd = ""
-    if ssh_host and ssh_user:
-        target = f"{ssh_user}@{ssh_host}"
-        ssh_cmd = (
-            f"ssh -p {ssh_port} {shlex.quote(target)} 'bash -s' <<'EOF'\n"
-            f"{local_cmd}\n"
-            "EOF"
-        )
+    clone_repo_info = _build_clone_repo_instructions(paths, machine)
 
     return templates.TemplateResponse(
         "partials/machine_clone_repo_help.html",
@@ -2177,14 +2213,7 @@ def machine_clone_repo_help(request: Request, machine_id: str):
             request,
             machine_id=machine_key,
             machine=machine,
-            clone_url=clone_url,
-            repo_path=repo_path,
-            default_branch=default_branch,
-            local_clone_command=local_cmd,
-            ssh_clone_command=ssh_cmd,
-            ssh_host=ssh_host,
-            ssh_user=ssh_user,
-            ssh_port=ssh_port,
+            **clone_repo_info,
         ),
     )
 
@@ -2820,6 +2849,7 @@ def machine_setup_config_preview(request: Request, machine_id: str, setup_id: st
     allowed_envs = [str(x) for x in allowed_envs_raw] if isinstance(allowed_envs_raw, list) else []
     machine_env = str(machine.get("env", machine.get("environment", ""))).strip()
     env_allowed = (not allowed_envs) or (machine_env in allowed_envs)
+    clone_repo_info = _build_clone_repo_instructions(paths, machine) if setup_key == "repo_clone_or_update" else {}
 
     return templates.TemplateResponse(
         "partials/machine_setup_config_preview.html",
@@ -2858,6 +2888,7 @@ def machine_setup_config_preview(request: Request, machine_id: str, setup_id: st
             param_help_map=param_help_map,
             setup_param_meta=setup_param_meta,
             machine_setup_defaults=machine_setup_defaults,
+            **clone_repo_info,
         ),
     )
 
@@ -2985,7 +3016,7 @@ async def machine_setup_config_save(request: Request):
         f"{' Defaults updated.' if defaults_changed else ''}"
         "</div>"
     )
-    return HTMLResponse(success_message, headers={"HX-Refresh": "true"})
+    return HTMLResponse(success_message)
 
 
 @router.post("/machines/preview")

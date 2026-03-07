@@ -9,8 +9,17 @@ REPO_PATH="$(vmcx_param_get repo_path "${VMCX_REPO_ROOT:-$PWD}")"
 REPO_URL="$(vmcx_param_get repo_url "")"
 BRANCH="$(vmcx_param_get branch main)"
 
+if [[ -z "$REPO_PATH" || "$REPO_PATH" == "." || "$REPO_PATH" == "/" ]]; then
+  echo "[repo_clone_or_update] invalid repo_path: '$REPO_PATH'" >&2
+  echo "[repo_clone_or_update] set repo_path to a real path such as /repo/vm-ops" >&2
+  exit 2
+fi
+
 if [[ ! -d "$REPO_PATH/.git" && -d "${VMCX_REPO_ROOT:-$PWD}/.git" ]]; then
   REPO_PATH="${VMCX_REPO_ROOT:-$PWD}"
+fi
+if [[ ! -d "$REPO_PATH/.git" && -d "$(dirname "$REPO_PATH")/.git" ]]; then
+  REPO_PATH="$(dirname "$REPO_PATH")"
 fi
 
 if [[ -n "$REPO_URL" ]]; then
