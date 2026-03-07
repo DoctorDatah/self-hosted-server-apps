@@ -40,6 +40,25 @@
 
     <div class="field-row two-col">
       <label>
+        <span class="field-title">status
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: status">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Lifecycle state of this machine record.</span>
+              <span class="help-line"><strong>Why:</strong> Lets operators quickly understand readiness/usage intent.</span>
+              <span class="help-line"><strong>Workflow:</strong> Use `not-setup-yet` for new machines, `active` for normal use, `inactive` when paused/retired.</span>
+            </span>
+          </span>
+        </span>
+        {% set status_v = m.status or 'active' %}
+        <select name="status">
+          <option value="active" {% if status_v in ['active'] %}selected{% endif %}>active</option>
+          <option value="inactive" {% if status_v in ['inactive'] %}selected{% endif %}>inactive</option>
+          <option value="not-setup-yet" {% if status_v in ['not-setup-yet', 'not_setup_yet', 'not setup yet'] %}selected{% endif %}>not-setup-yet</option>
+        </select>
+      </label>
+
+      <label>
         <span class="field-title">target_type
           <span class="help-wrap">
             <button class="help-icon" type="button" aria-label="Help: target_type">i</button>
@@ -85,7 +104,7 @@
             <span class="help-pop" role="tooltip">
               <span class="help-line"><strong>What:</strong> How setups execute for this machine.</span>
               <span class="help-line"><strong>Why:</strong> Chooses local run vs SSH remote execution path.</span>
-              <span class="help-line"><strong>Workflow:</strong> Start with `vm-local`, then move to `vm-remote-ssh` once SSH-ready.</span>
+              <span class="help-line"><strong>Workflow:</strong> Use `vm-local` for local-only, `vm-remote-ssh` for remote-only, or `vm-both` when both paths are supported.</span>
             </span>
           </span>
         </span>
@@ -93,9 +112,11 @@
         <select name="exec_mode">
           <option value="vm-local" {% if mode_v in ['local', 'vm-local'] %}selected{% endif %}>vm-local</option>
           <option value="vm-remote-ssh" {% if mode_v in ['ssh', 'vm-remote-ssh'] %}selected{% endif %}>vm-remote-ssh</option>
+          <option value="vm-both" {% if mode_v in ['both', 'vm-both'] %}selected{% endif %}>vm-both</option>
         </select>
         <p class="hint">vm-local for manual bootstrap / inside-VM work.</p>
         <p class="hint">vm-remote-ssh after VM is SSH-ready for remote ops and CI.</p>
+        <p class="hint">vm-both when you want both local and remote SSH execution available.</p>
       </label>
     </div>
 
@@ -111,6 +132,20 @@
         </span>
       </span>
       <input type="text" name="repo_path" value="{{ m.repo_path or '/opt/vm-ops' }}" />
+    </label>
+
+    <label>
+      <span class="field-title">notes (markdown)
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: notes">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Markdown notes for this machine.</span>
+            <span class="help-line"><strong>Why:</strong> Captures context that does not fit strict config fields.</span>
+            <span class="help-line"><strong>Workflow:</strong> Use headings/lists for runbook hints, ownership notes, and cautions.</span>
+          </span>
+        </span>
+      </span>
+      <textarea name="notes" rows="4" placeholder="# Notes&#10;- Any machine-specific reminders">{{ m.notes or '' }}</textarea>
     </label>
 
     <div class="field-row two-col">

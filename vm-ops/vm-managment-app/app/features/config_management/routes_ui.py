@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import html
 import json
 import re
 from pathlib import Path
@@ -80,6 +81,114 @@ def _introduced_errors(before: List[str], after: List[str]) -> List[str]:
     return [e for e in after if e not in base]
 
 
+def _md_inline_render(text: str) -> str:
+    value = html.escape(str(text or ""))
+    # Inline code first to avoid nested replacements interfering.
+    value = re.sub(r"`([^`]+)`", r"<code>\1</code>", value)
+    value = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", value)
+    value = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", value)
+    value = re.sub(
+        r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
+        r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>',
+        value,
+    )
+    return value
+
+
+def _basic_markdown_to_html(raw_text: str) -> str:
+    lines = str(raw_text or "").splitlines()
+    out: List[str] = []
+    in_list = False
+    in_code = False
+    code_lines: List[str] = []
+    para_lines: List[str] = []
+
+    def flush_paragraph() -> None:
+        nonlocal para_lines
+        if not para_lines:
+            return
+        text = " ".join(x.strip() for x in para_lines if x.strip())
+        if text:
+            out.append(f"<p>{_md_inline_render(text)}</p>")
+        para_lines = []
+
+    def flush_list() -> None:
+        nonlocal in_list
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+
+    for raw_line in lines:
+        line = str(raw_line)
+        stripped = line.strip()
+
+        if stripped.startswith("```"):
+            flush_paragraph()
+            flush_list()
+            if in_code:
+                code_content = "\n".join(code_lines)
+                out.append(f"<pre><code>{html.escape(code_content)}</code></pre>")
+                code_lines = []
+                in_code = False
+            else:
+                in_code = True
+            continue
+
+        if in_code:
+            code_lines.append(line)
+            continue
+
+        if not stripped:
+            flush_paragraph()
+            flush_list()
+            continue
+
+        heading_match = re.match(r"^(#{1,6})\s+(.*)$", stripped)
+        if heading_match:
+            flush_paragraph()
+            flush_list()
+            level = len(heading_match.group(1))
+            content = _md_inline_render(heading_match.group(2))
+            out.append(f"<h{level}>{content}</h{level}>")
+            continue
+
+        if stripped.startswith("- ") or stripped.startswith("* "):
+            flush_paragraph()
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append(f"<li>{_md_inline_render(stripped[2:])}</li>")
+            continue
+
+        para_lines.append(stripped)
+
+    flush_paragraph()
+    flush_list()
+    if in_code:
+        code_content = "\n".join(code_lines)
+        out.append(f"<pre><code>{html.escape(code_content)}</code></pre>")
+
+    return "\n".join(out) if out else "<p class='muted'>No notes yet.</p>"
+
+
+def _render_markdown_safe(raw_text: Any) -> str:
+    text = str(raw_text or "").strip()
+    if not text:
+        return "<p class='muted'>No notes yet.</p>"
+
+    try:
+        import markdown  # type: ignore
+
+        safe_text = html.escape(text)
+        rendered = markdown.markdown(
+            safe_text,
+            extensions=["nl2br", "sane_lists"],
+        )
+        return rendered
+    except Exception:
+        return _basic_markdown_to_html(text)
+
+
 def _config_readme(topic: str) -> Dict[str, Any]:
     docs: Dict[str, Dict[str, Any]] = {
         "machines": {
@@ -118,15 +227,18 @@ def _config_readme(topic: str) -> Dict[str, Any]:
                     "heading": "What This Page Holds (Field-By-Field)",
                     "points": [
                         "`machine_id`: Permanent key used by operations and group membership.",
+                        "`status`: lifecycle state (`active`, `inactive`, `not-setup-yet`).",
                         "`target_type`: Use your model values like `app-vm` or `host-vm` so intent is clear.",
                         "`env`: Policy scope for safety (dev/stage/prod).",
-                        "`exec_mode`: `vm-local` for inside-machine runs, `vm-remote-ssh` for remote runs.",
+                        "`exec_mode`: `vm-local` for inside-machine runs, `vm-remote-ssh` for remote runs, `vm-both` for both paths.",
                         "`repo_path`: Where `vm-ops` is expected on that machine.",
+                        "`notes`: Markdown notes for operator context, runbook hints, and cautions.",
                         "`labels`: Search and organization tags.",
                         "`groups`: Logical collections used for fan-out and reporting.",
                         "`enabled_setups`: Explicit allow-list of setups this machine can run.",
                         "`set_of_operations`: Named setup chains per machine (example: `deploy-the-app-set`).",
                         "`ssh.host`, `ssh.user`, `ssh.port`, `ssh.key_ref`: Required for SSH mode.",
+                        "Click `machine_id` in table to open dedicated Machine Access details (vm_link, main_user, SSH fields, jump host notes).",
                         "`params` and `defaults`: Machine-specific values merged into execution context.",
                     ],
                 },
@@ -135,7 +247,7 @@ def _config_readme(topic: str) -> Dict[str, Any]:
                     "points": [
                         "Edit when you add/remove a VM.",
                         "Edit when machine environment changes (stage to prod, prod to stage).",
-                        "Edit when SSH details rotate or bootstrap mode changes vm-local -> vm-remote-ssh.",
+                        "Edit when SSH details rotate or bootstrap mode changes vm-local -> vm-remote-ssh/vm-both.",
                         "Do not change `machine_id` casually; it can break linked operations.",
                         "Do not add setups to `enabled_setups` unless that machine is truly prepared for them.",
                     ],
@@ -551,8 +663,14 @@ def _machine_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
         exec_mode = "vm-local"
     elif raw_exec_mode in {"ssh", "vm-remote-ssh"}:
         exec_mode = "vm-remote-ssh"
+    elif raw_exec_mode in {"both", "vm-both"}:
+        exec_mode = "vm-both"
     else:
-        raise ValueError("exec_mode must be one of: vm-local, vm-remote-ssh")
+        raise ValueError("exec_mode must be one of: vm-local, vm-remote-ssh, vm-both")
+
+    raw_status = str(form.get("status", "active")).strip().lower().replace("_", "-").replace(" ", "-")
+    if raw_status not in {"active", "inactive", "not-setup-yet"}:
+        raise ValueError("status must be one of: active, inactive, not-setup-yet")
 
     operation_sets = _normalize_machine_operation_sets(
         validators.parse_json_text(str(form.get("set_of_operations_json", "")), "set_of_operations_json")
@@ -561,7 +679,9 @@ def _machine_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
     payload = {
         "type": str(form.get("target_type", "vm")).strip() or "vm",
         "parrent": str(form.get("parrent", form.get("parent", ""))).strip(),
+        "status": raw_status,
         "env": str(form.get("environment", "")).strip(),
+        "notes": str(form.get("notes", "")).strip(),
         "labels": _split_csv(str(form.get("labels_csv", ""))),
         "groups": _split_csv(str(form.get("groups_csv", ""))),
         "enabled_setups": _split_csv(str(form.get("enabled_setups_csv", ""))),
@@ -586,6 +706,80 @@ def _machine_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
         "original_machine_id": original_machine_id or None,
         "payload": payload,
     }
+
+
+def _machine_access_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
+    machine_id = str(form.get("machine_id", "")).strip()
+    if not machine_id:
+        raise ValueError("machine_id is required")
+
+    ssh_port_raw = str(form.get("ssh_port", "22")).strip() or "22"
+    try:
+        ssh_port = int(ssh_port_raw)
+    except ValueError as exc:
+        raise ValueError("ssh_port must be an integer") from exc
+    if ssh_port <= 0:
+        raise ValueError("ssh_port must be greater than 0")
+
+    payload = {
+        "machine_id": machine_id,
+        "repo_path": str(form.get("repo_path", "/opt/vm-ops")).strip() or "/opt/vm-ops",
+        "ssh": {
+            "host": str(form.get("ssh_host", "")).strip(),
+            "user": str(form.get("main_user", "")).strip(),
+            "port": ssh_port,
+            "key_ref": str(form.get("ssh_key_ref", "")).strip(),
+        },
+        "access": {
+            "vm_link": str(form.get("vm_link", "")).strip(),
+            "jump_host": str(form.get("jump_host", "")).strip(),
+            "jump_user": str(form.get("jump_user", "")).strip(),
+            "notes": str(form.get("access_notes", "")).strip(),
+        },
+    }
+    return payload
+
+
+def _machine_notes_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
+    machine_id = str(form.get("machine_id", "")).strip()
+    if not machine_id:
+        raise ValueError("machine_id is required")
+
+    notes_md = str(form.get("notes_md", "")).strip()
+    return {
+        "machine_id": machine_id,
+        "notes": notes_md,
+    }
+
+
+def _apply_machine_access_payload(machine: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    ssh = machine.get("ssh", {})
+    if not isinstance(ssh, dict):
+        ssh = {}
+    ssh_in = payload.get("ssh", {})
+    if isinstance(ssh_in, dict):
+        ssh["host"] = str(ssh_in.get("host", "")).strip()
+        ssh["user"] = str(ssh_in.get("user", "")).strip()
+        ssh["port"] = int(ssh_in.get("port", 22))
+        ssh["key_ref"] = str(ssh_in.get("key_ref", "")).strip()
+    machine["ssh"] = ssh
+
+    repo_path = str(payload.get("repo_path", "")).strip()
+    if repo_path:
+        machine["repo_path"] = repo_path
+
+    access_in = payload.get("access", {})
+    access_obj: Dict[str, Any] = {}
+    if isinstance(access_in, dict):
+        for key in ["vm_link", "jump_host", "jump_user", "notes"]:
+            value = str(access_in.get(key, "")).strip()
+            if value:
+                access_obj[key] = value
+
+    if access_obj:
+        machine["access"] = access_obj
+    else:
+        machine.pop("access", None)
 
 
 def _normalize_machine_operation_sets(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -715,9 +909,13 @@ def _load_setup_meta(repo_root: Path, setup_id: str) -> Dict[str, Any]:
     return data
 
 
-def _machine_runtime_exec_mode(exec_mode: Any) -> str:
+def _machine_runtime_exec_modes(exec_mode: Any) -> List[str]:
     value = str(exec_mode or "vm-local").strip().lower()
-    return "ssh" if value in {"vm-remote-ssh", "ssh"} else "local"
+    if value in {"vm-remote-ssh", "ssh"}:
+        return ["ssh"]
+    if value in {"vm-both", "both"}:
+        return ["local", "ssh"]
+    return ["local"]
 
 
 def _machine_runtime_target_type(machine: Dict[str, Any]) -> str:
@@ -1744,6 +1942,57 @@ async def delete_backup(request: Request):
     )
 
 
+@router.post("/config-management/backups/cleanup")
+async def cleanup_backups(request: Request):
+    paths = _paths()
+    form = await request.form()
+    keep_last_n_raw = str(form.get("keep_last_n", "")).strip() or "5"
+
+    try:
+        keep_last_n = int(keep_last_n_raw)
+    except ValueError:
+        return HTMLResponse(
+            "<div class='flash error'>Cleanup failed: keep_last_n must be an integer.</div>",
+            status_code=200,
+        )
+
+    if keep_last_n <= 0:
+        return HTMLResponse(
+            "<div class='flash error'>Cleanup failed: keep_last_n must be greater than 0.</div>",
+            status_code=200,
+        )
+
+    try:
+        result = backups.cleanup_backups_before_last_n(paths, keep_last_n=keep_last_n)
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(
+            f"<div class='flash error'>Cleanup failed: {exc}</div>",
+            status_code=200,
+        )
+
+    deleted_ids = result.get("deleted_backup_ids", []) or []
+    deleted_html = (
+        "<ul class='simple-list'>"
+        + "".join(f"<li><code>{x}</code></li>" for x in deleted_ids)
+        + "</ul>"
+    ) if deleted_ids else "<p class='muted'>No backups were removed.</p>"
+
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"Backup cleanup complete. Kept last <code>{result.get('keep_last_n')}</code>, "
+            f"deleted <code>{result.get('deleted_count')}</code> older backup(s)."
+            "</div>"
+            "<div class='panel'>"
+            f"<p>Before: <code>{result.get('total_before')}</code> | After: <code>{result.get('total_after')}</code></p>"
+            "<h4>Deleted Backup IDs</h4>"
+            f"{deleted_html}"
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
 @router.get("/machines/form")
 def machine_form(request: Request, machine_id: Optional[str] = None):
     paths = _paths()
@@ -1761,6 +2010,236 @@ def machine_form(request: Request, machine_id: Optional[str] = None):
             stage_ids=stage_ids,
             mode="edit" if machine_id else "create",
         ),
+    )
+
+
+@router.get("/machines/access")
+def machine_access_form(request: Request, machine_id: str):
+    machine_key = str(machine_id or "").strip()
+    if not machine_key:
+        return HTMLResponse("<div class='flash error'>machine_id is required.</div>", status_code=400)
+
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    machines = bundle.machines_doc.get("machines", {})
+    machine = machines.get(machine_key, {})
+    if not isinstance(machine, dict) or not machine:
+        return HTMLResponse(f"<div class='flash error'>Machine not found: {machine_key}</div>", status_code=404)
+
+    return templates.TemplateResponse(
+        "partials/machine_access_form.html",
+        _ctx(
+            request,
+            machine_id=machine_key,
+            machine=machine,
+        ),
+    )
+
+
+@router.post("/machines/access/preview")
+async def machine_access_preview(request: Request):
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    candidate = config_store.clone_bundle(bundle)
+    errors: List[str] = []
+
+    form = await request.form()
+    form_data = dict(form)
+
+    try:
+        parsed = _machine_access_payload_from_form(form_data)
+        machines = candidate.machines_doc.get("machines", {})
+        machine = machines.get(parsed["machine_id"], {})
+        if not isinstance(machine, dict) or not machine:
+            raise ValueError(f"Machine not found: {parsed['machine_id']}")
+        _apply_machine_access_payload(machine, parsed)
+        errors.extend(validators.validate_bundle(candidate, paths.repo_root))
+    except Exception as exc:  # noqa: BLE001
+        errors.append(str(exc))
+
+    new_text = config_store.dump_doc(candidate.machines_doc)
+    diff_text = config_store.render_diff(bundle.machines_text, new_text, "vm-configs/vm-machines.yaml")
+    return templates.TemplateResponse(
+        "partials/preview.html",
+        _ctx(request, title="Machine Access Diff Preview", errors=errors, diff_text=diff_text),
+    )
+
+
+@router.post("/machines/access/save")
+async def machine_access_save(request: Request):
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    candidate = config_store.clone_bundle(bundle)
+    baseline_errors = validators.validate_bundle(bundle, paths.repo_root)
+
+    form = await request.form()
+    form_data = dict(form)
+
+    try:
+        parsed = _machine_access_payload_from_form(form_data)
+        machines = candidate.machines_doc.get("machines", {})
+        machine = machines.get(parsed["machine_id"], {})
+        if not isinstance(machine, dict) or not machine:
+            raise ValueError(f"Machine not found: {parsed['machine_id']}")
+        _apply_machine_access_payload(machine, parsed)
+    except Exception as exc:  # noqa: BLE001
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(request, title="Machine Access Save", errors=[str(exc)], diff_text="No changes."),
+        )
+
+    errors = validators.validate_bundle(candidate, paths.repo_root)
+    new_errors = _introduced_errors(baseline_errors, errors)
+    if new_errors:
+        new_text = config_store.dump_doc(candidate.machines_doc)
+        diff_text = config_store.render_diff(bundle.machines_text, new_text, "vm-configs/vm-machines.yaml")
+        messages = ["New validation errors introduced by this change:"] + new_errors
+        if baseline_errors:
+            messages.append(f"Existing unrelated validation errors in repo: {len(baseline_errors)}")
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(request, title="Machine Access Save", errors=messages, diff_text=diff_text),
+        )
+
+    try:
+        config_store.save_bundle(paths, candidate, ["machines"])
+    except Exception as exc:  # noqa: BLE001
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(
+                request,
+                title="Machine Access Save",
+                errors=[f"Failed to write vm-configs/vm-machines.yaml: {exc}"],
+                diff_text="No changes were persisted.",
+            ),
+        )
+
+    return HTMLResponse(
+        "<div class='flash success'>Machine access details saved.</div>",
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.get("/machines/notes")
+def machine_notes_form(request: Request, machine_id: str):
+    machine_key = str(machine_id or "").strip()
+    if not machine_key:
+        return HTMLResponse("<div class='flash error'>machine_id is required.</div>", status_code=400)
+
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    machines = bundle.machines_doc.get("machines", {})
+    machine = machines.get(machine_key, {})
+    if not isinstance(machine, dict) or not machine:
+        return HTMLResponse(f"<div class='flash error'>Machine not found: {machine_key}</div>", status_code=404)
+
+    notes_md = str(machine.get("notes", "") or "")
+    return templates.TemplateResponse(
+        "partials/machine_notes_form.html",
+        _ctx(
+            request,
+            machine_id=machine_key,
+            notes_md=notes_md,
+            notes_rendered=_render_markdown_safe(notes_md),
+        ),
+    )
+
+
+@router.post("/machines/notes/render")
+async def machine_notes_render(request: Request):
+    form = await request.form()
+    payload = _machine_notes_payload_from_form(dict(form))
+    rendered = _render_markdown_safe(payload["notes"])
+    return HTMLResponse(
+        (
+            "<div class='panel markdown-preview'>"
+            "<h5>Markdown Preview</h5>"
+            f"<div class='markdown-body'>{rendered}</div>"
+            "</div>"
+        ),
+        status_code=200,
+    )
+
+
+@router.post("/machines/notes/preview")
+async def machine_notes_preview(request: Request):
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    candidate = config_store.clone_bundle(bundle)
+    errors: List[str] = []
+
+    form = await request.form()
+    form_data = dict(form)
+    try:
+        payload = _machine_notes_payload_from_form(form_data)
+        machines = candidate.machines_doc.get("machines", {})
+        machine = machines.get(payload["machine_id"], {})
+        if not isinstance(machine, dict) or not machine:
+            raise ValueError(f"Machine not found: {payload['machine_id']}")
+        machine["notes"] = payload["notes"]
+        errors.extend(validators.validate_bundle(candidate, paths.repo_root))
+    except Exception as exc:  # noqa: BLE001
+        errors.append(str(exc))
+
+    new_text = config_store.dump_doc(candidate.machines_doc)
+    diff_text = config_store.render_diff(bundle.machines_text, new_text, "vm-configs/vm-machines.yaml")
+    return templates.TemplateResponse(
+        "partials/preview.html",
+        _ctx(request, title="Machine Notes Diff Preview", errors=errors, diff_text=diff_text),
+    )
+
+
+@router.post("/machines/notes/save")
+async def machine_notes_save(request: Request):
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    candidate = config_store.clone_bundle(bundle)
+    baseline_errors = validators.validate_bundle(bundle, paths.repo_root)
+
+    form = await request.form()
+    form_data = dict(form)
+    try:
+        payload = _machine_notes_payload_from_form(form_data)
+        machines = candidate.machines_doc.get("machines", {})
+        machine = machines.get(payload["machine_id"], {})
+        if not isinstance(machine, dict) or not machine:
+            raise ValueError(f"Machine not found: {payload['machine_id']}")
+        machine["notes"] = payload["notes"]
+    except Exception as exc:  # noqa: BLE001
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(request, title="Machine Notes Save", errors=[str(exc)], diff_text="No changes."),
+        )
+
+    errors = validators.validate_bundle(candidate, paths.repo_root)
+    new_errors = _introduced_errors(baseline_errors, errors)
+    if new_errors:
+        new_text = config_store.dump_doc(candidate.machines_doc)
+        diff_text = config_store.render_diff(bundle.machines_text, new_text, "vm-configs/vm-machines.yaml")
+        messages = ["New validation errors introduced by this change:"] + new_errors
+        if baseline_errors:
+            messages.append(f"Existing unrelated validation errors in repo: {len(baseline_errors)}")
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(request, title="Machine Notes Save", errors=messages, diff_text=diff_text),
+        )
+
+    try:
+        config_store.save_bundle(paths, candidate, ["machines"])
+    except Exception as exc:  # noqa: BLE001
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(
+                request,
+                title="Machine Notes Save",
+                errors=[f"Failed to write vm-configs/vm-machines.yaml: {exc}"],
+                diff_text="No changes were persisted.",
+            ),
+        )
+
+    return HTMLResponse(
+        "<div class='flash success'>Machine notes saved.</div>",
+        headers={"HX-Refresh": "true"},
     )
 
 
@@ -1789,8 +2268,8 @@ def machine_setup_config_preview(request: Request, machine_id: str, setup_id: st
 
     supports_modes_raw = setup_meta.get("supports_exec_modes", [])
     supports_modes = [str(x) for x in supports_modes_raw] if isinstance(supports_modes_raw, list) else []
-    machine_exec_runtime = _machine_runtime_exec_mode(machine.get("exec_mode"))
-    exec_mode_compatible = (not supports_modes) or (machine_exec_runtime in supports_modes)
+    machine_exec_modes_runtime = _machine_runtime_exec_modes(machine.get("exec_mode"))
+    exec_mode_compatible = (not supports_modes) or any(mode in supports_modes for mode in machine_exec_modes_runtime)
 
     allowed_target_types_raw = setup_meta.get("allowed_target_types", [])
     allowed_target_types = [str(x) for x in allowed_target_types_raw] if isinstance(allowed_target_types_raw, list) else []
@@ -2012,7 +2491,7 @@ def machine_setup_config_preview(request: Request, machine_id: str, setup_id: st
             setup_meta=setup_meta,
             is_enabled_for_machine=is_enabled_for_machine,
             supports_modes=supports_modes,
-            machine_exec_runtime=machine_exec_runtime,
+            machine_exec_runtime=",".join(machine_exec_modes_runtime),
             exec_mode_compatible=exec_mode_compatible,
             allowed_target_types=allowed_target_types,
             machine_target_runtime=machine_target_runtime,

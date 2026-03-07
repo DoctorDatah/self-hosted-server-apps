@@ -75,7 +75,8 @@
           "requires_confirmation": true,
           "description": "Restore n8n in staging from backup"
         }
-      }
+      },
+      "status": "active"
     },
     "n8n-prod-1": {
       "type": "app-vm",
@@ -149,12 +150,16 @@
           "requires_confirmation": true,
           "description": "Backup n8n production state"
         }
-      }
+      },
+      "status": "active",
+      "notes": "# dfad\n\npdf a\n\n- * adfkl a"
     },
     "coolify-prod-1": {
       "type": "app-vm",
       "parrent": "coolify-app",
+      "status": "active",
       "env": "prod",
+      "notes": "#afda jkasdnfkj asndfjkadsnf kjasndfjkansdfjkansdfjk ansjdfknasjkfn asjkdfnasjknfdakjsnfdajksnfdjaksndfakjsndf ajksnfjaksnfakjsndfkajsnfjkasnfdjkasndfjkasnfdkjasnfjkadsnfjkasndfjkasndfjkasnfdkj asndf kjasnf jkans fjkasnfdjklansjfdknaskjfd nakjsf bakjsb akjsfbakjsfbajksfgrejkbfrkjq a",
       "labels": [
         "coolify",
         "app",
@@ -169,10 +174,26 @@
         "backup_app",
         "repo_clone_or_update"
       ],
+      "set_of_operations": {
+        "coolify-vm-install": {
+          "setups": [
+            "repo_clone_or_update",
+            "vm_install"
+          ],
+          "description": "Prepare coolify VM"
+        },
+        "coolify-app-deploy": {
+          "setups": [
+            "repo_clone_or_update",
+            "app_deploy"
+          ],
+          "description": "Deploy coolify app layer"
+        }
+      },
       "exec_mode": "vm-remote-ssh",
       "repo_path": "/opt/vm-ops",
       "ssh": {
-        "host": "10.10.0.40",
+        "host": "10.10.0.41",
         "user": "ubuntu",
         "port": 22,
         "key_ref": "infisical://vm-codex/ssh/coolify-prod-1"
@@ -200,28 +221,6 @@
         "runtime": {
           "shell": "bash"
         }
-      },
-      "set_of_operations": {
-        "coolify-vm-install": {
-          "setups": [
-            "repo_clone_or_update",
-            "vm_install"
-          ],
-          "params": {},
-          "requires_confirmation": true,
-          "description": "Prepare coolify VM"
-        },
-        "coolify-app-deploy": {
-          "setups": [
-            "repo_clone_or_update",
-            "app_deploy"
-          ],
-          "params": {
-            "app_id": "coolify"
-          },
-          "requires_confirmation": true,
-          "description": "Deploy coolify app layer"
-        }
       }
     },
     "promos-host": {
@@ -243,7 +242,8 @@
         "key_ref": ""
       },
       "params": {},
-      "defaults": {}
+      "defaults": {},
+      "status": "not-setup-yet"
     }
   },
   "groups": {

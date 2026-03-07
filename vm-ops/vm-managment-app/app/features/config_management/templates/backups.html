@@ -89,6 +89,60 @@
 </section>
 
 <section class="panel">
+  <h3>Backup Cleanup</h3>
+  <p>Delete older backups and keep only the newest N backups.</p>
+  <p class="hint">Example: Keep Last N = 10 keeps 10 newest backups and deletes everything older.</p>
+
+  <form
+    class="form-grid"
+    hx-post="/config-management/backups/cleanup"
+    hx-target="#backup-feedback"
+    hx-swap="innerHTML"
+    hx-confirm="Cleanup old backups and keep only the newest N backups?"
+  >
+    <div class="field-row two-col">
+      <label>
+        Keep Last N
+        <input type="number" min="1" name="keep_last_n" value="10" />
+      </label>
+      <div class="actions-row">
+        <button class="btn danger" type="submit">Cleanup Older Backups</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="actions-row">
+    <form
+      hx-post="/config-management/backups/cleanup"
+      hx-target="#backup-feedback"
+      hx-swap="innerHTML"
+      hx-confirm="Keep last 5 backups and delete older backups?"
+    >
+      <input type="hidden" name="keep_last_n" value="5" />
+      <button class="btn ghost small" type="submit">Keep Last 5</button>
+    </form>
+    <form
+      hx-post="/config-management/backups/cleanup"
+      hx-target="#backup-feedback"
+      hx-swap="innerHTML"
+      hx-confirm="Keep last 10 backups and delete older backups?"
+    >
+      <input type="hidden" name="keep_last_n" value="10" />
+      <button class="btn ghost small" type="submit">Keep Last 10</button>
+    </form>
+    <form
+      hx-post="/config-management/backups/cleanup"
+      hx-target="#backup-feedback"
+      hx-swap="innerHTML"
+      hx-confirm="Keep last 15 backups and delete older backups?"
+    >
+      <input type="hidden" name="keep_last_n" value="15" />
+      <button class="btn ghost small" type="submit">Keep Last 15</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel">
   <h3>Available Backups (Newest First)</h3>
   <p>Restoring a backup overwrites current <code>vm-configs/*.yaml</code> files directly in this repo.</p>
   <p class="hint">Displayed times use timezone: <code>{{ backup_timezone or app_timezone or 'UTC' }}</code></p>

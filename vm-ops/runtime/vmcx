@@ -34,7 +34,7 @@ def _common_plan_run_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--alias", help="friendly alias")
     p.add_argument("--stages", help="comma-separated stage ids")
     p.add_argument("--params", help="JSON params object", default="")
-    p.add_argument("--exec-mode", default="auto", choices=["auto", "local", "ssh", "vm-local", "vm-remote-ssh"])
+    p.add_argument("--exec-mode", default="auto", choices=["auto", "local", "ssh", "both", "vm-local", "vm-remote-ssh", "vm-both"])
 
 
 def cmd_plan(args: argparse.Namespace, repo_root: Path) -> int:
@@ -164,6 +164,7 @@ def cmd_list_targets(repo_root: Path) -> int:
         rows.append(
             {
                 "target_id": target_id,
+                "status": target.get("status", "active"),
                 "environment": target.get("environment", ""),
                 "exec_mode": target.get("exec_mode", ""),
                 "groups": target.get("groups", []),
@@ -373,7 +374,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_group.add_argument("--group", required=True)
     p_group.add_argument("--stages", required=True)
     p_group.add_argument("--params", default="")
-    p_group.add_argument("--exec-mode", default="auto", choices=["auto", "local", "ssh", "vm-local", "vm-remote-ssh"])
+    p_group.add_argument("--exec-mode", default="auto", choices=["auto", "local", "ssh", "both", "vm-local", "vm-remote-ssh", "vm-both"])
     p_group.add_argument("--concurrency", type=int, default=1)
     p_group.add_argument("--confirm", action="store_true")
 

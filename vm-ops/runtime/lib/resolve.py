@@ -17,9 +17,18 @@ def _normalize_machine_exec_mode(value: Any) -> str:
     raw = str(value or "").strip().lower()
     if raw in {"vm-remote-ssh", "ssh"}:
         return "vm-remote-ssh"
+    if raw in {"vm-both", "both"}:
+        return "vm-both"
     if raw in {"vm-local", "local", ""}:
         return "vm-local"
     raise ResolutionError(f"Invalid target exec_mode for target: {value}")
+
+
+def _normalize_machine_status(value: Any) -> str:
+    raw = str(value or "active").strip().lower().replace("_", "-").replace(" ", "-")
+    if raw in {"active", "inactive", "not-setup-yet"}:
+        return raw
+    raise ResolutionError(f"Invalid target status for target: {value}")
 
 
 def parse_csv(value: Optional[str]) -> List[str]:
@@ -83,6 +92,9 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
     groups = machine.get("groups", [])
     if not isinstance(groups, list):
         groups = []
+    access = machine.get("access", {})
+    if not isinstance(access, dict):
+        access = {}
 
     return {
         # Runtime uses canonical target_type values for stage compatibility.
@@ -90,11 +102,14 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
         # Keep raw type visible for UI/listing compatibility.
         "vm_type": raw_type,
         "environment": machine.get("environment", machine.get("env", "")),
+        "notes": str(machine.get("notes", "") or "").strip(),
         "labels": [str(x) for x in labels],
         "enabled_stages": [str(x) for x in enabled],
+        "status": _normalize_machine_status(machine.get("status", "active")),
         "exec_mode": _normalize_machine_exec_mode(machine.get("exec_mode", "vm-local")),
         "repo_path": machine.get("repo_path", "/opt/vm-ops"),
         "ssh": machine.get("ssh", {}),
+        "access": access,
         "params": params,
         # Keep vars for stage/runtime compatibility.
         "vars": params,
@@ -315,10 +330,19 @@ def _resolve_exec_mode(target: Dict[str, Any], requested: str) -> str:
         return "local"
     if requested_raw in {"ssh", "vm-remote-ssh"}:
         return "ssh"
+    if requested_raw in {"both", "vm-both"}:
+        requested_raw = "auto"
     if requested_raw != "auto":
         raise ResolutionError(f"Invalid exec mode: {requested}")
     target_mode = _normalize_machine_exec_mode(target.get("exec_mode", "vm-local"))
-    return "ssh" if target_mode == "vm-remote-ssh" else "local"
+    if target_mode == "vm-remote-ssh":
+        return "ssh"
+    if target_mode == "vm-both":
+        ssh = target.get("ssh", {})
+        if isinstance(ssh, dict) and str(ssh.get("host", "")).strip() and str(ssh.get("user", "")).strip():
+            return "ssh"
+        return "local"
+    return "local"
 
 
 def _resolve_stages(

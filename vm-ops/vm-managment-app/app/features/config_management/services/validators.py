@@ -61,6 +61,23 @@ def validate_bundle(bundle: ConfigBundle, repo_root: Path) -> List[str]:
 
         if "parrent" in machine and not isinstance(machine.get("parrent"), str):
             errors.append(f"machine {machine_id} parrent must be a string")
+        if "notes" in machine and not isinstance(machine.get("notes"), str):
+            errors.append(f"machine {machine_id} notes must be a string")
+        if "access" in machine:
+            access = machine.get("access")
+            if not isinstance(access, dict):
+                errors.append(f"machine {machine_id} access must be an object")
+            else:
+                for field_name in ["vm_link", "jump_host", "jump_user", "notes"]:
+                    if field_name in access and not isinstance(access.get(field_name), str):
+                        errors.append(f"machine {machine_id} access.{field_name} must be a string")
+
+        status = str(machine.get("status", "active")).strip().lower().replace("_", "-").replace(" ", "-")
+        if status not in {"active", "inactive", "not-setup-yet"}:
+            errors.append(
+                f"machine {machine_id} has invalid status '{status}' "
+                "(allowed: active, inactive, not-setup-yet)"
+            )
 
         enabled = machine.get("enabled_setups", machine.get("enabled_stages", []))
         if not isinstance(enabled, list) or not enabled:
@@ -117,21 +134,21 @@ def validate_bundle(bundle: ConfigBundle, repo_root: Path) -> List[str]:
                     )
 
         exec_mode = str(machine.get("exec_mode", "vm-local")).strip()
-        if exec_mode not in {"vm-local", "vm-remote-ssh", "local", "ssh"}:
+        if exec_mode not in {"vm-local", "vm-remote-ssh", "vm-both", "local", "ssh", "both"}:
             errors.append(
                 f"machine {machine_id} has invalid exec_mode '{exec_mode}' "
-                "(allowed: vm-local, vm-remote-ssh)"
+                "(allowed: vm-local, vm-remote-ssh, vm-both)"
             )
 
-        if exec_mode in {"vm-remote-ssh", "ssh"}:
+        if exec_mode in {"vm-remote-ssh", "ssh", "vm-both", "both"}:
             ssh = machine.get("ssh", {})
             if not isinstance(ssh, dict):
                 errors.append(f"machine {machine_id} ssh must be an object")
             else:
                 if not str(ssh.get("host", "")).strip():
-                    errors.append(f"machine {machine_id} missing ssh.host for vm-remote-ssh mode")
+                    errors.append(f"machine {machine_id} missing ssh.host for vm-remote-ssh/vm-both mode")
                 if not str(ssh.get("user", "")).strip():
-                    errors.append(f"machine {machine_id} missing ssh.user for vm-remote-ssh mode")
+                    errors.append(f"machine {machine_id} missing ssh.user for vm-remote-ssh/vm-both mode")
                 port = ssh.get("port", 22)
                 try:
                     p = int(port)
