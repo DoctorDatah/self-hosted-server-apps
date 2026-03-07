@@ -1,6 +1,8 @@
 (function () {
   var reloadScheduled = false;
   var VERSION_KEY = 'vm_management_seen_realtime_version';
+  var NAV_COLLAPSED_KEY = 'vm_management_nav_collapsed';
+  var MACHINES_GROUP_BY_KEY = 'vm_management_machines_group_by';
 
   function qs(sel, root) {
     return (root || document).querySelector(sel);
@@ -24,6 +26,47 @@
     } catch (_err) {
       // Ignore session storage failures.
     }
+  }
+
+  function getNavCollapsed() {
+    try {
+      return window.localStorage.getItem(NAV_COLLAPSED_KEY) === '1';
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  function setNavCollapsed(collapsed) {
+    try {
+      window.localStorage.setItem(NAV_COLLAPSED_KEY, collapsed ? '1' : '0');
+    } catch (_err) {
+      // Ignore local storage failures.
+    }
+  }
+
+  function applyNavCollapsed(collapsed) {
+    var shell = qs('.app-shell');
+    if (shell) {
+      shell.classList.toggle('nav-collapsed', !!collapsed);
+    }
+
+    var btn = qs('#nav-toggle-btn');
+    if (!btn) return;
+    var expandedLabel = btn.getAttribute('data-expanded-label') || 'Hide Menu';
+    var collapsedLabel = btn.getAttribute('data-collapsed-label') || 'Show Menu';
+    btn.textContent = collapsed ? collapsedLabel : expandedLabel;
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+
+  function bindNavToggle() {
+    var btn = qs('#nav-toggle-btn');
+    if (!btn || btn.__boundNavToggle) return;
+    btn.__boundNavToggle = true;
+    btn.addEventListener('click', function () {
+      var next = !getNavCollapsed();
+      setNavCollapsed(next);
+      applyNavCollapsed(next);
+    });
   }
 
   function markReloadScheduled() {
@@ -128,6 +171,125 @@
     updateSetupCsv(root);
   }
 
+  function parseCsvList(raw) {
+    return String(raw || '')
+      .split(',')
+      .map(function (x) { return x.trim(); })
+      .filter(Boolean);
+  }
+
+  function bindOperationSetBuilders(root) {
+    qsa('[data-operation-sets="true"]', root).forEach(function (container) {
+      if (container.__boundOperationSets) return;
+      container.__boundOperationSets = true;
+
+      var form = container.closest('form');
+      if (!form) return;
+      var hidden = qs('input[data-operation-sets-json="true"]', form);
+      var rowsWrap = qs('[data-operation-set-rows="true"]', container);
+      var template = qs('template[data-operation-set-template="true"]', container);
+      var addBtn = qs('[data-opset-add="true"]', container);
+      var catalogChips = qsa('[data-opset-catalog]', container);
+      var activeSetupsInput = null;
+
+      if (!rowsWrap || !hidden) return;
+
+      function rows() {
+        return qsa('[data-operation-set-row="true"]', rowsWrap);
+      }
+
+      function syncJson() {
+        var payload = {};
+        rows().forEach(function (row) {
+          var nameInput = qs('[data-opset-name="true"]', row);
+          var setupsInput = qs('[data-opset-setups="true"]', row);
+          var descInput = qs('[data-opset-description="true"]', row);
+          if (!nameInput || !setupsInput) return;
+
+          var setName = String(nameInput.value || '').trim();
+          if (!setName) return;
+          var setups = parseCsvList(setupsInput.value);
+          if (!setups.length) return;
+
+          var entry = { setups: setups };
+          if (descInput && String(descInput.value || '').trim()) {
+            entry.description = String(descInput.value || '').trim();
+          }
+          payload[setName] = entry;
+        });
+        hidden.value = JSON.stringify(payload);
+      }
+
+      function appendSetupToActive(setupId) {
+        if (!setupId) return;
+        if (!activeSetupsInput) {
+          var first = rows()[0];
+          activeSetupsInput = first ? qs('[data-opset-setups="true"]', first) : null;
+        }
+        if (!activeSetupsInput) return;
+
+        var items = parseCsvList(activeSetupsInput.value);
+        items.push(setupId);
+        activeSetupsInput.value = items.join(', ');
+        activeSetupsInput.dispatchEvent(new Event('input', { bubbles: true }));
+        activeSetupsInput.focus();
+      }
+
+      function bindRow(row) {
+        if (!row || row.__boundOpSetRow) return;
+        row.__boundOpSetRow = true;
+
+        var nameInput = qs('[data-opset-name="true"]', row);
+        var setupsInput = qs('[data-opset-setups="true"]', row);
+        var descInput = qs('[data-opset-description="true"]', row);
+        var removeBtn = qs('[data-opset-remove="true"]', row);
+        [nameInput, setupsInput, descInput].forEach(function (el) {
+          if (!el) return;
+          el.addEventListener('input', syncJson);
+        });
+        if (setupsInput) {
+          setupsInput.addEventListener('focus', function () {
+            activeSetupsInput = setupsInput;
+          });
+        }
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function () {
+            row.remove();
+            if (activeSetupsInput === setupsInput) {
+              activeSetupsInput = null;
+            }
+            syncJson();
+          });
+        }
+      }
+
+      rows().forEach(bindRow);
+
+      if (addBtn && template) {
+        addBtn.addEventListener('click', function () {
+          var fragment = template.content.cloneNode(true);
+          rowsWrap.appendChild(fragment);
+          var allRows = rows();
+          var lastRow = allRows[allRows.length - 1];
+          bindRow(lastRow);
+          var setupsInput = lastRow ? qs('[data-opset-setups="true"]', lastRow) : null;
+          if (setupsInput) {
+            activeSetupsInput = setupsInput;
+          }
+          syncJson();
+        });
+      }
+
+      catalogChips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          appendSetupToActive(chip.getAttribute('data-opset-catalog') || '');
+        });
+      });
+
+      syncJson();
+    });
+  }
+
   function bindTableFilters(root) {
     qsa('.table-filter', root).forEach(function (input) {
       var targetSelector = input.getAttribute('data-filter-target');
@@ -136,10 +298,140 @@
 
       input.addEventListener('input', function () {
         var term = input.value.trim().toLowerCase();
-        qsa('tbody tr', table).forEach(function (row) {
+        var dataRows = qsa('tbody tr[data-machine-row="true"]', table);
+        var rows = dataRows.length
+          ? dataRows
+          : qsa('tbody tr', table).filter(function (row) {
+              return row.getAttribute('data-group-header') !== 'true';
+            });
+        rows.forEach(function (row) {
           var text = row.textContent.toLowerCase();
           row.style.display = !term || text.indexOf(term) !== -1 ? '' : 'none';
         });
+        updateGroupHeaderVisibility(table);
+      });
+    });
+  }
+
+  function getMachinesGroupBy() {
+    try {
+      return window.localStorage.getItem(MACHINES_GROUP_BY_KEY) || 'none';
+    } catch (_err) {
+      return 'none';
+    }
+  }
+
+  function setMachinesGroupBy(value) {
+    try {
+      window.localStorage.setItem(MACHINES_GROUP_BY_KEY, value || 'none');
+    } catch (_err) {
+      // Ignore local storage failures.
+    }
+  }
+
+  function clearGroupHeaders(table) {
+    qsa('tbody tr[data-group-header="true"]', table).forEach(function (row) {
+      row.remove();
+    });
+  }
+
+  function updateGroupHeaderVisibility(table) {
+    var headers = qsa('tbody tr[data-group-header="true"]', table);
+    if (!headers.length) return;
+
+    headers.forEach(function (header) {
+      var next = header.nextElementSibling;
+      var hasVisibleRows = false;
+      while (next && next.getAttribute('data-group-header') !== 'true') {
+        if (next.getAttribute('data-machine-row') === 'true' && next.style.display !== 'none') {
+          hasVisibleRows = true;
+          break;
+        }
+        next = next.nextElementSibling;
+      }
+      header.style.display = hasVisibleRows ? '' : 'none';
+    });
+  }
+
+  function insertGroupHeaders(table, groupKey) {
+    clearGroupHeaders(table);
+    if (!groupKey || groupKey === 'none') {
+      return;
+    }
+
+    var tbody = qs('tbody', table);
+    if (!tbody) return;
+    var rows = qsa('tr[data-machine-row="true"]', tbody);
+    if (!rows.length) return;
+
+    var thCount = qsa('thead th', table).length || 1;
+    var lastGroup = null;
+    rows.forEach(function (row) {
+      var groupValue = (row.getAttribute('data-group-' + groupKey) || '-').trim() || '-';
+      if (groupValue !== lastGroup) {
+        lastGroup = groupValue;
+        var headerRow = document.createElement('tr');
+        headerRow.className = 'group-header-row';
+        headerRow.setAttribute('data-group-header', 'true');
+        var td = document.createElement('td');
+        td.colSpan = thCount;
+        td.textContent = groupKey.replace('_', ' ') + ': ' + groupValue;
+        headerRow.appendChild(td);
+        tbody.insertBefore(headerRow, row);
+      }
+    });
+    updateGroupHeaderVisibility(table);
+  }
+
+  function applyMachinesGrouping(table, groupKey) {
+    var tbody = qs('tbody', table);
+    if (!tbody) return;
+    var rows = qsa('tr[data-machine-row="true"]', tbody);
+    if (!rows.length) return;
+
+    rows.sort(function (a, b) {
+      var aMachine = (a.getAttribute('data-machine-id') || '').toLowerCase();
+      var bMachine = (b.getAttribute('data-machine-id') || '').toLowerCase();
+      if (!groupKey || groupKey === 'none') {
+        return aMachine.localeCompare(bMachine);
+      }
+      var aGroup = (a.getAttribute('data-group-' + groupKey) || '').toLowerCase();
+      var bGroup = (b.getAttribute('data-group-' + groupKey) || '').toLowerCase();
+      var groupCmp = aGroup.localeCompare(bGroup);
+      return groupCmp !== 0 ? groupCmp : aMachine.localeCompare(bMachine);
+    });
+
+    rows.forEach(function (row) {
+      tbody.appendChild(row);
+    });
+    insertGroupHeaders(table, groupKey);
+  }
+
+  function bindMachinesGrouping(root) {
+    qsa('select[data-group-target]', root).forEach(function (select) {
+      if (select.__boundGroupBy) return;
+      select.__boundGroupBy = true;
+      var targetSelector = select.getAttribute('data-group-target');
+      var table = targetSelector ? qs(targetSelector) : null;
+      if (!table) return;
+
+      var selected = getMachinesGroupBy();
+      if (!selected || !qsa('option', select).some(function (opt) { return opt.value === selected; })) {
+        selected = 'none';
+      }
+      select.value = selected;
+      applyMachinesGrouping(table, selected);
+
+      select.addEventListener('change', function () {
+        var value = String(select.value || 'none');
+        setMachinesGroupBy(value);
+        applyMachinesGrouping(table, value);
+
+        // Reapply active filter term to keep grouped headers aligned with visible rows.
+        var filter = qs('.table-filter[data-filter-target="' + targetSelector + '"]');
+        if (filter) {
+          filter.dispatchEvent(new Event('input', { bubbles: true }));
+        }
       });
     });
   }
@@ -380,64 +672,12 @@
       if (!res.ok) throw new Error('status failed');
       var data = await res.json();
       var navMode = (document.body && document.body.getAttribute('data-nav-mode')) || 'home';
-
-      var changed = Number(data.config_changed_count || 0);
-      if (!Number.isFinite(changed)) {
-        changed = (data.config_changed_files || []).length;
-      }
-      var openPrCountRaw = data.related_open_pr_count;
-      var openPrCount = Number.isFinite(Number(openPrCountRaw)) ? String(Number(openPrCountRaw)) : 'N/A';
-      var validation = (data.validation_errors || []).length;
-      var backupStatus = data.backup_status || {};
-      var backupState = String(backupStatus.state || '');
-      var backupSummary = String(backupStatus.summary || '');
-      var backupId = String(backupStatus.latest_matching_backup_id || backupStatus.latest_backup_id || '-');
-      var branchValue = String(data.preferred_config_branch || '-');
-      var trackedSensitiveCount = Number(data.tracked_sensitive_count || 0);
-
-      var targetBranchNode = qs('#pill-target-branch');
-      var changesNode = qs('#pill-changes');
-      var openPrNode = qs('#pill-open-prs');
-      var validationNode = qs('#pill-validation');
       var timezoneNode = qs('#pill-timezone');
-      var backupNode = qs('#pill-backup');
       var statusText = qs('#top-status-text');
-
-      if (targetBranchNode) targetBranchNode.textContent = 'Config Branch: ' + branchValue;
-      if (changesNode) changesNode.textContent = 'Change Count: ' + changed;
-      if (openPrNode) openPrNode.textContent = 'Open PR Count: ' + openPrCount;
-      if (validationNode) validationNode.textContent = 'Validation Status: ' + (validation ? 'Errors' : 'Ok');
       if (timezoneNode) timezoneNode.textContent = 'Global Time Zone: ' + (data.app_timezone || 'UTC');
-      if (backupNode) {
-        backupNode.classList.remove('ok', 'warn');
-        if (backupState === 'backed_up' || backupState === 'backed_up_restored') {
-          backupNode.textContent = 'Backup Status: Up To Date';
-          backupNode.classList.add('ok');
-        } else if (backupState) {
-          backupNode.textContent = 'Backup Status: Not Backed Up';
-          backupNode.classList.add('warn');
-        } else {
-          backupNode.textContent = 'Backup Status: -';
-        }
-      }
       if (statusText) {
         if (navMode === 'config') {
-          var validationText = validation
-            ? 'Validation has issues.'
-            : 'Validation is clean.';
-          var securityText = trackedSensitiveCount > 0
-            ? 'Security alert: local app-data is tracked by git.'
-            : '';
-          var infoPrefix = [
-            'Config Branch: ' + branchValue,
-            'Matching Backup: ' + backupId,
-            'Open PR Count: ' + openPrCount
-          ].join(' | ');
-          if (backupSummary) {
-            statusText.textContent = infoPrefix + '. ' + backupSummary + ' ' + validationText + (securityText ? ' ' + securityText : '');
-          } else {
-            statusText.textContent = infoPrefix + '. ' + validationText + (securityText ? ' ' + securityText : '');
-          }
+          statusText.textContent = 'Config Management workspace. Use each page tools for details, actions, and status.';
         } else {
           statusText.textContent = 'Global settings apply across all sections.';
         }
@@ -534,15 +774,21 @@
   document.addEventListener('htmx:afterSwap', function (event) {
     if (event.target && event.target.id === 'drawer-body') {
       bindSetupCheckboxes(event.target);
+      bindOperationSetBuilders(event.target);
       openDrawer();
     }
     bindGithubClipboardCode(document);
+    bindMachinesGrouping(document);
   });
 
   document.addEventListener('DOMContentLoaded', function () {
+    applyNavCollapsed(getNavCollapsed());
+    bindNavToggle();
     bindGlobalClicks();
     bindTableFilters(document);
+    bindMachinesGrouping(document);
     bindSetupCheckboxes(document);
+    bindOperationSetBuilders(document);
     bindDeleteButtons(document);
     bindGitPrepareForm(document);
     bindGithubClipboardCode(document);

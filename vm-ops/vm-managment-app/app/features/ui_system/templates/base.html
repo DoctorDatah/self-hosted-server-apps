@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title or app_display_name or "VM Management" }}</title>
-  <link rel="stylesheet" href="/static/css/app.css" />
+  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version or 'dev' }}" />
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body data-nav-mode="{{ nav_mode or 'home' }}">
@@ -32,8 +32,6 @@
           <h4 class="nav-group-title">Config Management</h4>
           <a href="/config-management" class="nav-link {% if request.url.path in ['/config-management','/features/config-management'] %}active{% endif %}">Dashboard</a>
           <a href="/config-management/machines" class="nav-link {% if request.url.path in ['/machines','/config-management/machines','/features/config-management/machines'] %}active{% endif %}">Manage Machines</a>
-          <a href="/config-management/operations" class="nav-link {% if request.url.path in ['/operations','/config-management/operations','/features/config-management/operations'] %}active{% endif %}">Manage Operations</a>
-          <a href="/config-management/rules" class="nav-link {% if request.url.path in ['/rules','/config-management/rules','/features/config-management/rules'] %}active{% endif %}">Manage Rules</a>
           <a href="/config-management/backups" class="nav-link {% if request.url.path in ['/config-management/backups','/features/config-management/backups'] %}active{% endif %}">Config Backups</a>
           <a href="/config-management/git-commits" class="nav-link {% if request.url.path in ['/config-management/git-commits','/features/config-management/git-commits'] %}active{% endif %}">Branch and Commit</a>
           <a href="/config-management/source-of-truth" class="nav-link {% if request.url.path in ['/config-management/source-of-truth','/features/config-management/source-of-truth'] %}active{% endif %}">Source of Truth for Config</a>
@@ -46,39 +44,23 @@
     <section class="content-area">
       <header class="top-bar">
         <div>
+          <div class="top-bar-inline-actions">
+            <button
+              type="button"
+              id="nav-toggle-btn"
+              class="btn ghost small"
+              aria-expanded="true"
+              data-expanded-label="Hide Menu"
+              data-collapsed-label="Show Menu"
+            >Hide Menu</button>
+          </div>
           <h2>{{ page_title or "Dashboard" }}</h2>
           <p id="top-status-text">Loading repo status...</p>
         </div>
         <div class="pill-row">
           <span class="pill" id="pill-timezone">Global Time Zone: {{ app_timezone or 'UTC' }}</span>
-          {% if nav_mode == "config" %}
-            <span class="pill" id="pill-target-branch">Config Branch: -</span>
-            <span class="pill" id="pill-changes">Change Count: -</span>
-            <span class="pill" id="pill-open-prs">Open PR Count: -</span>
-            <span class="pill" id="pill-validation">Validation Status: -</span>
-            <span class="pill" id="pill-backup">Backup Status: -</span>
-          {% endif %}
         </div>
       </header>
-
-      {% if nav_mode == "config" and backup_status %}
-        <section class="panel backup-status-panel">
-          <h3>Backup Status</h3>
-          <p><strong>{{ backup_status.summary or "Backup status unavailable." }}</strong></p>
-          <p class="muted">
-            Latest backup:
-            <code>{{ backup_status.latest_backup_id or "-" }}</code>
-            at {{ backup_status.latest_backup_created_at_display or "-" }}
-          </p>
-          {% if backup_status.last_restore_backup_id %}
-            <p class="muted">
-              Last restore:
-              <code>{{ backup_status.last_restore_backup_id }}</code>
-              at {{ backup_status.last_restore_at_display or "-" }}
-            </p>
-          {% endif %}
-        </section>
-      {% endif %}
 
       <main class="page-content">
         <div id="realtime-banner" class="flash warn hidden"></div>
@@ -114,6 +96,6 @@
     </div>
   </div>
 
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v={{ app_version or 'dev' }}"></script>
 </body>
 </html>

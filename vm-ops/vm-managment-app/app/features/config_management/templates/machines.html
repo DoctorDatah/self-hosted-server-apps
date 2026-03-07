@@ -2,40 +2,132 @@
 {% block content %}
 <section class="panel">
   <div class="table-tools">
-    <input type="search" class="table-filter" data-filter-target="#machines-table" placeholder="Filter machines..." />
-    <button
-      class="btn"
-      hx-get="/machines/form"
-      hx-target="#drawer-body"
-      hx-swap="innerHTML"
-      data-open-drawer="true"
-      data-drawer-title="Create Machine"
-      type="button"
-    >
-      Add Machine
-    </button>
+    <div class="table-tools-left">
+      <input type="search" class="table-filter" data-filter-target="#machines-table" placeholder="Filter machines..." />
+      <label class="group-by-control">
+        <span>Group By
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: group by">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Reorganizes machine rows by one field for easier review.</span>
+              <span class="help-line"><strong>Why:</strong> Lets you scan clusters like prod-only, local-only, or host-only quickly.</span>
+              <span class="help-line"><strong>Workflow:</strong> Pick a group mode, then use filter for finer search inside that group.</span>
+            </span>
+          </span>
+        </span>
+        <select data-group-target="#machines-table" data-group-key="machines">
+          <option value="none">None</option>
+          <option value="parrent">Parrent</option>
+          <option value="env">Environment</option>
+          <option value="exec_mode">Execution Mode</option>
+          <option value="target_type">Target Type</option>
+        </select>
+      </label>
+    </div>
+    <div class="table-tools-right">
+      <button
+        class="btn"
+        hx-get="/machines/form"
+        hx-target="#drawer-body"
+        hx-swap="innerHTML"
+        data-open-drawer="true"
+        data-drawer-title="Create Machine"
+        type="button"
+      >
+        Add Machine
+      </button>
+      <a class="btn ghost" href="/config-management/readme/machines">README</a>
+    </div>
   </div>
 
   <div class="table-wrap">
-    <table id="machines-table" class="data-table">
+    <table id="machines-table" class="data-table" data-groupable-table="machines">
       <thead>
         <tr>
+          <th>parrent</th>
           <th>machine_id</th>
           <th>env</th>
           <th>exec_mode</th>
           <th>target_type</th>
-          <th>repo_path</th>
+          <th>
+            <span class="field-title">enabled_setups
+              <span class="help-wrap">
+                <button class="help-icon" type="button" aria-label="Help: enabled setups table">i</button>
+                <span class="help-pop" role="tooltip">
+                  <span class="help-line"><strong>What:</strong> Setup allow-list for this machine.</span>
+                  <span class="help-line"><strong>Why:</strong> Only listed setups should be run on that machine.</span>
+                  <span class="help-line"><strong>Workflow:</strong> Click any setup chip to inspect config details, then jump to edit actions.</span>
+                </span>
+              </span>
+            </span>
+          </th>
+          <th>
+            <span class="field-title">set_of_operations
+              <span class="help-wrap">
+                <button class="help-icon" type="button" aria-label="Help: set of operations table">i</button>
+                <span class="help-pop" role="tooltip">
+                  <span class="help-line"><strong>What:</strong> Named setup sequences attached to this machine.</span>
+                  <span class="help-line"><strong>Why:</strong> Gives reusable runbook sets like `deploy-the-app-set`.</span>
+                  <span class="help-line"><strong>Workflow:</strong> Edit in machine form; use names as templates when creating operations.</span>
+                </span>
+              </span>
+            </span>
+          </th>
           <th>actions</th>
         </tr>
       </thead>
       <tbody>
         {% for machine_id, machine in machines %}
-          <tr>
+          {% set enabled_setups = machine.enabled_setups or machine.enabled_stages or [] %}
+          {% set operation_sets = machine.set_of_operations or machine.operation_sets or {} %}
+          {% set normalized_exec_mode = "vm-remote-ssh" if (machine.exec_mode or "vm-local") in ["ssh", "vm-remote-ssh"] else "vm-local" %}
+          {% set normalized_target_type = machine.type or machine.target_type or "vm" %}
+          {% set normalized_parrent = machine.parrent or machine.parent or "-" %}
+          <tr
+            data-machine-row="true"
+            data-machine-id="{{ machine_id }}"
+            data-group-parrent="{{ normalized_parrent }}"
+            data-group-env="{{ machine.env or '-' }}"
+            data-group-exec_mode="{{ normalized_exec_mode }}"
+            data-group-target_type="{{ normalized_target_type }}"
+          >
+            <td><code>{{ normalized_parrent }}</code></td>
             <td><code>{{ machine_id }}</code></td>
             <td>{{ machine.env or "-" }}</td>
-            <td>{{ machine.exec_mode or "local" }}</td>
-            <td>{{ machine.type or machine.target_type or "vm" }}</td>
-            <td><code>{{ machine.repo_path or "-" }}</code></td>
+            <td>{{ normalized_exec_mode }}</td>
+            <td>{{ normalized_target_type }}</td>
+            <td>
+              {% if enabled_setups %}
+                <div class="setup-chip-list">
+                  {% for setup_id in enabled_setups %}
+                    <button
+                      class="setup-chip"
+                      type="button"
+                      hx-get="/machines/setup-config?machine_id={{ machine_id }}&setup_id={{ setup_id }}"
+                      hx-target="#drawer-body"
+                      hx-swap="innerHTML"
+                      data-open-drawer="true"
+                      data-drawer-title="Setup Config: {{ machine_id }} / {{ setup_id }}"
+                    >{{ setup_id }}</button>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="muted">None</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if operation_sets %}
+                <div class="setup-chip-list">
+                  {% for set_name, set_payload in operation_sets.items() %}
+                    {% set set_data = set_payload if set_payload is mapping else {} %}
+                    {% set set_setups = set_data.setups if set_data.setups is defined else [] %}
+                    <span class="setup-chip" title="{{ set_setups | join(' -> ') }}">{{ set_name }}</span>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="muted">None</span>
+              {% endif %}
+            </td>
             <td>
               <div class="inline-actions">
                 <button
@@ -46,7 +138,7 @@
                   data-open-drawer="true"
                   data-drawer-title="Edit {{ machine_id }}"
                   type="button"
-                >Edit</button>
+                >Preview / Edit</button>
 
                 <button
                   class="btn danger small delete-entity-btn"
@@ -58,7 +150,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="6">No machines configured.</td></tr>
+          <tr><td colspan="8">No machines configured.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -6,12 +6,30 @@
 
     <div class="field-row two-col">
       <label>
-        operation_id
+        <span class="field-title">operation_id
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: operation_id">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Name of a reusable operation recipe.</span>
+              <span class="help-line"><strong>Why:</strong> Operators and CI call this instead of building manual commands.</span>
+              <span class="help-line"><strong>Workflow:</strong> Keep names action-focused and environment-specific.</span>
+            </span>
+          </span>
+        </span>
         <input type="text" name="operation_id" value="{{ operation_id }}" {% if mode == 'edit' %}readonly{% endif %} required />
       </label>
 
       <label>
-        machine_id
+        <span class="field-title">machine_id
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: operation machine">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Target machine this operation runs on.</span>
+              <span class="help-line"><strong>Why:</strong> Determines actual host impacted by deploy/backup/restore.</span>
+              <span class="help-line"><strong>Workflow:</strong> Verify machine env and readiness before assigning.</span>
+            </span>
+          </span>
+        </span>
         <select name="machine_id" required>
           <option value="">Select machine</option>
           {% for machine_id_item in machine_ids %}
@@ -22,12 +40,30 @@
     </div>
 
     <label>
-      description
+      <span class="field-title">description
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: operation description">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Human-readable summary of operation purpose.</span>
+            <span class="help-line"><strong>Why:</strong> Reduces misuse and improves review clarity.</span>
+            <span class="help-line"><strong>Workflow:</strong> Describe intent, scope, and risk in plain language.</span>
+          </span>
+        </span>
+      </span>
       <input type="text" name="description" value="{{ op.description or '' }}" placeholder="Deploy n8n app layer to production" />
     </label>
 
     <fieldset class="fieldset">
-      <legend>Setups (ordered)</legend>
+      <legend>Setups (ordered)
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: setups ordered">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Ordered setup chain this operation executes.</span>
+            <span class="help-line"><strong>Why:</strong> Order controls dependencies (prep before deploy).</span>
+            <span class="help-line"><strong>Workflow:</strong> Keep critical flows simple, explicit, and auditable.</span>
+          </span>
+        </span>
+      </legend>
       <input type="hidden" name="setups_csv" value="{{ selected_setups | join(',') }}" data-setup-csv="true" />
       <div class="checks-grid" data-setup-checks="true">
         {% for sid in stage_ids %}
@@ -42,11 +78,29 @@
 
     <label class="checkline">
       <input type="checkbox" name="requires_confirmation" {% if op.requires_confirmation is not sameas false %}checked{% endif %} />
-      <span>Requires confirmation before run</span>
+      <span class="field-title">Requires confirmation before run
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: requires confirmation">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Extra human confirmation gate before execution.</span>
+            <span class="help-line"><strong>Why:</strong> Prevents accidental mutation in critical operations.</span>
+            <span class="help-line"><strong>Workflow:</strong> Keep enabled for prod-impacting changes.</span>
+          </span>
+        </span>
+      </span>
     </label>
 
     <details class="details-block">
-      <summary>params (JSON object)</summary>
+      <summary>params (JSON object)
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: operation params">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Operation-level default parameters.</span>
+            <span class="help-line"><strong>Why:</strong> Avoids repeating common values in each run call.</span>
+            <span class="help-line"><strong>Workflow:</strong> Put stable operation defaults here; override at runtime only when needed.</span>
+          </span>
+        </span>
+      </summary>
       <textarea name="params_json" rows="8">{{ (op.params or op.default_params or {}) | tojson(indent=2) }}</textarea>
     </details>
 

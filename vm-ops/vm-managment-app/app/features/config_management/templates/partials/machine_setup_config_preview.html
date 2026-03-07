@@ -1,0 +1,149 @@
+<div class="preview-block">
+  <h4>Setup Config For Machine (Setup-Level)</h4>
+  <p>
+    <strong>machine_id:</strong> <code>{{ machine_id }}</code><br />
+    <strong>setup_id:</strong> <code>{{ setup_id }}</code>
+  </p>
+  <p class="muted">
+    This screen edits only this setup's runtime options for this VM. It does <strong>not</strong> replace full VM config editing
+    (env, SSH, groups, enabled setups, etc).
+  </p>
+  <div class="actions-row">
+    <button
+      class="btn small"
+      type="button"
+      hx-get="/machines/form?machine_id={{ machine_id }}"
+      hx-target="#drawer-body"
+      hx-swap="innerHTML"
+      data-open-drawer="true"
+      data-drawer-title="Preview / Edit {{ machine_id }}"
+    >Preview / Edit</button>
+    <button
+      class="btn ghost small"
+      type="button"
+      hx-get="/env-rules/form?setup_id={{ setup_id }}"
+      hx-target="#drawer-body"
+      hx-swap="innerHTML"
+      data-open-drawer="true"
+      data-drawer-title="Edit Env Rule: {{ setup_id }}"
+    >Edit Env Rule For Setup</button>
+  </div>
+
+  <details class="details-block" open>
+    <summary>Dynamic Setup Options (Editable)</summary>
+    {% if dynamic_editor_rows %}
+      <p class="muted">
+        These options tune how <code>{{ setup_id }}</code> behaves on <code>{{ machine_id }}</code>. Save writes into
+        machine <code>params</code> in <code>vm-configs/vm-machines.yaml</code>.
+        Use each <code>i</code> tooltip for field-level <strong>what / why / impact / when to use</strong> guidance.
+      </p>
+      <form
+        id="dynamic-setup-form"
+        class="form-grid"
+        hx-post="/machines/setup-config/save"
+        hx-target="#dynamic-setup-result"
+        hx-swap="innerHTML"
+      >
+        <input type="hidden" name="machine_id" value="{{ machine_id }}" />
+        <input type="hidden" name="setup_id" value="{{ setup_id }}" />
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>option</th>
+                <th>{{ dynamic_table_meta.value_label if dynamic_table_meta else "value" }}</th>
+                {% if dynamic_table_meta and dynamic_table_meta.show_version_pin_columns %}
+                  <th>version_pin</th>
+                {% endif %}
+                <th>{{ dynamic_table_meta.default_value_label if dynamic_table_meta else "default" }}</th>
+                {% if dynamic_table_meta and dynamic_table_meta.show_version_pin_columns %}
+                  <th>default_version_pin</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in dynamic_editor_rows %}
+                {% set field = row.field %}
+                {% set vp = row.version_pin_field %}
+                <tr>
+                  <td>
+                    <span class="field-title">
+                      <code>{{ field.name }}</code>
+                      {% if field.help_lines %}
+                        <span class="help-wrap">
+                          <button class="help-icon" type="button" aria-label="Help: {{ field.name }}">i</button>
+                          <span class="help-pop" role="tooltip">
+                            {% for line in field.help_lines %}
+                              <span class="help-line">{{ line }}</span>
+                            {% endfor %}
+                          </span>
+                        </span>
+                      {% endif %}
+                    </span>
+                  </td>
+                  <td>
+                    {% if field.input_type == "bool" %}
+                      {% set edit_bool = field.edit_value %}
+                      <select name="dynamic__{{ field.name }}">
+                        <option value="true" {% if edit_bool in [true, 'true', 'True', 1, '1'] %}selected{% endif %}>true</option>
+                        <option value="false" {% if edit_bool in [false, 'false', 'False', 0, '0'] %}selected{% endif %}>false</option>
+                      </select>
+                    {% else %}
+                      <input type="text" name="dynamic__{{ field.name }}" value="{{ field.edit_value }}" />
+                    {% endif %}
+                  </td>
+                  {% if dynamic_table_meta and dynamic_table_meta.show_version_pin_columns %}
+                    <td>
+                      {% if vp %}
+                        <input
+                          type="text"
+                          name="dynamic__{{ vp.name }}"
+                          value="{{ vp.edit_value }}"
+                          placeholder="unset (use package default)"
+                        />
+                      {% else %}
+                        <span class="muted">-</span>
+                      {% endif %}
+                    </td>
+                  {% endif %}
+                  <td>
+                    {% if field.display_default_value is not none and field.display_default_value != "" %}
+                      <code>{{ field.display_default_value | tojson }}</code>
+                    {% else %}
+                      <span class="muted">unset</span>
+                    {% endif %}
+                  </td>
+                  {% if dynamic_table_meta and dynamic_table_meta.show_version_pin_columns %}
+                    <td>
+                      {% if vp %}
+                        {% if vp.display_default_value is not none and vp.display_default_value != "" %}
+                          <code>{{ vp.display_default_value | tojson }}</code>
+                        {% else %}
+                          <span class="muted">unset (use package default)</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="muted">-</span>
+                      {% endif %}
+                    </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="actions-row">
+          <button class="btn" type="submit">Save Dynamic Options</button>
+          <button class="btn ghost" type="submit" name="apply_defaults" value="true">Update Defaults</button>
+        </div>
+      </form>
+      <div id="dynamic-setup-result"></div>
+    {% else %}
+      <p class="muted">No dynamic options detected for this setup.</p>
+    {% endif %}
+  </details>
+
+  <details class="details-block">
+    <summary>Raw Machine Config (This VM)</summary>
+    <pre class="diff-view">{{ machine | tojson(indent=2) }}</pre>
+  </details>
+</div>

@@ -2,22 +2,23 @@
 {% block content %}
 <section class="panel">
   <div class="table-tools">
-    <input type="search" class="table-filter" data-filter-target="#rules-table" placeholder="Filter rules..." />
+    <input type="search" class="table-filter" data-filter-target="#env-rules-table" placeholder="Filter env rules..." />
     <button
       class="btn"
-      hx-get="/rules/form"
+      hx-get="/env-rules/form"
       hx-target="#drawer-body"
       hx-swap="innerHTML"
       data-open-drawer="true"
-      data-drawer-title="Create Rule"
+      data-drawer-title="Create Env Rule"
       type="button"
     >
-      Add Rule
+      Add Env Rule
     </button>
+    <a class="btn ghost" href="/config-management/readme/env-rules">README</a>
   </div>
 
   <div class="table-wrap">
-    <table id="rules-table" class="data-table">
+    <table id="env-rules-table" class="data-table">
       <thead>
         <tr>
           <th>setup_id</th>
@@ -27,7 +28,10 @@
         </tr>
       </thead>
       <tbody>
-        {% for setup_id, rule in rules %}
+        {% for row in env_rule_rows %}
+          {% set setup_id = row.setup_id %}
+          {% set rule = row.rule %}
+          {% set is_explicit = row.is_explicit %}
           <tr>
             <td><code>{{ setup_id }}</code></td>
             <td>{{ rule.requires_confirmation }}</td>
@@ -43,25 +47,27 @@
               <div class="inline-actions">
                 <button
                   class="btn small"
-                  hx-get="/rules/form?setup_id={{ setup_id }}"
+                  hx-get="/env-rules/form?setup_id={{ setup_id }}"
                   hx-target="#drawer-body"
                   hx-swap="innerHTML"
                   data-open-drawer="true"
                   data-drawer-title="Edit {{ setup_id }}"
                   type="button"
-                >Edit</button>
+                >{{ "Preview / Edit" if is_explicit else "Preview / Configure" }}</button>
 
-                <button
-                  class="btn danger small delete-entity-btn"
-                  type="button"
-                  data-entity-type="rule"
-                  data-entity-id="{{ setup_id }}"
-                >Delete</button>
+                {% if is_explicit %}
+                  <button
+                    class="btn danger small delete-entity-btn"
+                    type="button"
+                    data-entity-type="rule"
+                    data-entity-id="{{ setup_id }}"
+                  >Delete</button>
+                {% endif %}
               </div>
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="4">No rules configured.</td></tr>
+          <tr><td colspan="4">No env rules configured.</td></tr>
         {% endfor %}
       </tbody>
     </table>

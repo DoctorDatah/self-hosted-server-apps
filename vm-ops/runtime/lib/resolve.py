@@ -13,6 +13,15 @@ class ResolutionError(Exception):
     pass
 
 
+def _normalize_machine_exec_mode(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"vm-remote-ssh", "ssh"}:
+        return "vm-remote-ssh"
+    if raw in {"vm-local", "local", ""}:
+        return "vm-local"
+    raise ResolutionError(f"Invalid target exec_mode for target: {value}")
+
+
 def parse_csv(value: Optional[str]) -> List[str]:
     if not value:
         return []
@@ -77,7 +86,7 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
         "environment": machine.get("environment", machine.get("env", "")),
         "labels": [str(x) for x in labels],
         "enabled_stages": [str(x) for x in enabled],
-        "exec_mode": machine.get("exec_mode", "local"),
+        "exec_mode": _normalize_machine_exec_mode(machine.get("exec_mode", "vm-local")),
         "repo_path": machine.get("repo_path", "/opt/vm-codex-v2"),
         "ssh": machine.get("ssh", {}),
         "params": params,
@@ -210,14 +219,15 @@ def resolve_secret(repo_root: Path, ref: str) -> str:
 
 
 def _resolve_exec_mode(target: Dict[str, Any], requested: str) -> str:
-    if requested in {"local", "ssh"}:
-        return requested
-    if requested != "auto":
+    requested_raw = str(requested or "").strip().lower()
+    if requested_raw in {"local", "vm-local"}:
+        return "local"
+    if requested_raw in {"ssh", "vm-remote-ssh"}:
+        return "ssh"
+    if requested_raw != "auto":
         raise ResolutionError(f"Invalid exec mode: {requested}")
-    target_mode = target.get("exec_mode", "local")
-    if target_mode not in {"local", "ssh"}:
-        raise ResolutionError(f"Invalid target exec_mode for target: {target_mode}")
-    return target_mode
+    target_mode = _normalize_machine_exec_mode(target.get("exec_mode", "vm-local"))
+    return "ssh" if target_mode == "vm-remote-ssh" else "local"
 
 
 def _resolve_stages(
@@ -352,6 +362,8 @@ def build_plan(
 
 
 def render_exact_command(plan: Dict[str, Any]) -> str:
+    resolved_mode = str(plan.get("exec_mode", "local"))
+    mode_for_cli = "vm-remote-ssh" if resolved_mode == "ssh" else "vm-local"
     parts = ["vmcx", plan["operation"]]
     if plan.get("alias"):
         parts.extend(["--alias", str(plan["alias"])])
@@ -360,7 +372,7 @@ def render_exact_command(plan: Dict[str, Any]) -> str:
     parts.extend(["--stages", ",".join(plan["stages"])])
     if plan.get("resolved_params"):
         parts.extend(["--params", json.dumps(plan["resolved_params"], separators=(",", ":"))])
-    parts.extend(["--exec-mode", str(plan["exec_mode"])])
+    parts.extend(["--exec-mode", mode_for_cli])
     if plan["operation"] == "run":
         parts.append("--confirm")
     return " ".join(shlex.quote(p) for p in parts)
