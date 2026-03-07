@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block content %}
+{% set f = backup_filters or {} %}
+<section class="panel">
+  <h3>Create Config Backup</h3>
+  <p>Create a point-in-time snapshot of all config source files before making edits.</p>
+  <p class="hint">Backups are stored in <code>vm-configs/config-backups/</code> and are git-trackable.</p>
+
+  <form
+    class="form-grid"
+    hx-post="/config-management/backups/create"
+    hx-target="#backup-feedback"
+    hx-swap="innerHTML"
+  >
+    <div class="field-row two-col">
+      <label>
+        Backup Label
+        <input type="text" name="label" placeholder="before-prod-n8n-change" />
+      </label>
+      <label>
+        Remark
+        <input type="text" name="remark" placeholder="why this snapshot was taken" />
+      </label>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn" type="submit">Create Backup Now</button>
+    </div>
+  </form>
+
+  <div id="backup-feedback" class="result-box">
+    <p class="muted">Backup actions and restore status will appear here.</p>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Find Backups</h3>
+  <form class="form-grid" method="get" action="/config-management/backups">
+    <div class="field-row two-col">
+      <label>
+        Search by Label / Remark / Backup ID
+        <input type="text" name="label_q" value="{{ f.label_q or '' }}" placeholder="before-prod-n8n-change" />
+      </label>
+      <label>
+        Exact Date (UTC)
+        <input type="date" name="date" value="{{ f.date or '' }}" />
+      </label>
+    </div>
+
+    <div class="field-row two-col">
+      <label>
+        Date From (UTC)
+        <input type="date" name="date_from" value="{{ f.date_from or '' }}" />
+      </label>
+      <label>
+        Date To (UTC)
+        <input type="date" name="date_to" value="{{ f.date_to or '' }}" />
+      </label>
+    </div>
+
+    <div class="field-row two-col">
+      <label>
+        Last N
+        <input type="number" min="1" name="last_n" value="{{ f.last_n or '' }}" placeholder="5" />
+      </label>
+      <div class="actions-row">
+        <button class="btn" type="submit">Apply Filters</button>
+        <a class="btn ghost" href="/config-management/backups">Clear</a>
+      </div>
+    </div>
+  </form>
+
+  <div class="actions-row">
+    <a class="btn ghost small" href="/config-management/backups?last_n=5">Last 5</a>
+    <a class="btn ghost small" href="/config-management/backups?last_n=10">Last 10</a>
+    <a class="btn ghost small" href="/config-management/backups?last_n=15">Last 15</a>
+  </div>
+
+  {% if filter_errors %}
+    <div class="flash error">
+      <strong>Filter errors:</strong>
+      <ul class="simple-list">
+        {% for err in filter_errors %}
+          <li>{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Available Backups (Newest First)</h3>
+  <p>Restoring a backup overwrites current <code>vm-configs/*.yaml</code> files directly in this repo.</p>
+  <p class="hint">Displayed times use timezone: <code>{{ backup_timezone or app_timezone or 'UTC' }}</code></p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>backup_id</th>
+          <th>created_at (UTC)</th>
+          <th>label</th>
+          <th>remark</th>
+          <th>stored_path</th>
+          <th>actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for backup in backups %}
+          <tr>
+            <td><code>{{ backup.backup_id }}</code></td>
+            <td>{{ backup.created_at_display or backup.created_at or "-" }}</td>
+            <td>{{ backup.label or "-" }}</td>
+            <td>{{ backup.remark or "-" }}</td>
+            <td><code>{{ backup.backup_path or "-" }}</code></td>
+            <td>
+              <div class="inline-actions">
+                <form
+                  hx-post="/config-management/backups/restore"
+                  hx-target="#backup-feedback"
+                  hx-swap="innerHTML"
+                  hx-confirm="Restore {{ backup.backup_id }}? This will overwrite current vm-configs files."
+                >
+                  <input type="hidden" name="backup_id" value="{{ backup.backup_id }}" />
+                  <button class="btn small" type="submit">Restore</button>
+                </form>
+
+                <form
+                  hx-post="/config-management/backups/delete"
+                  hx-target="#backup-feedback"
+                  hx-swap="innerHTML"
+                  hx-confirm="Delete {{ backup.backup_id }}? This removes the backup folder from vm-configs/config-backups."
+                >
+                  <input type="hidden" name="backup_id" value="{{ backup.backup_id }}" />
+                  <button class="btn danger small" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6">No backups found yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

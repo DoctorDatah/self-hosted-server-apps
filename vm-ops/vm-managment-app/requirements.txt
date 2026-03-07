@@ -1,0 +1,13 @@
+# Python dependencies for VM Management UI.
+# System dependencies (install outside pip):
+# - git
+# - gh (GitHub CLI) for PR/branch listing, create, close, and delete actions
+# Ubuntu/Debian example:
+#   sudo apt-get update && sudo apt-get install -y git gh
+# Then authenticate once:
+#   gh auth login
+
+fastapi>=0.110.0
+uvicorn>=0.27.0
+jinja2>=3.1.0
+python-multipart>=0.0.9

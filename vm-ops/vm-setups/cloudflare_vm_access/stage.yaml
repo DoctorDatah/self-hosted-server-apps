@@ -1,0 +1,12 @@
+{
+  "stage_id": "cloudflare_vm_access",
+  "description": "Configure Cloudflare-related VM access controls",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": true,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": [],
+  "optional_params": ["compose_file", "action"],
+  "policy_tags": ["network", "access", "mutating"]
+}

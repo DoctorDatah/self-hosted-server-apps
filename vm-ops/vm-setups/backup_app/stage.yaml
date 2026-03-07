@@ -1,0 +1,12 @@
+{
+  "stage_id": "backup_app",
+  "description": "Create app backup artifacts and manifests",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": true,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": ["app_id"],
+  "optional_params": ["backup_root", "sources", "backup_paths", "backup_id", "include_db"],
+  "policy_tags": ["backup", "mutating"]
+}

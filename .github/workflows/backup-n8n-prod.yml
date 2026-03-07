@@ -1,0 +1,13 @@
+name: backup-n8n-prod
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backup:
+    uses: ./.github/workflows/_vm-codex-v2-execute.yml
+    with:
+      operation: run
+      alias: n8n-app-backup
+      exec_mode: ssh
+      environment: prod

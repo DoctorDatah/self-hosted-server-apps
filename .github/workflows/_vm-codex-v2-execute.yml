@@ -1,0 +1,108 @@
+name: _vm-codex-v2-execute
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        required: true
+        type: string
+      alias:
+        required: false
+        type: string
+      target:
+        required: false
+        type: string
+      stages:
+        required: false
+        type: string
+      params_json:
+        required: false
+        type: string
+      exec_mode:
+        required: false
+        type: string
+        default: auto
+      environment:
+        required: false
+        type: string
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect project root
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -x vm-ops/runtime/vmcx ]]; then
+            echo "root=vm-ops" >> "$GITHUB_OUTPUT"
+          elif [[ -x runtime/vmcx ]]; then
+            echo "root=." >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not find runtime/vmcx in vm-ops/ or repo root" >&2
+            exit 1
+          fi
+
+      - name: Preflight validation
+        working-directory: ${{ steps.detect.outputs.root }}
+        run: ./runtime/vmcx doctor --ci
+
+      - name: Resolve secrets (placeholder)
+        working-directory: ${{ steps.detect.outputs.root }}
+        run: |
+          echo "Secrets are resolved at runtime through tools/infisical_resolve.sh"
+
+      - name: Execute plan
+        if: ${{ inputs.operation == 'plan' }}
+        shell: bash
+        working-directory: ${{ steps.detect.outputs.root }}
+        run: |
+          set -euo pipefail
+          cmd=(./runtime/vmcx plan)
+          if [[ -n "${{ inputs.alias }}" ]]; then
+            cmd+=(--alias "${{ inputs.alias }}")
+          fi
+          if [[ -n "${{ inputs.target }}" ]]; then
+            cmd+=(--target "${{ inputs.target }}")
+          fi
+          if [[ -n "${{ inputs.stages }}" ]]; then
+            cmd+=(--stages "${{ inputs.stages }}")
+          fi
+          if [[ -n "${{ inputs.params_json }}" ]]; then
+            cmd+=(--params "${{ inputs.params_json }}")
+          fi
+          cmd+=(--exec-mode "${{ inputs.exec_mode }}")
+          "${cmd[@]}"
+
+      - name: Execute run
+        if: ${{ inputs.operation == 'run' }}
+        shell: bash
+        working-directory: ${{ steps.detect.outputs.root }}
+        run: |
+          set -euo pipefail
+          cmd=(./runtime/vmcx run)
+          if [[ -n "${{ inputs.alias }}" ]]; then
+            cmd+=(--alias "${{ inputs.alias }}")
+          fi
+          if [[ -n "${{ inputs.target }}" ]]; then
+            cmd+=(--target "${{ inputs.target }}")
+          fi
+          if [[ -n "${{ inputs.stages }}" ]]; then
+            cmd+=(--stages "${{ inputs.stages }}")
+          fi
+          if [[ -n "${{ inputs.params_json }}" ]]; then
+            cmd+=(--params "${{ inputs.params_json }}")
+          fi
+          cmd+=(--exec-mode "${{ inputs.exec_mode }}")
+          cmd+=(--confirm)
+          "${cmd[@]}"
+
+      - name: Upload local-state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-ops-local-state
+          path: ${{ steps.detect.outputs.root }}/local-state/

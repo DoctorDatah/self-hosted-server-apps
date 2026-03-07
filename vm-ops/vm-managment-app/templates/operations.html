@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <div class="table-tools">
+    <input type="search" class="table-filter" data-filter-target="#operations-table" placeholder="Filter operations..." />
+    <button
+      class="btn"
+      hx-get="/operations/form"
+      hx-target="#drawer-body"
+      hx-swap="innerHTML"
+      data-open-drawer="true"
+      data-drawer-title="Create Operation"
+      type="button"
+    >
+      Add Operation
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="operations-table" class="data-table">
+      <thead>
+        <tr>
+          <th>operation_id</th>
+          <th>machine_id</th>
+          <th>requires_confirmation</th>
+          <th>description</th>
+          <th>actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for operation_id, op in operations %}
+          <tr>
+            <td><code>{{ operation_id }}</code></td>
+            <td><code>{{ op.machine or "-" }}</code></td>
+            <td>{{ op.requires_confirmation }}</td>
+            <td>{{ op.description or "-" }}</td>
+            <td>
+              <div class="inline-actions">
+                <button
+                  class="btn small"
+                  hx-get="/operations/form?operation_id={{ operation_id }}"
+                  hx-target="#drawer-body"
+                  hx-swap="innerHTML"
+                  data-open-drawer="true"
+                  data-drawer-title="Edit {{ operation_id }}"
+                  type="button"
+                >Edit</button>
+
+                <form
+                  hx-post="/operations/delete"
+                  hx-target="#flash-area"
+                  hx-swap="innerHTML"
+                  hx-confirm="Delete operation '{{ operation_id }}'?"
+                >
+                  <input type="hidden" name="operation_id" value="{{ operation_id }}" />
+                  <button class="btn danger small" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">No operations configured.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% set op = operation or {} %}
+{% set selected_setups = op.setups or op.default_stages or [] %}
+<div class="drawer-form-wrap">
+  <form id="operation-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
+    <input type="hidden" name="original_operation_id" value="{{ operation_id }}" />
+
+    <div class="field-row two-col">
+      <label>
+        operation_id
+        <input type="text" name="operation_id" value="{{ operation_id }}" {% if mode == 'edit' %}readonly{% endif %} required />
+      </label>
+
+      <label>
+        machine_id
+        <select name="machine_id" required>
+          <option value="">Select machine</option>
+          {% for machine_id_item in machine_ids %}
+            <option value="{{ machine_id_item }}" {% if op.machine == machine_id_item %}selected{% endif %}>{{ machine_id_item }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <label>
+      description
+      <input type="text" name="description" value="{{ op.description or '' }}" placeholder="Deploy n8n app layer to production" />
+    </label>
+
+    <fieldset class="fieldset">
+      <legend>Setups (ordered)</legend>
+      <input type="hidden" name="setups_csv" value="{{ selected_setups | join(',') }}" data-setup-csv="true" />
+      <div class="checks-grid" data-setup-checks="true">
+        {% for sid in stage_ids %}
+          <label class="checkbox-chip">
+            <input type="checkbox" value="{{ sid }}" {% if sid in selected_setups %}checked{% endif %} />
+            <span>{{ sid }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="hint">Order follows your checkbox order from top to bottom.</p>
+    </fieldset>
+
+    <label class="checkline">
+      <input type="checkbox" name="requires_confirmation" {% if op.requires_confirmation is not sameas false %}checked{% endif %} />
+      <span>Requires confirmation before run</span>
+    </label>
+
+    <details class="details-block">
+      <summary>params (JSON object)</summary>
+      <textarea name="params_json" rows="8">{{ (op.params or op.default_params or {}) | tojson(indent=2) }}</textarea>
+    </details>
+
+    <div class="actions-row">
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="/operations/preview"
+        hx-include="#operation-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Preview Diff</button>
+
+      <button
+        class="btn"
+        type="submit"
+        formaction="/operations/save"
+        formmethod="post"
+        hx-post="/operations/save"
+        hx-include="#operation-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Save</button>
+
+      <button type="button" class="btn ghost" data-close-drawer="true">Close</button>
+    </div>
+  </form>
+
+  <div id="preview-box" class="preview-placeholder">
+    <p>Click "Preview Diff" before saving to inspect changes.</p>
+  </div>
+</div>

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="cards-grid">
+  <article class="stat-card">
+    <h3>Machines</h3>
+    <p class="stat-number">{{ machines_count }}</p>
+    <a href="/machines" class="card-link">Manage machines</a>
+  </article>
+  <article class="stat-card">
+    <h3>Operations</h3>
+    <p class="stat-number">{{ operations_count }}</p>
+    <a href="/operations" class="card-link">Manage operations</a>
+  </article>
+  <article class="stat-card">
+    <h3>Env Rules</h3>
+    <p class="stat-number">{{ rules_count }}</p>
+    <a href="/rules" class="card-link">Manage rules</a>
+  </article>
+</section>
+
+<section class="panel two-col">
+  <div>
+    <h3>Git Working Tree</h3>
+    <p>Current branch: <code>{{ git_status.branch }}</code></p>
+    {% if git_status.is_clean %}
+      <p class="ok">Working tree is clean.</p>
+    {% else %}
+      <p class="warn">Working tree has local changes.</p>
+      <ul class="simple-list">
+        {% for path in git_status.changed_files %}
+          <li><code>{{ path }}</code></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <div>
+    <h3>Validation Snapshot</h3>
+    {% if validation_errors %}
+      <p class="warn">Validation issues were detected:</p>
+      <ul class="simple-list">
+        {% for err in validation_errors %}
+          <li>{{ err }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="ok">No validation issues found.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Prepare Branch + Commit</h3>
+  <p>
+    This action will create/switch branch, stage only VM config files, and create one commit.
+    It does not push and does not create PR automatically.
+  </p>
+
+  <form id="git-prepare-form" class="form-grid" data-git-prepare="true">
+    <label>
+      Branch Name (optional)
+      <input type="text" name="branch_name" placeholder="config_update/March-07-2026--12-34-PM" />
+    </label>
+
+    <label>
+      Commit Message (optional)
+      <input type="text" name="commit_message" placeholder="chore(vm-configs): update config via vm-managment-app" />
+    </label>
+
+    <div class="actions-row">
+      <button type="submit" class="btn">Prepare Commit</button>
+    </div>
+  </form>
+
+  <div id="git-prepare-result" class="result-box"></div>
+</section>
+{% endblock %}

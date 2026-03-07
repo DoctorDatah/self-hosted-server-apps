@@ -1,0 +1,12 @@
+{
+  "stage_id": "repo_clone_or_update",
+  "description": "Ensure repo exists and is current on target",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": true,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": [],
+  "optional_params": ["repo_url", "repo_path", "branch"],
+  "policy_tags": ["repo", "mutating"]
+}

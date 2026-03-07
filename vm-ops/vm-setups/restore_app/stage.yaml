@@ -1,0 +1,12 @@
+{
+  "stage_id": "restore_app",
+  "description": "Restore app state from backup artifact",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": false,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": ["app_id"],
+  "optional_params": ["backup_id", "backup_root", "restore_root", "restore_target_type", "force"],
+  "policy_tags": ["restore", "mutating", "high-risk"]
+}

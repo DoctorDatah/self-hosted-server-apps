@@ -1,0 +1,24 @@
+{
+  "stage_id": "cleanup_vm",
+  "description": "Cleanup temporary or experimental VM state safely",
+  "entrypoint": "stage.sh",
+  "supports_exec_modes": ["local", "ssh"],
+  "idempotent": false,
+  "requires_confirmation": true,
+  "allowed_target_types": ["vm", "host"],
+  "required_params": [],
+  "optional_params": [
+    "full_clean",
+    "remove_containers",
+    "remove_volumes",
+    "remove_images",
+    "remove_networks",
+    "remove_app_data",
+    "app_data_path",
+    "remove_repo_folders",
+    "uninstall_codex",
+    "remove_node",
+    "clean_tmp"
+  ],
+  "policy_tags": ["cleanup", "mutating"]
+}

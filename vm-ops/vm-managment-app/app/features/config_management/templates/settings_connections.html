@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h3>Connections</h3>
+  <p class="hint">Connect external tools used by the app.</p>
+
+  <article class="panel">
+    <h4>GitHub Integration</h4>
+    {% if github_connection and github_connection.available %}
+      {% if github_connection.authenticated %}
+        <p class="ok">Status: Connected</p>
+      {% else %}
+        <p class="warn">Status: Not Connected</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Status: Setup Needed</p>
+      <p class="muted">Install GitHub CLI first, then use Connect.</p>
+    {% endif %}
+
+    <div class="actions-row">
+      <form
+        hx-post="/settings/connections/github/connect"
+        hx-target="#github-connection-result"
+        hx-swap="innerHTML"
+      >
+        <button
+          type="submit"
+          class="btn"
+          onclick="window.open('{{ github_device_login_url or 'https://github.com/login/device' }}','_blank','noopener,noreferrer')"
+        >Connect To GitHub</button>
+      </form>
+
+      <button
+        type="button"
+        class="btn ghost"
+        id="github-clipboard-code-btn"
+      >Show Device Code</button>
+
+      <form
+        hx-post="/settings/connections/github/device-code"
+        hx-target="#github-connection-result"
+        hx-swap="innerHTML"
+      >
+        <button type="submit" class="btn ghost">Server Fallback Code</button>
+      </form>
+
+      <form
+        hx-post="/settings/connections/github/disconnect"
+        hx-target="#github-connection-result"
+        hx-swap="innerHTML"
+        onsubmit="return confirm('Disconnect GitHub integration for this app?')"
+      >
+        <button type="submit" class="btn danger">Disconnect GitHub</button>
+      </form>
+      <a class="btn ghost" href="/settings/connections">Refresh Status</a>
+    </div>
+
+    <div id="github-connection-result" class="result-box"></div>
+
+    <p class="hint">
+      Connect opens the GitHub auth tab. Use <strong>Show Device Code</strong> to read code from browser clipboard, then paste into GitHub page.
+    </p>
+  </article>
+</section>
+{% endblock %}

@@ -1,0 +1,49 @@
+{
+  "operations": {
+    "n8n-vm-install": {
+      "machine": "n8n-stage-1",
+      "setups": [
+        "repo_clone_or_update",
+        "vm_install",
+        "cloudflare_vm_access"
+      ],
+      "params": {},
+      "requires_confirmation": true,
+      "description": "Prepare the n8n staging VM for operations"
+    },
+    "n8n-app-deploy": {
+      "machine": "n8n-prod-1",
+      "setups": [
+        "repo_clone_or_update",
+        "app_deploy"
+      ],
+      "params": {
+        "app_id": "n8n"
+      },
+      "requires_confirmation": true,
+      "description": "Deploy n8n app layer to production"
+    },
+    "n8n-app-backup": {
+      "machine": "n8n-prod-1",
+      "setups": [
+        "backup_app"
+      ],
+      "params": {
+        "app_id": "n8n"
+      },
+      "requires_confirmation": true,
+      "description": "Backup n8n production state"
+    },
+    "n8n-app-restore-staging": {
+      "machine": "n8n-stage-1",
+      "setups": [
+        "restore_app"
+      ],
+      "params": {
+        "app_id": "n8n"
+      },
+      "requires_confirmation": true,
+      "description": "Restore n8n in staging from backup"
+    }
+  }
+}
