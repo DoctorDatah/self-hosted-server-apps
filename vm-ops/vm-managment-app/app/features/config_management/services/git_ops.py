@@ -39,13 +39,79 @@ def _run_git(repo_root: Path, args: List[str], check: bool = True) -> subprocess
     return proc
 
 
+def _git_top_level(repo_root: Path) -> Path:
+    proc = _run_git(repo_root, ["rev-parse", "--show-toplevel"])
+    return Path((proc.stdout or "").strip()).resolve()
+
+
+def _git_repo_prefix(repo_root: Path) -> str:
+    top = _git_top_level(repo_root)
+    root = repo_root.resolve()
+    try:
+        rel = root.relative_to(top)
+    except ValueError:
+        return ""
+    rel_text = rel.as_posix().strip()
+    if not rel_text or rel_text == ".":
+        return ""
+    return rel_text + "/"
+
+
+def _git_path_for_repo_file(repo_root: Path, rel_path: str) -> str:
+    rel = str(rel_path or "").strip().lstrip("./")
+    prefix = _git_repo_prefix(repo_root)
+    return f"{prefix}{rel}" if prefix else rel
+
+
+def _default_base_ref(repo_root: Path, remote_name: str = "origin", base_branch: str = "main") -> str:
+    if _branch_exists_remote(repo_root, base_branch, remote_name=remote_name):
+        return f"{remote_name}/{base_branch}"
+    if _branch_exists_local(repo_root, base_branch):
+        return base_branch
+    remote_head = _run_git(
+        repo_root,
+        ["symbolic-ref", "--short", f"refs/remotes/{remote_name}/HEAD"],
+        check=False,
+    )
+    head_text = (remote_head.stdout or "").strip()
+    if remote_head.returncode == 0 and head_text:
+        return head_text
+    return "HEAD"
+
+
+def _is_config_only_branch(repo_root: Path, branch_name: str, remote_name: str = "origin", base_branch: str = "main") -> bool:
+    branch = (branch_name or "").strip()
+    if not branch:
+        return False
+    base_ref = _default_base_ref(repo_root, remote_name=remote_name, base_branch=base_branch)
+    merge_base = _run_git(repo_root, ["merge-base", branch, base_ref], check=False)
+    mb = (merge_base.stdout or "").strip()
+    if merge_base.returncode != 0 or not mb:
+        return False
+    diff_proc = _run_git(repo_root, ["diff", "--name-only", f"{mb}..{branch}"], check=False)
+    if diff_proc.returncode != 0:
+        return False
+
+    allowed_prefixes = [
+        _git_path_for_repo_file(repo_root, "vm-configs/"),
+    ]
+    files = [str(x).strip() for x in (diff_proc.stdout or "").splitlines() if str(x).strip()]
+    if not files:
+        return True
+    return all(any(path.startswith(prefix) for prefix in allowed_prefixes) for path in files)
+
+
 def list_tracked_sensitive_files(repo_root: Path) -> List[str]:
     proc = _run_git(repo_root, ["ls-files"], check=False)
     tracked = [str(x).strip() for x in (proc.stdout or "").splitlines() if str(x).strip()]
+    git_prefix = _git_repo_prefix(repo_root)
+    prefixes = list(SENSITIVE_LOCAL_PATH_PREFIXES)
+    if git_prefix:
+        prefixes.extend([f"{git_prefix}{p}" for p in SENSITIVE_LOCAL_PATH_PREFIXES])
     return [
         path
         for path in tracked
-        if any(path.startswith(prefix) for prefix in SENSITIVE_LOCAL_PATH_PREFIXES)
+        if any(path.startswith(prefix) for prefix in prefixes)
     ]
 
 
@@ -509,7 +575,7 @@ def _ensure_branch_reference(repo_root: Path, branch_name: str, remote_name: str
     if _branch_exists_remote(repo_root, branch_name, remote_name=remote_name):
         _run_git(repo_root, ["branch", "--track", branch_name, f"{remote_name}/{branch_name}"])
         return
-    _run_git(repo_root, ["branch", branch_name, "HEAD"])
+    _run_git(repo_root, ["branch", branch_name, _default_base_ref(repo_root, remote_name=remote_name)])
 
 
 def _related_branches(repo_root: Path, prefix: str = CONFIG_BRANCH_PREFIX, remote_name: str = "origin") -> List[str]:
@@ -555,11 +621,16 @@ def resolve_target_branch(
         if not _is_related_pr(requested):
             raise GitOpsError(f"branch_name must start with '{CONFIG_BRANCH_PREFIX}' for config management.")
         exists = _branch_exists_local(repo_root, requested) or _branch_exists_remote(repo_root, requested)
+        if exists and not _is_config_only_branch(repo_root, requested):
+            raise GitOpsError(
+                f"branch '{requested}' contains non-config history. "
+                "Use a fresh config_update/* branch."
+            )
         return requested, exists
     if preferred:
         if _is_related_pr(preferred):
             exists = _branch_exists_local(repo_root, preferred) or _branch_exists_remote(repo_root, preferred)
-            if exists:
+            if exists and _is_config_only_branch(repo_root, preferred):
                 return preferred, True
 
     # Prefer an active related/open PR branch when available.
@@ -575,13 +646,16 @@ def resolve_target_branch(
             if not head:
                 continue
             exists = _branch_exists_local(repo_root, head) or _branch_exists_remote(repo_root, head)
-            return head, exists
+            if exists and _is_config_only_branch(repo_root, head):
+                return head, exists
     except Exception:
         pass
 
     related = _related_branches(repo_root)
     if related:
-        return related[0], True
+        for candidate in related:
+            if _is_config_only_branch(repo_root, candidate):
+                return candidate, True
 
     return default_branch_name(fallback_tz), False
 
@@ -881,7 +955,7 @@ def _prepare_worktree(
     elif remote_exists:
         start_ref = f"{remote_name}/{branch}"
     else:
-        start_ref = "HEAD"
+        start_ref = _default_base_ref(repo_root, remote_name=remote_name)
 
     _run_git(repo_root, ["worktree", "add", "--detach", str(wt_path), start_ref])
     return wt_path, start_ref
@@ -912,10 +986,11 @@ def prepare_commit(
         existing_paths: List[str] = []
         for rel in tracked_files:
             src = repo_root / rel
-            dest = wt_path / rel
+            git_rel = _git_path_for_repo_file(repo_root, rel)
+            dest = wt_path / git_rel
             if src.exists():
                 _copy_path(src, dest)
-                existing_paths.append(rel)
+                existing_paths.append(git_rel)
 
         if not existing_paths:
             raise GitOpsError("No tracked config files found to stage.")
