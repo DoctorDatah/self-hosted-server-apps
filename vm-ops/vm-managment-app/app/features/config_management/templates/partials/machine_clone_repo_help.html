@@ -1,0 +1,50 @@
+{% set m = machine or {} %}
+<div class="drawer-form-wrap">
+  <div class="panel">
+    <h4>Clone Repo to VM: {{ machine_id }}</h4>
+    <p class="muted">
+      Use these machine-specific commands to clone (or update) <code>vm-ops</code> into
+      <code>{{ repo_path }}</code>.
+    </p>
+    <ul class="simple-list">
+      <li><strong>Repo URL:</strong> <code>{{ clone_url or "not found from git origin (set manually)" }}</code></li>
+      <li><strong>Target Path:</strong> <code>{{ repo_path }}</code></li>
+      <li><strong>Default Branch:</strong> <code>{{ default_branch }}</code></li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h5>GitHub Access Setup (if clone/auth fails)</h5>
+    <p class="muted">
+      If this repo is private or HTTPS clone asks for credentials, install GitHub CLI on the VM and authenticate once.
+    </p>
+    <pre class="diff-view">sudo apt-get update
+sudo apt-get install -y gh
+gh --version
+gh auth login --web --git-protocol https
+gh auth status</pre>
+  </div>
+
+  <div class="panel">
+    <h5>Run Inside VM (Local)</h5>
+    <p class="muted">Paste this while you are already logged in to the VM.</p>
+    <pre class="diff-view">{{ local_clone_command }}</pre>
+  </div>
+
+  <div class="panel">
+    <h5>Run From Control Machine (SSH)</h5>
+    {% if ssh_clone_command %}
+      <p class="muted">This executes the same clone/update script remotely over SSH.</p>
+      <pre class="diff-view">{{ ssh_clone_command }}</pre>
+    {% else %}
+      <p class="muted">
+        Missing SSH details for this machine. Set <code>ssh.host</code> and <code>ssh.user</code> in
+        <strong>access_info</strong> first.
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="actions-row">
+    <button type="button" class="btn ghost" data-close-drawer="true">Close</button>
+  </div>
+</div>

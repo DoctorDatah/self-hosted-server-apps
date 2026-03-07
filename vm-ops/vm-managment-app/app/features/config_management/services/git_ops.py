@@ -557,6 +557,10 @@ def github_repo_web_url(repo_root: Path, remote_name: str = "origin") -> str:
     return _github_repo_web_url_from_remote(_remote_url(repo_root, remote_name=remote_name))
 
 
+def origin_clone_url(repo_root: Path, remote_name: str = "origin") -> str:
+    return _remote_url(repo_root, remote_name=remote_name)
+
+
 def _branch_exists_local(repo_root: Path, branch_name: str) -> bool:
     return _run_git(repo_root, ["show-ref", "--verify", f"refs/heads/{branch_name}"], check=False).returncode == 0
 
