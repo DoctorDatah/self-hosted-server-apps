@@ -1,0 +1,138 @@
+{
+  "machines": {
+    "n8n-stage-1": {
+      "type": "vm",
+      "env": "stage",
+      "labels": [
+        "n8n",
+        "app",
+        "cloudflare"
+      ],
+      "groups": [
+        "n8n-stage"
+      ],
+      "enabled_setups": [
+        "repo_clone_or_update",
+        "vm_install",
+        "cloudflare_vm_access",
+        "cloudflare_app_access",
+        "app_deploy",
+        "cleanup_vm",
+        "backup_app",
+        "restore_app"
+      ],
+      "exec_mode": "local",
+      "repo_path": "/opt/vm-codex-v2",
+      "ssh": {
+        "host": "10.10.0.20",
+        "user": "ubuntu",
+        "port": 22,
+        "key_ref": "infisical://vm-codex/ssh/n8n-stage-1"
+      },
+      "params": {
+        "app_id": "n8n",
+        "public_hostname": "n8n-stage.example.com"
+      },
+      "defaults": {
+        "logging": {
+          "level": "info"
+        },
+        "repo": {
+          "branch": "main",
+          "path": "/opt/vm-codex-v2"
+        },
+        "runtime": {
+          "shell": "bash"
+        },
+        "docker": {
+          "install": true
+        },
+        "packages": [
+          "curl",
+          "git",
+          "docker.io"
+        ]
+      }
+    },
+    "n8n-prod-1": {
+      "type": "vm",
+      "env": "prod",
+      "labels": [
+        "n8n",
+        "app",
+        "prod"
+      ],
+      "groups": [
+        "prod-app-vms",
+        "n8n-prod-cluster"
+      ],
+      "enabled_setups": [
+        "repo_clone_or_update",
+        "app_deploy",
+        "backup_app"
+      ],
+      "exec_mode": "ssh",
+      "repo_path": "/opt/vm-codex-v2",
+      "ssh": {
+        "host": "10.10.0.30",
+        "user": "ubuntu",
+        "port": 22,
+        "key_ref": "infisical://vm-codex/ssh/n8n-prod-1"
+      },
+      "params": {
+        "app_id": "n8n",
+        "public_hostname": "n8n.example.com"
+      },
+      "defaults": {
+        "logging": {
+          "level": "info"
+        },
+        "repo": {
+          "branch": "main",
+          "path": "/opt/vm-codex-v2"
+        },
+        "runtime": {
+          "shell": "bash"
+        },
+        "docker": {
+          "install": true
+        },
+        "packages": [
+          "curl",
+          "git",
+          "docker.io"
+        ]
+      }
+    },
+    "test": {
+      "type": "app-vm",
+      "env": "prod",
+      "labels": [],
+      "groups": [],
+      "enabled_setups": [
+        "vm_install"
+      ],
+      "exec_mode": "local",
+      "repo_path": "/opt/vm-codex-v2",
+      "ssh": {
+        "host": "",
+        "user": "",
+        "port": 22,
+        "key_ref": ""
+      },
+      "params": {},
+      "defaults": {}
+    }
+  },
+  "groups": {
+    "n8n-stage": [
+      "n8n-stage-1"
+    ],
+    "prod-app-vms": [
+      "n8n-prod-1"
+    ],
+    "n8n-prod-cluster": [
+      "n8n-prod-1"
+    ]
+  }
+}
