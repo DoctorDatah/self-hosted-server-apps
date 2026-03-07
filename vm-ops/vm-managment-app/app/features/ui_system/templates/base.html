@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body data-nav-mode="{{ nav_mode or 'home' }}">
+  <div id="popup-stack" class="popup-stack" aria-live="polite"></div>
   <div class="app-shell">
     <aside class="side-nav">
       <div class="brand">
@@ -59,6 +60,11 @@
         </div>
         <div class="pill-row">
           <span class="pill" id="pill-timezone">Global Time Zone: {{ app_timezone or 'UTC' }}</span>
+          <span class="pill" id="pill-config-branch">Config Branch: -</span>
+          <span class="pill" id="pill-change-count">Change Count: -</span>
+          <span class="pill" id="pill-validation-status">Validation Status: -</span>
+          <span class="pill" id="pill-backup-status">Backup Status: -</span>
+          <span class="pill" id="pill-open-pr-count">Open PR Count: -</span>
         </div>
       </header>
 

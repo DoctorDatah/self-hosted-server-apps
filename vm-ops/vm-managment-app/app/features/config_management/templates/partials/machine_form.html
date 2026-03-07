@@ -7,6 +7,7 @@
 <div class="drawer-form-wrap">
   <form id="machine-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
     <input type="hidden" name="original_machine_id" value="{{ machine_id }}" />
+    <input type="hidden" name="current_setup_checklist_csv" value="{{ (m.current_setup_checklist or []) | join(',') }}" />
 
     <div class="field-row two-col">
       <label>

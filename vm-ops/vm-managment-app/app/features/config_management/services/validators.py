@@ -80,19 +80,36 @@ def validate_bundle(bundle: ConfigBundle, repo_root: Path) -> List[str]:
             )
 
         enabled = machine.get("enabled_setups", machine.get("enabled_stages", []))
+        enabled_ids: Set[str] = set()
         if not isinstance(enabled, list) or not enabled:
             errors.append(f"machine {machine_id} must define non-empty enabled_setups")
         else:
+            enabled_ids = {str(x) for x in enabled}
             for setup_id in enabled:
                 sid = str(setup_id)
                 if sid not in setup_ids:
                     errors.append(f"machine {machine_id} references unknown setup: {sid}")
 
+        current_checklist = machine.get("current_setup_checklist", [])
+        if current_checklist is not None:
+            if not isinstance(current_checklist, list):
+                errors.append(f"machine {machine_id} current_setup_checklist must be an array")
+            else:
+                for setup_id in current_checklist:
+                    sid = str(setup_id).strip()
+                    if not sid:
+                        continue
+                    if sid not in setup_ids:
+                        errors.append(f"machine {machine_id} current_setup_checklist references unknown setup: {sid}")
+                    if enabled_ids and sid not in enabled_ids:
+                        errors.append(
+                            f"machine {machine_id} current_setup_checklist setup {sid} is not enabled on machine"
+                        )
+
         operation_sets = machine.get("set_of_operations", machine.get("operation_sets", {}))
         if operation_sets and not isinstance(operation_sets, dict):
             errors.append(f"machine {machine_id} set_of_operations must be an object")
         elif isinstance(operation_sets, dict):
-            enabled_ids = {str(x) for x in enabled} if isinstance(enabled, list) else set()
             for set_name, set_body in operation_sets.items():
                 operation_set_name = str(set_name).strip()
                 if not operation_set_name:

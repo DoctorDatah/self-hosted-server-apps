@@ -236,6 +236,7 @@ def _config_readme(topic: str) -> Dict[str, Any]:
                         "`labels`: Search and organization tags.",
                         "`groups`: Logical collections used for fan-out and reporting.",
                         "`enabled_setups`: Explicit allow-list of setups this machine can run.",
+                        "`current_setup_checklist`: Personal checked list of setups already executed on this machine.",
                         "`set_of_operations`: Named setup chains per machine (example: `deploy-the-app-set`).",
                         "`ssh.host`, `ssh.user`, `ssh.port`, `ssh.key_ref`: Required for SSH mode.",
                         "Click `machine_id` in table to open dedicated Machine Access details (vm_link, main_user, SSH fields, jump host notes).",
@@ -672,8 +673,10 @@ def _machine_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
     if raw_status not in {"active", "inactive", "not-setup-yet"}:
         raise ValueError("status must be one of: active, inactive, not-setup-yet")
 
+    enabled_setups = _split_csv(str(form.get("enabled_setups_csv", "")))
     operation_sets = _normalize_machine_operation_sets(
-        validators.parse_json_text(str(form.get("set_of_operations_json", "")), "set_of_operations_json")
+        validators.parse_json_text(str(form.get("set_of_operations_json", "")), "set_of_operations_json"),
+        allowed_setup_ids=enabled_setups,
     )
 
     payload = {
@@ -684,7 +687,8 @@ def _machine_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
         "notes": str(form.get("notes", "")).strip(),
         "labels": _split_csv(str(form.get("labels_csv", ""))),
         "groups": _split_csv(str(form.get("groups_csv", ""))),
-        "enabled_setups": _split_csv(str(form.get("enabled_setups_csv", ""))),
+        "enabled_setups": enabled_setups,
+        "current_setup_checklist": _split_csv(str(form.get("current_setup_checklist_csv", ""))),
         "set_of_operations": operation_sets,
         "exec_mode": exec_mode,
         "repo_path": str(form.get("repo_path", "/opt/vm-ops")).strip() or "/opt/vm-ops",
@@ -752,6 +756,18 @@ def _machine_notes_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _machine_setup_checklist_payload_from_form(form: Dict[str, Any]) -> Dict[str, Any]:
+    machine_id = str(form.get("machine_id", "")).strip()
+    if not machine_id:
+        raise ValueError("machine_id is required")
+
+    checklist = _split_csv(str(form.get("current_setup_checklist_csv", "")))
+    return {
+        "machine_id": machine_id,
+        "current_setup_checklist": checklist,
+    }
+
+
 def _apply_machine_access_payload(machine: Dict[str, Any], payload: Dict[str, Any]) -> None:
     ssh = machine.get("ssh", {})
     if not isinstance(ssh, dict):
@@ -782,7 +798,11 @@ def _apply_machine_access_payload(machine: Dict[str, Any], payload: Dict[str, An
         machine.pop("access", None)
 
 
-def _normalize_machine_operation_sets(raw: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def _normalize_machine_operation_sets(
+    raw: Dict[str, Any],
+    *,
+    allowed_setup_ids: Optional[List[str]] = None,
+) -> Dict[str, Dict[str, Any]]:
     if not raw:
         return {}
 
@@ -790,6 +810,7 @@ def _normalize_machine_operation_sets(raw: Dict[str, Any]) -> Dict[str, Dict[str
         raise ValueError("set_of_operations_json must be a JSON object")
 
     normalized: Dict[str, Dict[str, Any]] = {}
+    allowed_setups = {str(x).strip() for x in (allowed_setup_ids or []) if str(x).strip()}
     for set_name_raw, set_body in raw.items():
         set_name = str(set_name_raw or "").strip()
         if not set_name:
@@ -807,6 +828,13 @@ def _normalize_machine_operation_sets(raw: Dict[str, Any]) -> Dict[str, Dict[str
 
         if not setups:
             raise ValueError(f"set_of_operations '{set_name}' must include at least one setup")
+
+        if allowed_setups:
+            invalid = [sid for sid in setups if sid not in allowed_setups]
+            if invalid:
+                raise ValueError(
+                    f"set_of_operations '{set_name}' includes setup(s) not in enabled_setups: {', '.join(invalid)}"
+                )
 
         normalized_entry: Dict[str, Any] = {"setups": setups}
         description = str(set_body.get("description", "")).strip()
@@ -1532,6 +1560,54 @@ async def git_prepare_commit(request: Request):
     )
 
 
+@router.post("/config-management/git-commits/commit-only")
+async def git_commit_only(request: Request):
+    paths = _paths()
+    form = await request.form()
+    branch_name = str(form.get("branch_name", "")).strip()
+    commit_message = str(form.get("commit_message", "")).strip()
+    cfg = app_settings.load_settings(paths.repo_root)
+    preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
+
+    target_branch = branch_name or preferred_branch
+    if not target_branch:
+        return HTMLResponse(
+            "<div class='flash error'>Commit Only failed: branch_name is required (or set UI target branch first).</div>",
+            status_code=200,
+        )
+
+    try:
+        result = git_ops.prepare_commit(
+            paths.repo_root,
+            tracked_files=_git_tracked_paths(paths),
+            branch_name=target_branch,
+            preferred_branch=preferred_branch or None,
+            fallback_tz=str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE)),
+            commit_message=commit_message or None,
+            require_existing_branch=True,
+        )
+        app_settings.save_preferred_config_branch(paths.repo_root, str(result.get("branch", "")))
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<div class='flash error'>Commit Only failed: {exc}</div>", status_code=200)
+
+    files_html = "".join(f"<li><code>{f}</code></li>" for f in result.get("changed_files", []))
+    next_cmds = "".join(f"<li><code>{c}</code></li>" for c in result.get("next_commands", []))
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"Committed on existing branch <code>{result['branch']}</code> at <code>{result['commit_sha']}</code>."
+            "</div>"
+            "<div class='panel'>"
+            "<h4>Changed Files</h4>"
+            f"<ul class='simple-list'>{files_html or '<li>-</li>'}</ul>"
+            "<h4>Next Commands</h4>"
+            f"<ul class='simple-list'>{next_cmds or '<li>-</li>'}</ul>"
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
 @router.post("/config-management/git-commits/create-pr")
 async def git_create_pr(request: Request):
     paths = _paths()
@@ -2239,6 +2315,117 @@ async def machine_notes_save(request: Request):
 
     return HTMLResponse(
         "<div class='flash success'>Machine notes saved.</div>",
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.get("/machines/current-setup-checklist")
+def machine_current_setup_checklist_form(request: Request, machine_id: str):
+    machine_key = str(machine_id or "").strip()
+    if not machine_key:
+        return HTMLResponse("<div class='flash error'>machine_id is required.</div>", status_code=400)
+
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    machines = bundle.machines_doc.get("machines", {})
+    machine = machines.get(machine_key, {})
+    if not isinstance(machine, dict) or not machine:
+        return HTMLResponse(f"<div class='flash error'>Machine not found: {machine_key}</div>", status_code=404)
+
+    enabled_setups_raw = machine.get("enabled_setups", machine.get("enabled_stages", []))
+    enabled_setups = [str(x) for x in enabled_setups_raw] if isinstance(enabled_setups_raw, list) else []
+    current_setup_checklist_raw = machine.get("current_setup_checklist", [])
+    current_setup_checklist = [str(x) for x in current_setup_checklist_raw] if isinstance(current_setup_checklist_raw, list) else []
+
+    return templates.TemplateResponse(
+        "partials/machine_current_setup_checklist_form.html",
+        _ctx(
+            request,
+            machine_id=machine_key,
+            enabled_setups=enabled_setups,
+            current_setup_checklist=current_setup_checklist,
+        ),
+    )
+
+
+@router.post("/machines/current-setup-checklist/preview")
+async def machine_current_setup_checklist_preview(request: Request):
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    candidate = config_store.clone_bundle(bundle)
+    errors: List[str] = []
+
+    form = await request.form()
+    form_data = dict(form)
+    try:
+        payload = _machine_setup_checklist_payload_from_form(form_data)
+        machines = candidate.machines_doc.get("machines", {})
+        machine = machines.get(payload["machine_id"], {})
+        if not isinstance(machine, dict) or not machine:
+            raise ValueError(f"Machine not found: {payload['machine_id']}")
+        machine["current_setup_checklist"] = payload["current_setup_checklist"]
+        errors.extend(validators.validate_bundle(candidate, paths.repo_root))
+    except Exception as exc:  # noqa: BLE001
+        errors.append(str(exc))
+
+    new_text = config_store.dump_doc(candidate.machines_doc)
+    diff_text = config_store.render_diff(bundle.machines_text, new_text, "vm-configs/vm-machines.yaml")
+    return templates.TemplateResponse(
+        "partials/preview.html",
+        _ctx(request, title="Current Setup Checklist Diff Preview", errors=errors, diff_text=diff_text),
+    )
+
+
+@router.post("/machines/current-setup-checklist/save")
+async def machine_current_setup_checklist_save(request: Request):
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    candidate = config_store.clone_bundle(bundle)
+    baseline_errors = validators.validate_bundle(bundle, paths.repo_root)
+
+    form = await request.form()
+    form_data = dict(form)
+    try:
+        payload = _machine_setup_checklist_payload_from_form(form_data)
+        machines = candidate.machines_doc.get("machines", {})
+        machine = machines.get(payload["machine_id"], {})
+        if not isinstance(machine, dict) or not machine:
+            raise ValueError(f"Machine not found: {payload['machine_id']}")
+        machine["current_setup_checklist"] = payload["current_setup_checklist"]
+    except Exception as exc:  # noqa: BLE001
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(request, title="Current Setup Checklist Save", errors=[str(exc)], diff_text="No changes."),
+        )
+
+    errors = validators.validate_bundle(candidate, paths.repo_root)
+    new_errors = _introduced_errors(baseline_errors, errors)
+    if new_errors:
+        new_text = config_store.dump_doc(candidate.machines_doc)
+        diff_text = config_store.render_diff(bundle.machines_text, new_text, "vm-configs/vm-machines.yaml")
+        messages = ["New validation errors introduced by this change:"] + new_errors
+        if baseline_errors:
+            messages.append(f"Existing unrelated validation errors in repo: {len(baseline_errors)}")
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(request, title="Current Setup Checklist Save", errors=messages, diff_text=diff_text),
+        )
+
+    try:
+        config_store.save_bundle(paths, candidate, ["machines"])
+    except Exception as exc:  # noqa: BLE001
+        return templates.TemplateResponse(
+            "partials/preview.html",
+            _ctx(
+                request,
+                title="Current Setup Checklist Save",
+                errors=[f"Failed to write vm-configs/vm-machines.yaml: {exc}"],
+                diff_text="No changes were persisted.",
+            ),
+        )
+
+    return HTMLResponse(
+        "<div class='flash success'>Current setup checklist saved.</div>",
         headers={"HX-Refresh": "true"},
     )
 

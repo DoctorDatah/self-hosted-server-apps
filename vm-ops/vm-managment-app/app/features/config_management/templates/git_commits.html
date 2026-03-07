@@ -43,6 +43,31 @@
 </section>
 
 <section class="panel">
+  <h3>Commit Only (Existing Branch)</h3>
+  <form
+    class="form-grid"
+    hx-post="/config-management/git-commits/commit-only"
+    hx-target="#git-action-result"
+    hx-swap="innerHTML"
+  >
+    <label>
+      Branch Name
+      <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" required />
+    </label>
+
+    <label>
+      Commit Message (optional)
+      <input type="text" name="commit_message" value="{{ default_message or '' }}" />
+    </label>
+
+    <div class="actions-row">
+      <button type="submit" class="btn">Commit Only</button>
+    </div>
+    <p class="hint">This action does not create a new branch. It only commits to an already existing local/remote branch.</p>
+  </form>
+</section>
+
+<section class="panel">
   <h3>Push Branch</h3>
   <form
     class="form-grid"

@@ -152,7 +152,8 @@
         }
       },
       "status": "active",
-      "notes": "# dfad\n\npdf a\n\n- * adfkl a"
+      "notes": "# dfad\n\npdf a\n\n- * adfkl a",
+      "current_setup_checklist": []
     },
     "coolify-prod-1": {
       "type": "app-vm",
@@ -174,22 +175,10 @@
         "backup_app",
         "repo_clone_or_update"
       ],
-      "set_of_operations": {
-        "coolify-vm-install": {
-          "setups": [
-            "repo_clone_or_update",
-            "vm_install"
-          ],
-          "description": "Prepare coolify VM"
-        },
-        "coolify-app-deploy": {
-          "setups": [
-            "repo_clone_or_update",
-            "app_deploy"
-          ],
-          "description": "Deploy coolify app layer"
-        }
-      },
+      "current_setup_checklist": [
+        "repo_clone_or_update"
+      ],
+      "set_of_operations": {},
       "exec_mode": "vm-remote-ssh",
       "repo_path": "/opt/vm-ops",
       "ssh": {

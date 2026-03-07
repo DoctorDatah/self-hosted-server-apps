@@ -42,7 +42,7 @@
   </div>
 
   <div class="table-wrap">
-    <table id="machines-table" class="data-table" data-groupable-table="machines">
+    <table id="machines-table" class="data-table" data-groupable-table="machines" data-machine-table="true">
       <thead>
         <tr>
           <th>parrent</th>
@@ -71,6 +71,18 @@
                   <span class="help-line"><strong>What:</strong> Setup allow-list for this machine.</span>
                   <span class="help-line"><strong>Why:</strong> Only listed setups should be run on that machine.</span>
                   <span class="help-line"><strong>Workflow:</strong> Click any setup chip to inspect config details, then jump to edit actions.</span>
+                </span>
+              </span>
+            </span>
+          </th>
+          <th>
+            <span class="field-title">current_setup_checklist
+              <span class="help-wrap">
+                <button class="help-icon" type="button" aria-label="Help: current setup checklist">i</button>
+                <span class="help-pop" role="tooltip">
+                  <span class="help-line"><strong>What:</strong> Personal tracking checklist of setups already executed on this VM.</span>
+                  <span class="help-line"><strong>Why:</strong> Helps you remember current run state during manual ops.</span>
+                  <span class="help-line"><strong>Workflow:</strong> Check items after execution; uncheck when state is reset.</span>
                 </span>
               </span>
             </span>
@@ -105,6 +117,7 @@
           {% endif %}
           {% set normalized_target_type = machine.type or machine.target_type or "vm" %}
           {% set normalized_parrent = machine.parrent or machine.parent or "-" %}
+          {% set current_checklist = machine.current_setup_checklist or [] %}
           <tr
             data-machine-row="true"
             data-machine-id="{{ machine_id }}"
@@ -116,16 +129,19 @@
           >
             <td><code>{{ normalized_parrent }}</code></td>
             <td>
-              <button
-                class="machine-id-link"
-                type="button"
-                hx-get="/machines/access?machine_id={{ machine_id }}"
-                hx-target="#drawer-body"
-                hx-swap="innerHTML"
-                data-open-drawer="true"
-                data-drawer-title="Machine Access: {{ machine_id }}"
-                title="Open machine access details"
-              ><code>{{ machine_id }}</code></button>
+              <div class="inline-actions stack-vertical">
+                <code>{{ machine_id }}</code>
+                <button
+                  class="btn ghost small"
+                  type="button"
+                  hx-get="/machines/access?machine_id={{ machine_id }}"
+                  hx-target="#drawer-body"
+                  hx-swap="innerHTML"
+                  data-open-drawer="true"
+                  data-drawer-title="Machine Access: {{ machine_id }}"
+                  title="Open machine access details"
+                >access_info</button>
+              </div>
             </td>
             <td>{{ normalized_status }}</td>
             <td>{{ machine.env or "-" }}</td>
@@ -146,7 +162,7 @@
             </td>
             <td>
               {% if enabled_setups %}
-                <div class="setup-chip-list">
+                <div class="setup-chip-list stacked-chip-list">
                   {% for setup_id in enabled_setups %}
                     <button
                       class="setup-chip"
@@ -164,8 +180,22 @@
               {% endif %}
             </td>
             <td>
+              <div class="inline-actions stack-vertical">
+                <span class="muted">{{ current_checklist | length }} checked</span>
+                <button
+                  class="btn ghost small"
+                  hx-get="/machines/current-setup-checklist?machine_id={{ machine_id }}"
+                  hx-target="#drawer-body"
+                  hx-swap="innerHTML"
+                  data-open-drawer="true"
+                  data-drawer-title="Current Setup Checklist: {{ machine_id }}"
+                  type="button"
+                >View / Edit</button>
+              </div>
+            </td>
+            <td>
               {% if operation_sets %}
-                <div class="setup-chip-list">
+                <div class="setup-chip-list stacked-chip-list">
                   {% for set_name, set_payload in operation_sets.items() %}
                     {% set set_data = set_payload if set_payload is mapping else {} %}
                     {% set set_setups = set_data.setups if set_data.setups is defined else [] %}
@@ -177,7 +207,7 @@
               {% endif %}
             </td>
             <td>
-              <div class="inline-actions">
+              <div class="inline-actions stack-vertical">
                 <button
                   class="btn small"
                   hx-get="/machines/form?machine_id={{ machine_id }}"
@@ -198,7 +228,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="10">No machines configured.</td></tr>
+          <tr><td colspan="11">No machines configured.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -3,6 +3,9 @@
   var VERSION_KEY = 'vm_management_seen_realtime_version';
   var NAV_COLLAPSED_KEY = 'vm_management_nav_collapsed';
   var MACHINES_GROUP_BY_KEY = 'vm_management_machines_group_by';
+  var MACHINES_DENSITY_KEY = 'vm_management_machines_density';
+  var MACHINES_DENSITY_MANUAL_KEY = 'vm_management_machines_density_manual';
+  var POPUP_DEFAULT_MS = 4200;
 
   function qs(sel, root) {
     return (root || document).querySelector(sel);
@@ -97,6 +100,51 @@
     });
   }
 
+  function ensurePopupStack() {
+    var stack = qs('#popup-stack');
+    if (stack) return stack;
+    if (!document || !document.body) return null;
+    stack = document.createElement('div');
+    stack.id = 'popup-stack';
+    stack.className = 'popup-stack';
+    stack.setAttribute('aria-live', 'polite');
+    document.body.appendChild(stack);
+    return stack;
+  }
+
+  function showPopup(message, type, options) {
+    var text = String(message || '').trim();
+    if (!text) return;
+    var stack = ensurePopupStack();
+    if (!stack) return;
+    var popup = document.createElement('div');
+    popup.className = 'popup-item ' + (type || 'success');
+    popup.innerHTML = '<span class="popup-message">' + asHtml(text) + '</span>';
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'popup-close';
+    closeBtn.textContent = 'x';
+    closeBtn.setAttribute('aria-label', 'Dismiss popup');
+    closeBtn.addEventListener('click', function () {
+      popup.remove();
+    });
+    popup.appendChild(closeBtn);
+    stack.appendChild(popup);
+
+    var opts = options || {};
+    var sticky = !!opts.sticky;
+    if (!sticky) {
+      var timeoutMs = Number(opts.autoDismissMs);
+      if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) timeoutMs = POPUP_DEFAULT_MS;
+      window.setTimeout(function () {
+        popup.classList.add('closing');
+        window.setTimeout(function () {
+          popup.remove();
+        }, 180);
+      }, timeoutMs);
+    }
+  }
+
   function openDrawer(title) {
     var drawer = qs('#drawer');
     if (!drawer) return;
@@ -143,10 +191,132 @@
     }
   }
 
-  function setFlash(message, type) {
+  function setFlash(message, type, options) {
     var flash = qs('#flash-area');
     if (!flash) return;
-    flash.innerHTML = '<div class="flash ' + (type || 'success') + '">' + asHtml(message) + '</div>';
+    var t = type || 'success';
+    flash.innerHTML = '<div class="flash ' + t + '">' + asHtml(message) + '</div>';
+    var opts = options || {};
+    if (opts.popup !== false) {
+      showPopup(message, t, opts);
+    }
+  }
+
+  function isMutationVerb(verb) {
+    var v = String(verb || '').toUpperCase();
+    return v === 'POST' || v === 'PUT' || v === 'PATCH' || v === 'DELETE';
+  }
+
+  function shouldSkipAutoConfirmPath(path) {
+    var p = String(path || '').toLowerCase();
+    return p.indexOf('/preview') !== -1 || p.indexOf('/render') !== -1 || p.indexOf('/api/status') !== -1;
+  }
+
+  function getRequestVerbFromElement(elt) {
+    if (!elt) return 'GET';
+    if (elt.getAttribute) {
+      if (elt.getAttribute('hx-post')) return 'POST';
+      if (elt.getAttribute('hx-put')) return 'PUT';
+      if (elt.getAttribute('hx-patch')) return 'PATCH';
+      if (elt.getAttribute('hx-delete')) return 'DELETE';
+      if (elt.tagName && String(elt.tagName).toLowerCase() === 'form') {
+        return String(elt.getAttribute('method') || 'GET').toUpperCase();
+      }
+    }
+    var form = elt.closest ? elt.closest('form') : null;
+    if (form) return String(form.getAttribute('method') || 'GET').toUpperCase();
+    return 'GET';
+  }
+
+  function getRequestPathFromElement(elt) {
+    if (!elt || !elt.getAttribute) return '';
+    return (
+      elt.getAttribute('hx-post') ||
+      elt.getAttribute('hx-put') ||
+      elt.getAttribute('hx-patch') ||
+      elt.getAttribute('hx-delete') ||
+      elt.getAttribute('hx-get') ||
+      elt.getAttribute('action') ||
+      ''
+    );
+  }
+
+  function getActionLabel(elt) {
+    if (!elt) return 'this action';
+    if (elt.getAttribute && elt.getAttribute('data-action-label')) {
+      return String(elt.getAttribute('data-action-label')).trim() || 'this action';
+    }
+    var fromText = String(elt.textContent || '').replace(/\s+/g, ' ').trim();
+    if (fromText) return fromText;
+    return 'this action';
+  }
+
+  function shouldConfirmRequest(elt, verb, path) {
+    if (!isMutationVerb(verb)) return false;
+    if (!elt) return false;
+    if (elt.getAttribute && String(elt.getAttribute('data-no-confirm') || '').toLowerCase() === 'true') {
+      return false;
+    }
+    if (elt.closest && elt.closest('[data-no-confirm="true"]')) {
+      return false;
+    }
+    if (elt.getAttribute && elt.getAttribute('data-confirm-message')) {
+      return true;
+    }
+    if (shouldSkipAutoConfirmPath(path)) return false;
+    return true;
+  }
+
+  function getConfirmMessage(elt, verb, path) {
+    if (elt && elt.getAttribute) {
+      var explicit = elt.getAttribute('data-confirm-message');
+      if (explicit) return explicit;
+    }
+    var label = getActionLabel(elt);
+    var p = String(path || '').trim();
+    if (p) {
+      return label + ' will call ' + p + '. Continue?';
+    }
+    return 'This will run ' + label + '. Continue?';
+  }
+
+  function requestMetaFromEvent(event) {
+    var detail = (event && event.detail) || {};
+    var elt = detail.elt || null;
+    var config = detail.requestConfig || {};
+    var verb = String(config.verb || getRequestVerbFromElement(elt) || 'GET').toUpperCase();
+    var path = String(config.path || getRequestPathFromElement(elt) || '');
+    return {
+      elt: elt,
+      verb: verb,
+      path: path
+    };
+  }
+
+  function getSuccessMessage(meta) {
+    var elt = meta.elt;
+    if (elt && elt.getAttribute) {
+      var explicit = elt.getAttribute('data-success-message');
+      if (explicit) return explicit;
+    }
+    return getActionLabel(elt) + ' completed successfully.';
+  }
+
+  function getFailureMessage(meta, xhr) {
+    var base = getActionLabel(meta.elt) + ' failed.';
+    if (!xhr) return base;
+    var status = Number(xhr.status || 0);
+    var body = String(xhr.responseText || '').trim();
+    if (!body) return base + ' HTTP ' + status + '.';
+    try {
+      var parsed = JSON.parse(body);
+      if (parsed && typeof parsed.detail === 'string') return parsed.detail;
+      if (parsed && parsed.error && parsed.error.message) return parsed.error.message;
+    } catch (_err) {
+      // Ignore non-JSON body.
+    }
+    if (status > 0) return base + ' HTTP ' + status + '.';
+    return base;
   }
 
   function updateSetupCsv(container) {
@@ -169,6 +339,26 @@
       });
     });
     updateSetupCsv(root);
+  }
+
+  function bindChecklistBulkActions(root) {
+    qsa('[data-checklist-bulk]', root).forEach(function (btn) {
+      if (btn.__boundChecklistBulk) return;
+      btn.__boundChecklistBulk = true;
+      btn.addEventListener('click', function () {
+        var action = String(btn.getAttribute('data-checklist-bulk') || '');
+        var form = btn.closest('form');
+        if (!form) return;
+        var group = qs('[data-setup-checks="true"]', form);
+        if (!group) return;
+        var checkboxes = qsa('input[type="checkbox"]', group);
+        var shouldCheck = action === 'select-all';
+        checkboxes.forEach(function (cb) {
+          cb.checked = shouldCheck;
+        });
+        updateSetupCsv(form);
+      });
+    });
   }
 
   function parseCsvList(raw) {
@@ -198,7 +388,29 @@
         return qsa('[data-operation-set-row="true"]', rowsWrap);
       }
 
+      function getEnabledSetupValues() {
+        var hiddenEnabled = qs('input[name="enabled_setups_csv"][data-setup-csv="true"]', form);
+        var fromHidden = hiddenEnabled ? parseCsvList(hiddenEnabled.value) : [];
+        if (fromHidden.length) return fromHidden;
+        var enabledGroup = qs('[data-setup-checks="true"]', form);
+        if (!enabledGroup) return [];
+        return qsa('input[type="checkbox"]', enabledGroup)
+          .filter(function (el) { return el.checked; })
+          .map(function (el) { return el.value; });
+      }
+
+      function refreshCatalogAvailability() {
+        var allowed = new Set(getEnabledSetupValues());
+        catalogChips.forEach(function (chip) {
+          var sid = String(chip.getAttribute('data-opset-catalog') || '').trim();
+          var isAllowed = sid && allowed.has(sid);
+          chip.disabled = !isAllowed;
+          chip.title = isAllowed ? '' : 'Enable this setup first in Enabled Setups';
+        });
+      }
+
       function syncJson() {
+        var allowed = new Set(getEnabledSetupValues());
         var payload = {};
         rows().forEach(function (row) {
           var nameInput = qs('[data-opset-name="true"]', row);
@@ -208,7 +420,10 @@
 
           var setName = String(nameInput.value || '').trim();
           if (!setName) return;
-          var setups = parseCsvList(setupsInput.value);
+          var setups = parseCsvList(setupsInput.value).filter(function (sid) {
+            return allowed.has(sid);
+          });
+          setupsInput.value = setups.join(', ');
           if (!setups.length) return;
 
           var entry = { setups: setups };
@@ -222,6 +437,8 @@
 
       function appendSetupToActive(setupId) {
         if (!setupId) return;
+        var allowed = new Set(getEnabledSetupValues());
+        if (!allowed.has(setupId)) return;
         if (!activeSetupsInput) {
           var first = rows()[0];
           activeSetupsInput = first ? qs('[data-opset-setups="true"]', first) : null;
@@ -286,6 +503,14 @@
         });
       });
 
+      qsa('[data-setup-checks="true"] input[type="checkbox"]', form).forEach(function (input) {
+        input.addEventListener('change', function () {
+          refreshCatalogAvailability();
+          syncJson();
+        });
+      });
+
+      refreshCatalogAvailability();
       syncJson();
     });
   }
@@ -297,13 +522,15 @@
       if (!table) return;
 
       input.addEventListener('input', function () {
+        if (table.getAttribute('data-machine-table') === 'true') {
+          applyMachineTableFilters(table);
+          return;
+        }
+
         var term = input.value.trim().toLowerCase();
-        var dataRows = qsa('tbody tr[data-machine-row="true"]', table);
-        var rows = dataRows.length
-          ? dataRows
-          : qsa('tbody tr', table).filter(function (row) {
-              return row.getAttribute('data-group-header') !== 'true';
-            });
+        var rows = qsa('tbody tr', table).filter(function (row) {
+          return row.getAttribute('data-group-header') !== 'true';
+        });
         rows.forEach(function (row) {
           var text = row.textContent.toLowerCase();
           row.style.display = !term || text.indexOf(term) !== -1 ? '' : 'none';
@@ -311,6 +538,50 @@
         updateGroupHeaderVisibility(table);
       });
     });
+  }
+
+  function getMachineFilterInput(table) {
+    var tableId = table && table.id ? ('#' + table.id) : '';
+    if (!tableId) return null;
+    return qs('.table-filter[data-filter-target="' + tableId + '"]');
+  }
+
+  function getActiveQuickFilterValues(table) {
+    var tableId = table && table.id ? ('#' + table.id) : '';
+    if (!tableId) return [];
+    return qsa('.quick-filter-chip.active[data-quick-filter-target="' + tableId + '"]').map(function (btn) {
+      return {
+        key: String(btn.getAttribute('data-filter-key') || ''),
+        value: String(btn.getAttribute('data-filter-value') || '').toLowerCase()
+      };
+    });
+  }
+
+  function applyMachineTableFilters(table) {
+    if (!table) return;
+    var filterInput = getMachineFilterInput(table);
+    var term = filterInput ? String(filterInput.value || '').trim().toLowerCase() : '';
+    var quickFilters = getActiveQuickFilterValues(table);
+    var rows = qsa('tbody tr[data-machine-row="true"]', table);
+
+    rows.forEach(function (row) {
+      var text = String(row.textContent || '').toLowerCase();
+      var matchTerm = !term || text.indexOf(term) !== -1;
+      var matchQuick = quickFilters.every(function (entry) {
+        var rowValue = String(row.getAttribute('data-group-' + entry.key) || '').toLowerCase();
+        return rowValue === entry.value;
+      });
+      var visible = matchTerm && matchQuick;
+      row.style.display = visible ? '' : 'none';
+
+      var machineId = String(row.getAttribute('data-machine-id') || '');
+      var detailRow = qs('tbody tr[data-machine-detail-for="' + machineId + '"]', table);
+      if (!detailRow) return;
+      var expanded = detailRow.getAttribute('data-expanded') === 'true';
+      detailRow.style.display = visible && expanded ? '' : 'none';
+    });
+
+    updateGroupHeaderVisibility(table);
   }
 
   function getMachinesGroupBy() {
@@ -327,6 +598,42 @@
     } catch (_err) {
       // Ignore local storage failures.
     }
+  }
+
+  function getMachinesDensity() {
+    try {
+      return window.localStorage.getItem(MACHINES_DENSITY_KEY) || 'comfortable';
+    } catch (_err) {
+      return 'comfortable';
+    }
+  }
+
+  function setMachinesDensity(value) {
+    try {
+      window.localStorage.setItem(MACHINES_DENSITY_KEY, value || 'comfortable');
+    } catch (_err) {
+      // Ignore local storage failures.
+    }
+  }
+
+  function getMachinesDensityManual() {
+    try {
+      return window.localStorage.getItem(MACHINES_DENSITY_MANUAL_KEY) === '1';
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  function setMachinesDensityManual(isManual) {
+    try {
+      window.localStorage.setItem(MACHINES_DENSITY_MANUAL_KEY, isManual ? '1' : '0');
+    } catch (_err) {
+      // Ignore local storage failures.
+    }
+  }
+
+  function autoMachinesDensityMode() {
+    return window.innerWidth <= 1480 ? 'compact' : 'comfortable';
   }
 
   function clearGroupHeaders(table) {
@@ -389,22 +696,34 @@
     var rows = qsa('tr[data-machine-row="true"]', tbody);
     if (!rows.length) return;
 
-    rows.sort(function (a, b) {
-      var aMachine = (a.getAttribute('data-machine-id') || '').toLowerCase();
-      var bMachine = (b.getAttribute('data-machine-id') || '').toLowerCase();
+    var pairs = rows.map(function (row) {
+      var machineId = String(row.getAttribute('data-machine-id') || '');
+      return {
+        row: row,
+        detail: qs('tr[data-machine-detail-for="' + machineId + '"]', tbody)
+      };
+    });
+
+    pairs.sort(function (a, b) {
+      var aMachine = (a.row.getAttribute('data-machine-id') || '').toLowerCase();
+      var bMachine = (b.row.getAttribute('data-machine-id') || '').toLowerCase();
       if (!groupKey || groupKey === 'none') {
         return aMachine.localeCompare(bMachine);
       }
-      var aGroup = (a.getAttribute('data-group-' + groupKey) || '').toLowerCase();
-      var bGroup = (b.getAttribute('data-group-' + groupKey) || '').toLowerCase();
+      var aGroup = (a.row.getAttribute('data-group-' + groupKey) || '').toLowerCase();
+      var bGroup = (b.row.getAttribute('data-group-' + groupKey) || '').toLowerCase();
       var groupCmp = aGroup.localeCompare(bGroup);
       return groupCmp !== 0 ? groupCmp : aMachine.localeCompare(bMachine);
     });
 
-    rows.forEach(function (row) {
-      tbody.appendChild(row);
+    pairs.forEach(function (pair) {
+      tbody.appendChild(pair.row);
+      if (pair.detail) {
+        tbody.appendChild(pair.detail);
+      }
     });
     insertGroupHeaders(table, groupKey);
+    applyMachineTableFilters(table);
   }
 
   function bindMachinesGrouping(root) {
@@ -432,6 +751,104 @@
         if (filter) {
           filter.dispatchEvent(new Event('input', { bubbles: true }));
         }
+      });
+    });
+  }
+
+  function bindQuickFilters(root) {
+    qsa('.quick-filter-chip[data-quick-filter-target]', root).forEach(function (btn) {
+      if (btn.__boundQuickFilter) return;
+      btn.__boundQuickFilter = true;
+      btn.addEventListener('click', function () {
+        btn.classList.toggle('active');
+        var targetSelector = btn.getAttribute('data-quick-filter-target');
+        var table = targetSelector ? qs(targetSelector) : null;
+        if (table) applyMachineTableFilters(table);
+      });
+    });
+
+    qsa('.quick-filter-chip[data-quick-filter-clear]', root).forEach(function (btn) {
+      if (btn.__boundQuickFilterClear) return;
+      btn.__boundQuickFilterClear = true;
+      btn.addEventListener('click', function () {
+        var targetSelector = btn.getAttribute('data-quick-filter-clear');
+        var table = targetSelector ? qs(targetSelector) : null;
+        if (!table) return;
+        qsa('.quick-filter-chip.active[data-quick-filter-target="' + targetSelector + '"]', document).forEach(function (node) {
+          node.classList.remove('active');
+        });
+        applyMachineTableFilters(table);
+      });
+    });
+  }
+
+  function applyMachinesDensity(table, mode) {
+    if (!table) return;
+    table.classList.toggle('table-density-compact', mode === 'compact');
+    var targetSelector = table.id ? ('#' + table.id) : '';
+    if (!targetSelector) return;
+    qsa('[data-density-target="' + targetSelector + '"] [data-density-mode]').forEach(function (btn) {
+      var selected = btn.getAttribute('data-density-mode') === mode;
+      btn.classList.toggle('active', selected);
+    });
+  }
+
+  function applyAutoMachinesDensity() {
+    if (getMachinesDensityManual()) return;
+    var mode = autoMachinesDensityMode();
+    setMachinesDensity(mode);
+    qsa('table[data-machine-table="true"]', document).forEach(function (table) {
+      applyMachinesDensity(table, mode);
+    });
+  }
+
+  function bindDensityToggles(root) {
+    qsa('[data-density-target]', root).forEach(function (group) {
+      var targetSelector = group.getAttribute('data-density-target');
+      var table = targetSelector ? qs(targetSelector) : null;
+      if (!table) return;
+
+      var mode = getMachinesDensityManual() ? getMachinesDensity() : autoMachinesDensityMode();
+      mode = mode === 'compact' ? 'compact' : 'comfortable';
+      setMachinesDensity(mode);
+      applyMachinesDensity(table, mode);
+
+      qsa('[data-density-mode]', group).forEach(function (btn) {
+        if (btn.__boundDensityToggle) return;
+        btn.__boundDensityToggle = true;
+        btn.addEventListener('click', function () {
+          var selectedMode = String(btn.getAttribute('data-density-mode') || 'comfortable');
+          setMachinesDensityManual(true);
+          setMachinesDensity(selectedMode);
+          applyMachinesDensity(table, selectedMode);
+        });
+      });
+    });
+  }
+
+  function bindMachineRowExpanders(root) {
+    qsa('[data-toggle-machine-detail]', root).forEach(function (btn) {
+      if (btn.__boundMachineDetailToggle) return;
+      btn.__boundMachineDetailToggle = true;
+      btn.addEventListener('click', function () {
+        var machineId = btn.getAttribute('data-toggle-machine-detail');
+        if (!machineId) return;
+        var detailRow = qs('tr[data-machine-detail-for="' + machineId + '"]', document);
+        var mainRow = qs('tr[data-machine-row="true"][data-machine-id="' + machineId + '"]', document);
+        if (!detailRow || !mainRow) return;
+        if (mainRow.style.display === 'none') return;
+
+        var expanded = detailRow.getAttribute('data-expanded') === 'true';
+        var next = !expanded;
+        detailRow.setAttribute('data-expanded', next ? 'true' : 'false');
+        detailRow.style.display = next ? '' : 'none';
+
+        qsa('[data-toggle-machine-detail="' + machineId + '"]', document).forEach(function (ctrl) {
+          ctrl.setAttribute('aria-expanded', next ? 'true' : 'false');
+          if (ctrl.classList.contains('row-expand-btn')) {
+            ctrl.textContent = next ? '▾' : '▸';
+          }
+        });
       });
     });
   }
@@ -587,9 +1004,16 @@
 
   function bindDeleteButtons(root) {
     qsa('.delete-entity-btn', root).forEach(function (btn) {
+      if (btn.__boundDeleteEntity) return;
+      btn.__boundDeleteEntity = true;
       btn.addEventListener('click', function () {
         var entityType = btn.getAttribute('data-entity-type');
         var entityId = btn.getAttribute('data-entity-id');
+        var ok = window.confirm('Analyze delete impact for ' + entityType + ':' + entityId + '?');
+        if (!ok) {
+          showPopup('Delete analysis cancelled.', 'warn');
+          return;
+        }
         previewDelete(entityType, entityId).catch(function (err) {
           setFlash(err.message, 'error');
         });
@@ -599,10 +1023,16 @@
 
   function bindGitPrepareForm(root) {
     var form = qs('form[data-git-prepare="true"]', root);
-    if (!form) return;
+    if (!form || form.__boundGitPrepare) return;
+    form.__boundGitPrepare = true;
 
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
+      var ok = window.confirm('Prepare branch + commit for config changes?');
+      if (!ok) {
+        showPopup('Prepare commit cancelled.', 'warn');
+        return;
+      }
       var resultNode = qs('#git-prepare-result');
       if (resultNode) {
         resultNode.innerHTML = 'Preparing commit...';
@@ -618,10 +1048,12 @@
         if (resultNode) {
           resultNode.innerHTML = renderGitPrepareResult(data);
         }
+        showPopup('Branch + commit prepared successfully.', 'success');
       } catch (err) {
         if (resultNode) {
           resultNode.innerHTML = '<div class="flash error">' + asHtml(err.message) + '</div>';
         }
+        showPopup(err.message, 'error');
       }
     });
   }
@@ -673,11 +1105,51 @@
       var data = await res.json();
       var navMode = (document.body && document.body.getAttribute('data-nav-mode')) || 'home';
       var timezoneNode = qs('#pill-timezone');
+      var branchNode = qs('#pill-config-branch');
+      var changeNode = qs('#pill-change-count');
+      var validationNode = qs('#pill-validation-status');
+      var backupNode = qs('#pill-backup-status');
+      var prNode = qs('#pill-open-pr-count');
       var statusText = qs('#top-status-text');
       if (timezoneNode) timezoneNode.textContent = 'Global Time Zone: ' + (data.app_timezone || 'UTC');
+
+      var configBranch = String(data.preferred_config_branch || data.branch || '-');
+      var configChangeCount = Number.isFinite(Number(data.config_changed_count)) ? Number(data.config_changed_count) : 0;
+      var validationErrors = Array.isArray(data.validation_errors) ? data.validation_errors.length : 0;
+      var backupState = String((data.backup_status && data.backup_status.state) || '');
+      var backupLabel = backupState === 'backed_up' || backupState === 'backed_up_restored'
+        ? 'Up To Date'
+        : 'Not Backed Up';
+      var openPrCount = data.related_open_pr_count === null || typeof data.related_open_pr_count === 'undefined'
+        ? '-'
+        : String(data.related_open_pr_count);
+
+      if (branchNode) branchNode.textContent = 'Config Branch: ' + configBranch;
+      if (changeNode) changeNode.textContent = 'Change Count: ' + String(configChangeCount);
+      if (validationNode) validationNode.textContent = 'Validation Status: ' + (validationErrors > 0 ? 'Errors' : 'OK');
+      if (backupNode) backupNode.textContent = 'Backup Status: ' + backupLabel;
+      if (prNode) prNode.textContent = 'Open PR Count: ' + openPrCount;
+
+      [branchNode, changeNode, validationNode, backupNode, prNode].forEach(function (node) {
+        if (!node) return;
+        node.classList.remove('hidden', 'ok', 'warn');
+      });
+      if (changeNode && configChangeCount > 0) {
+        changeNode.classList.add('warn');
+      }
+      if (validationNode) {
+        validationNode.classList.add(validationErrors > 0 ? 'warn' : 'ok');
+      }
+      if (backupNode) {
+        backupNode.classList.add(backupLabel === 'Up To Date' ? 'ok' : 'warn');
+      }
+      if (prNode && openPrCount !== '-' && Number(openPrCount) > 0) {
+        prNode.classList.add('ok');
+      }
+
       if (statusText) {
         if (navMode === 'config') {
-          statusText.textContent = 'Config Management workspace. Use each page tools for details, actions, and status.';
+          statusText.textContent = 'Config Management workspace. Top labels show live config branch, change, validation, backup, and PR state.';
         } else {
           statusText.textContent = 'Global settings apply across all sections.';
         }
@@ -771,28 +1243,84 @@
     });
   }
 
+  function bindHtmxGlobalConfirmAndResult() {
+    document.addEventListener('htmx:beforeRequest', function (event) {
+      var meta = requestMetaFromEvent(event);
+      if (!shouldConfirmRequest(meta.elt, meta.verb, meta.path)) return;
+      var ok = window.confirm(getConfirmMessage(meta.elt, meta.verb, meta.path));
+      if (!ok) {
+        event.preventDefault();
+        showPopup('Action cancelled.', 'warn');
+      }
+    });
+
+    document.addEventListener('htmx:afterRequest', function (event) {
+      var meta = requestMetaFromEvent(event);
+      if (!isMutationVerb(meta.verb) || shouldSkipAutoConfirmPath(meta.path)) return;
+      var xhr = event && event.detail ? event.detail.xhr : null;
+      if (!xhr) return;
+      var status = Number(xhr.status || 0);
+      if (status >= 200 && status < 300) {
+        showPopup(getSuccessMessage(meta), 'success');
+      }
+    });
+
+    document.addEventListener('htmx:responseError', function (event) {
+      var meta = requestMetaFromEvent(event);
+      var xhr = event && event.detail ? event.detail.xhr : null;
+      showPopup(getFailureMessage(meta, xhr), 'error', { sticky: true });
+    });
+
+    document.addEventListener('htmx:sendError', function (_event) {
+      showPopup('Request failed to send. Check network/server and retry.', 'error', { sticky: true });
+    });
+
+    document.addEventListener('htmx:timeout', function (_event) {
+      showPopup('Request timed out. Please retry.', 'error', { sticky: true });
+    });
+  }
+
   document.addEventListener('htmx:afterSwap', function (event) {
     if (event.target && event.target.id === 'drawer-body') {
       bindSetupCheckboxes(event.target);
+      bindChecklistBulkActions(event.target);
       bindOperationSetBuilders(event.target);
       openDrawer();
     }
+    bindDeleteButtons(document);
     bindGithubClipboardCode(document);
     bindMachinesGrouping(document);
+    bindQuickFilters(document);
+    bindDensityToggles(document);
+    bindMachineRowExpanders(document);
   });
 
   document.addEventListener('DOMContentLoaded', function () {
     applyNavCollapsed(getNavCollapsed());
     bindNavToggle();
     bindGlobalClicks();
+    bindHtmxGlobalConfirmAndResult();
     bindTableFilters(document);
     bindMachinesGrouping(document);
+    bindQuickFilters(document);
+    bindDensityToggles(document);
+    bindMachineRowExpanders(document);
     bindSetupCheckboxes(document);
+    bindChecklistBulkActions(document);
     bindOperationSetBuilders(document);
     bindDeleteButtons(document);
     bindGitPrepareForm(document);
     bindGithubClipboardCode(document);
     bindRealtime();
     refreshTopStatus();
+    applyAutoMachinesDensity();
+
+    window.addEventListener('resize', function () {
+      applyAutoMachinesDensity();
+    });
+
+    window.setInterval(function () {
+      refreshTopStatus();
+    }, 30000);
   });
 })();
