@@ -1720,7 +1720,8 @@ async def git_delete_branch(request: Request):
             "<div class='flash success'>"
             f"Branch <code>{result['branch']}</code> delete complete. "
             f"local_deleted={result['local_deleted']}, remote_deleted={result['remote_deleted']}."
-            "</div>"
+            + (" Remote branch was already missing." if result.get("remote_already_missing") else "")
+            + "</div>"
         ),
         headers={"HX-Refresh": "true"},
     )

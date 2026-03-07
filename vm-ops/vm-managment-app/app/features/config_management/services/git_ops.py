@@ -569,6 +569,16 @@ def _branch_exists_remote(repo_root: Path, branch_name: str, remote_name: str = 
     ).returncode == 0
 
 
+def _branch_exists_on_remote(repo_root: Path, branch_name: str, remote_name: str = "origin") -> bool:
+    # Query remote directly so stale local tracking refs do not cause false positives.
+    proc = _run_git(
+        repo_root,
+        ["ls-remote", "--heads", remote_name, branch_name],
+        check=False,
+    )
+    return proc.returncode == 0 and bool((proc.stdout or "").strip())
+
+
 def _ensure_branch_reference(repo_root: Path, branch_name: str, remote_name: str = "origin") -> None:
     if _branch_exists_local(repo_root, branch_name):
         return
@@ -768,6 +778,26 @@ def list_related_branches(
     remote_name: str = "origin",
 ) -> List[Dict[str, Any]]:
     repo_web_url = github_repo_web_url(repo_root, remote_name=remote_name)
+    remote_actual: Optional[set] = None
+    ls_remote = _run_git(
+        repo_root,
+        ["ls-remote", "--heads", remote_name, f"{CONFIG_BRANCH_PREFIX}*"],
+        check=False,
+    )
+    if ls_remote.returncode == 0:
+        remote_actual = set()
+        for line in (ls_remote.stdout or "").splitlines():
+            parts = line.strip().split()
+            if len(parts) < 2:
+                continue
+            ref = parts[1].strip()
+            prefix = "refs/heads/"
+            if not ref.startswith(prefix):
+                continue
+            branch = ref[len(prefix):]
+            if branch:
+                remote_actual.add(branch)
+
     refs = _run_git(
         repo_root,
         [
@@ -822,7 +852,19 @@ def list_related_branches(
         if commit_at and (not existing_commit or commit_at > existing_commit):
             index[branch_name]["last_commit_at"] = commit_at
 
-    return [index[name] for name in ordered[:max_items]]
+    rows: List[Dict[str, Any]] = []
+    for name in ordered:
+        row = index[name]
+        row["local_exists"] = _branch_exists_local(repo_root, name)
+        if remote_actual is not None:
+            row["remote_exists"] = name in remote_actual
+        # Ignore stale refs: show only real local and/or real remote branches.
+        if not row["local_exists"] and not row["remote_exists"]:
+            continue
+        rows.append(row)
+        if len(rows) >= max_items:
+            break
+    return rows
 
 
 def create_pr(
@@ -906,19 +948,34 @@ def delete_branch(
 
     local_deleted = False
     remote_deleted = False
+    remote_already_missing = False
 
     if delete_local and _branch_exists_local(repo_root, branch):
         _run_git(repo_root, ["branch", "-D", branch])
         local_deleted = True
 
-    if delete_remote and _branch_exists_remote(repo_root, branch, remote_name=remote):
-        _run_git(repo_root, ["push", remote, "--delete", branch])
-        remote_deleted = True
+    if delete_remote:
+        # Check actual remote state first; local remote-tracking refs may be stale.
+        exists_on_remote = _branch_exists_on_remote(repo_root, branch, remote_name=remote)
+        if exists_on_remote:
+            proc = _run_git(repo_root, ["push", remote, "--delete", branch], check=False)
+            if proc.returncode == 0:
+                remote_deleted = True
+            else:
+                combined = "\n".join([(proc.stdout or "").strip(), (proc.stderr or "").strip()]).strip()
+                lowered = combined.lower()
+                if "remote ref does not exist" in lowered:
+                    remote_already_missing = True
+                else:
+                    raise GitOpsError(combined or "Failed to delete remote branch.")
+        else:
+            remote_already_missing = True
 
     return {
         "branch": branch,
         "local_deleted": local_deleted,
         "remote_deleted": remote_deleted,
+        "remote_already_missing": remote_already_missing,
         "remote": remote,
     }
 
