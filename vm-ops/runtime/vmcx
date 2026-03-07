@@ -232,6 +232,20 @@ def _validate_structure(repo_root: Path) -> List[str]:
 
 def _tracked_local_app_data_files(repo_root: Path) -> List[str]:
     try:
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        top_root = Path((top.stdout or "").strip()).resolve() if top.returncode == 0 and (top.stdout or "").strip() else repo_root
+        try:
+            rel = repo_root.resolve().relative_to(top_root)
+            rel_prefix = "" if str(rel) in {"", "."} else rel.as_posix().strip("/") + "/"
+        except ValueError:
+            rel_prefix = ""
+
         proc = subprocess.run(
             ["git", "ls-files"],
             cwd=str(repo_root),
@@ -244,7 +258,10 @@ def _tracked_local_app_data_files(repo_root: Path) -> List[str]:
     if proc.returncode != 0:
         return []
     tracked = [str(x).strip() for x in (proc.stdout or "").splitlines() if str(x).strip()]
-    return [p for p in tracked if p.startswith("vm-managment-app/app-data/")]
+    prefixes = ["vm-managment-app/app-data/"]
+    if rel_prefix:
+        prefixes.append(f"{rel_prefix}vm-managment-app/app-data/")
+    return [p for p in tracked if any(p.startswith(prefix) for prefix in prefixes)]
 
 
 def _validate_references(repo_root: Path) -> List[str]:

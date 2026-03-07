@@ -133,6 +133,49 @@ class GitOpsTest(unittest.TestCase):
             )
             self.assertEqual(result["branch"], existing)
 
+    def test_resolve_target_branch_rejects_polluted_explicit_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._seed_repo(root)
+            base_branch = self._run(root, ["git", "rev-parse", "--abbrev-ref", "HEAD"])
+            branch = "config_update/March-07-2026--12-00-PM"
+            self._run(root, ["git", "checkout", "-b", branch])
+            (root / "README.md").write_text("non-config-change\n", encoding="utf-8")
+            self._run(root, ["git", "add", "README.md"])
+            self._run(root, ["git", "commit", "-m", "pollute branch"])
+            self._run(root, ["git", "checkout", base_branch])
+
+            with self.assertRaises(git_ops.GitOpsError) as exc:
+                git_ops.resolve_target_branch(
+                    root,
+                    explicit_branch=branch,
+                    preferred_branch="",
+                    fallback_tz="UTC",
+                )
+            self.assertIn("contains non-config history", str(exc.exception))
+
+    def test_resolve_target_branch_skips_polluted_related_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._seed_repo(root)
+            base_branch = self._run(root, ["git", "rev-parse", "--abbrev-ref", "HEAD"])
+            branch = "config_update/March-07-2026--12-00-PM"
+            self._run(root, ["git", "checkout", "-b", branch])
+            (root / "README.md").write_text("non-config-change\n", encoding="utf-8")
+            self._run(root, ["git", "add", "README.md"])
+            self._run(root, ["git", "commit", "-m", "pollute branch"])
+            self._run(root, ["git", "checkout", base_branch])
+
+            resolved, exists = git_ops.resolve_target_branch(
+                root,
+                explicit_branch="",
+                preferred_branch="",
+                fallback_tz="UTC",
+            )
+            self.assertFalse(exists)
+            self.assertTrue(resolved.startswith("config_update/"))
+            self.assertNotEqual(resolved, branch)
+
     def test_list_related_open_prs(self) -> None:
         payload = json.dumps(
             [
