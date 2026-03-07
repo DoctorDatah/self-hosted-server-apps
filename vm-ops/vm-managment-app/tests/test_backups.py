@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -58,6 +59,7 @@ class BackupsTest(unittest.TestCase):
 
             meta = backups.create_backup(paths, label="before-change", remark="test backup")
             self.assertTrue(meta["backup_id"].startswith("cfg-"))
+            self.assertRegex(meta["backup_id"], r"^cfg-[A-Za-z]+-\d{2}-\d{4}--\d{2}-\d{2}-[AP]M-[0-9a-f]{6}$")
             self.assertEqual(meta["label"], "before-change")
             self.assertEqual(meta["remark"], "test backup")
 

@@ -20,6 +20,19 @@ from .services.integrity import IntegrityError, build_delete_impact_report, summ
 router = APIRouter(tags=["config-management-api"])
 
 
+def _normalized_git_path(path: str) -> str:
+    # Handle porcelain rename format: "old/path -> new/path"
+    raw = str(path or "").strip()
+    if " -> " in raw:
+        raw = raw.split(" -> ", 1)[1].strip()
+    return raw.lstrip("./")
+
+
+def _is_config_scoped_path(path: str) -> bool:
+    normalized = _normalized_git_path(path)
+    return normalized.startswith("vm-configs/")
+
+
 def _diffs_for_changed_parts(
     bundle: config_store.ConfigBundle,
     candidate: config_store.ConfigBundle,
@@ -64,8 +77,27 @@ def status() -> Dict[str, Any]:
     preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
     bundle = config_store.load_bundle(paths)
     git_status = git_ops.get_status(paths.repo_root)
+    tracked_sensitive_files = git_ops.list_tracked_sensitive_files(paths.repo_root)
+    changed_files = [str(x) for x in git_status.get("changed_files", [])]
+    config_changed_files = [_normalized_git_path(p) for p in changed_files if _is_config_scoped_path(p)]
     validation_errors = validators.validate_bundle(bundle, paths.repo_root)
     backup_status = backups.get_backup_status(paths)
+    related_open_pr_count = None
+    related_open_pr_error = ""
+    try:
+        gh_status = git_ops.github_connection_status(paths.repo_root)
+        if gh_status.get("available") and gh_status.get("authenticated"):
+            related_open_pr_count = len(
+                git_ops.list_open_prs(
+                    paths.repo_root,
+                    preferred_branch=preferred_branch,
+                    related_only=True,
+                    limit=100,
+                )
+            )
+    except Exception as exc:  # noqa: BLE001
+        related_open_pr_count = None
+        related_open_pr_error = str(exc)
     backup_status["latest_backup_created_at_display"] = app_settings.format_iso_datetime(
         str(backup_status.get("latest_backup_created_at") or ""),
         timezone_name,
@@ -76,8 +108,14 @@ def status() -> Dict[str, Any]:
     )
     return {
         **git_status,
+        "config_changed_files": config_changed_files,
+        "config_changed_count": len(config_changed_files),
         "validation_errors": validation_errors,
         "backup_status": backup_status,
+        "related_open_pr_count": related_open_pr_count,
+        "related_open_pr_error": related_open_pr_error,
+        "tracked_sensitive_files": tracked_sensitive_files,
+        "tracked_sensitive_count": len(tracked_sensitive_files),
         "app_timezone": timezone_name,
         "preferred_config_branch": preferred_branch,
     }

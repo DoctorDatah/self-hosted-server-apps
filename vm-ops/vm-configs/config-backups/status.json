@@ -1,1 +1,10 @@
-{}
+{
+  "last_backup": {
+    "backup_id": "cfg-20260307-005604-c867dd",
+    "created_at": "2026-03-07T00:56:04.367649+00:00",
+    "created_at_epoch": 1772844964,
+    "label": "",
+    "remark": "",
+    "config_fingerprint": "8e549f694779a6fc45a08598051183737f1cfd139f9cadb5d4f392396062329d"
+  }
+}

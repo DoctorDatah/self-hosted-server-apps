@@ -10,10 +10,37 @@ from zoneinfo import ZoneInfo, available_timezones
 
 DEFAULT_TIMEZONE = "UTC"
 DEFAULT_PREFERRED_CONFIG_BRANCH = ""
+OLD_CONFIG_BRANCH_PREFIX = "config_update/update-"
+NEW_CONFIG_BRANCH_PREFIX = "config_update/"
 
 
 class SettingsError(Exception):
     pass
+
+
+def _normalize_preferred_config_branch(branch_name: str) -> str:
+    raw = str(branch_name or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith(OLD_CONFIG_BRANCH_PREFIX):
+        stamp = raw[len(OLD_CONFIG_BRANCH_PREFIX) :]
+        try:
+            parsed = datetime.strptime(stamp, "%Y%m%d-%H%M%S")
+        except ValueError:
+            return ""
+        return f"{NEW_CONFIG_BRANCH_PREFIX}{parsed.strftime('%B-%d-%Y--%I-%M-%p')}"
+
+    if not raw.startswith(NEW_CONFIG_BRANCH_PREFIX):
+        return raw
+
+    stamp = raw[len(NEW_CONFIG_BRANCH_PREFIX) :]
+    for fmt in ("%B-%d-%Y--%I-%M-%p", "%B-%d-%Y--%I-%M%p", "%B-%d-%Y--%I:%M:%p"):
+        try:
+            parsed = datetime.strptime(stamp, fmt)
+            return f"{NEW_CONFIG_BRANCH_PREFIX}{parsed.strftime('%B-%d-%Y--%I-%M-%p')}"
+        except ValueError:
+            continue
+    return raw
 
 
 def _settings_path(repo_root: Path) -> Path:
@@ -70,7 +97,15 @@ def load_settings(repo_root: Path) -> Dict[str, Any]:
         parsed["timezone"] = _validate_timezone(str(timezone_name))
     except SettingsError:
         parsed["timezone"] = DEFAULT_TIMEZONE
-    parsed["preferred_config_branch"] = str(parsed.get("preferred_config_branch", "") or "").strip()
+    current_branch = str(parsed.get("preferred_config_branch", "") or "").strip()
+    normalized_branch = _normalize_preferred_config_branch(current_branch)
+    parsed["preferred_config_branch"] = normalized_branch
+
+    if normalized_branch != current_branch:
+        try:
+            _atomic_write(path, json.dumps(parsed, indent=2) + "\n")
+        except Exception:
+            pass
     return parsed
 
 
@@ -89,7 +124,7 @@ def save_settings(
 ) -> Dict[str, Any]:
     payload = {
         "timezone": _validate_timezone(timezone_name),
-        "preferred_config_branch": str(preferred_config_branch or "").strip(),
+        "preferred_config_branch": _normalize_preferred_config_branch(str(preferred_config_branch or "").strip()),
     }
     _atomic_write(_settings_path(repo_root), json.dumps(payload, indent=2) + "\n")
     return payload

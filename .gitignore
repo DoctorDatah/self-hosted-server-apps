@@ -30,3 +30,6 @@ vm-codex-v2/local-state/locks/
 vm-codex-v2/local-state/backups-index/
 vm-codex-v2/install/.state/
 vm-codex-v2/install/logs/
+
+# vm-ops local app state (must never be committed)
+vm-ops/vm-managment-app/app-data/

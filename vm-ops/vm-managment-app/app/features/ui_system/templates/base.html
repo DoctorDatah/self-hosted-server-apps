@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/static/css/app.css" />
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
-<body>
+<body data-nav-mode="{{ nav_mode or 'home' }}">
   <div class="app-shell">
     <aside class="side-nav">
       <div class="brand">
@@ -22,7 +22,12 @@
         {% if nav_mode == "home" %}
           <h4 class="nav-group-title">Main Menu</h4>
           <a href="/config-management" class="nav-link {% if request.url.path.startswith('/config-management') or request.url.path.startswith('/features/config-management') %}active{% endif %}">Config Management</a>
-          <a href="/settings" class="nav-link {% if request.url.path in ['/settings'] %}active{% endif %}">Settings</a>
+          <a href="/settings" class="nav-link {% if request.url.path.startswith('/settings') %}active{% endif %}">Settings</a>
+        {% elif nav_mode == "settings" %}
+          <h4 class="nav-group-title">Settings</h4>
+          <a href="/settings/timezone" class="nav-link {% if request.url.path in ['/settings','/settings/timezone'] %}active{% endif %}">Time Zone</a>
+          <a href="/settings/connections" class="nav-link {% if request.url.path in ['/settings/connections'] %}active{% endif %}">Connections</a>
+          <a href="/" class="nav-link">Back to Main Menu</a>
         {% else %}
           <h4 class="nav-group-title">Config Management</h4>
           <a href="/config-management" class="nav-link {% if request.url.path in ['/config-management','/features/config-management'] %}active{% endif %}">Dashboard</a>
@@ -45,18 +50,18 @@
           <p id="top-status-text">Loading repo status...</p>
         </div>
         <div class="pill-row">
-          <span class="pill" id="pill-branch">branch: -</span>
-          <span class="pill" id="pill-target-branch">ui target: -</span>
-          <span class="pill" id="pill-changes">changes: -</span>
-          <span class="pill" id="pill-validation">validation: -</span>
-          <span class="pill" id="pill-timezone">timezone: {{ app_timezone or 'UTC' }}</span>
-          {% if nav_mode != "home" %}
-            <span class="pill" id="pill-backup">backup: -</span>
+          <span class="pill" id="pill-timezone">Global Time Zone: {{ app_timezone or 'UTC' }}</span>
+          {% if nav_mode == "config" %}
+            <span class="pill" id="pill-target-branch">Config Branch: -</span>
+            <span class="pill" id="pill-changes">Change Count: -</span>
+            <span class="pill" id="pill-open-prs">Open PR Count: -</span>
+            <span class="pill" id="pill-validation">Validation Status: -</span>
+            <span class="pill" id="pill-backup">Backup Status: -</span>
           {% endif %}
         </div>
       </header>
 
-      {% if nav_mode != "home" and backup_status %}
+      {% if nav_mode == "config" and backup_status %}
         <section class="panel backup-status-panel">
           <h3>Backup Status</h3>
           <p><strong>{{ backup_status.summary or "Backup status unavailable." }}</strong></p>

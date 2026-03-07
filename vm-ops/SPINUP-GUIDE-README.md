@@ -17,6 +17,12 @@ git checkout feat/codex_vm_v1
 cd vm-ops
 ```
 
+From this point onward, commands assume your current directory is:
+
+```text
+.../self-hosted-server-apps/vm-ops
+```
+
 ## 3. Verify Python
 
 ```bash
@@ -47,7 +53,42 @@ pip install --upgrade pip
 pip install -r vm-managment-app/requirements.txt
 ```
 
+If you are still at repo root (`.../self-hosted-server-apps`) instead of `vm-ops`, use:
+
+```bash
+pip install --upgrade pip
+pip install -r vm-ops/vm-managment-app/requirements.txt
+```
+
 If install fails with DNS/network errors, your machine cannot reach PyPI yet. Fix outbound internet/DNS, then rerun the two commands above.
+
+## 5.1 Install System Dependencies For Git/PR Features
+
+Linux (Ubuntu/Debian):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git gh
+gh --version
+gh auth login
+gh auth status
+```
+
+macOS (Homebrew):
+
+```bash
+brew install gh
+gh --version
+gh auth login
+gh auth status
+```
+
+Without `gh`, Branch/Commit PR actions in the UI will show an error.
+If `gh` is installed but UI still cannot find it, start server with:
+
+```bash
+GH_BIN=$(which gh) uvicorn app.main:app --app-dir vm-managment-app --reload --host 127.0.0.1 --port 8787
+```
 
 ## 6. Validate Repo
 

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h3>Time Zone</h3>
+  <p>
+    Pick the app time zone used for branch default naming and all displayed timestamps across VM Management.
+  </p>
+  <p class="muted">Current Time Zone: <code>{{ current_timezone }}</code></p>
+  <p class="muted">UI Target Branch: <code>{{ preferred_config_branch or "-" }}</code></p>
+
+  <form
+    class="form-grid"
+    hx-post="/settings/save"
+    hx-target="#settings-feedback"
+    hx-swap="innerHTML"
+  >
+    <label>
+      UI Target Branch (optional)
+      <input
+        type="text"
+        name="preferred_config_branch"
+        value="{{ preferred_config_branch or '' }}"
+        placeholder="config_update/March-07-2026--12-34-PM"
+      />
+      <span class="hint">
+        Commits and pushes default to this branch when branch input is left empty. Use
+        <code>config_update/&lt;MonthName&gt;-&lt;DD&gt;-&lt;YYYY&gt;--&lt;hh&gt;-&lt;mm&gt;-&lt;AM/PM&gt;</code>.
+      </span>
+    </label>
+
+    <label>
+      Time Zone ({{ timezone_options|length }} available zones)
+      <select name="timezone" required>
+        {% for tz in timezone_options %}
+          <option value="{{ tz }}" {% if tz == current_timezone %}selected{% endif %}>{{ tz }}</option>
+        {% endfor %}
+      </select>
+      <span class="hint">Scroll or type letters while focused to jump through the list.</span>
+    </label>
+
+    <div class="actions-row">
+      <button type="submit" class="btn">Save Settings</button>
+    </div>
+  </form>
+
+  <div id="settings-feedback" class="result-box"></div>
+</section>
+{% endblock %}

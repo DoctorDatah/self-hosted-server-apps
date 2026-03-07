@@ -2,6 +2,7 @@
 import argparse
 import concurrent.futures as futures
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -229,8 +230,34 @@ def _validate_structure(repo_root: Path) -> List[str]:
     return errors
 
 
+def _tracked_local_app_data_files(repo_root: Path) -> List[str]:
+    try:
+        proc = subprocess.run(
+            ["git", "ls-files"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:
+        return []
+    if proc.returncode != 0:
+        return []
+    tracked = [str(x).strip() for x in (proc.stdout or "").splitlines() if str(x).strip()]
+    return [p for p in tracked if p.startswith("vm-managment-app/app-data/")]
+
+
 def _validate_references(repo_root: Path) -> List[str]:
     errors: List[str] = []
+    tracked_local_app_data = _tracked_local_app_data_files(repo_root)
+    if tracked_local_app_data:
+        preview = ", ".join(tracked_local_app_data[:5])
+        extra = "" if len(tracked_local_app_data) <= 5 else f" (+{len(tracked_local_app_data) - 5} more)"
+        errors.append(
+            "sensitive local app-data is tracked by git: "
+            f"{preview}{extra}. Remove from index and keep ignored."
+        )
+
     inventory = load_inventory(repo_root)
 
     # targets -> stage metadata references

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ...core.app_meta import APP_DISPLAY_NAME
@@ -75,6 +75,17 @@ def _split_csv(raw: str) -> List[str]:
 def _introduced_errors(before: List[str], after: List[str]) -> List[str]:
     base = set(before)
     return [e for e in after if e not in base]
+
+
+def _normalize_status_path(path: str) -> str:
+    raw = str(path or "").strip()
+    if " -> " in raw:
+        raw = raw.split(" -> ", 1)[1].strip()
+    return raw.lstrip("./")
+
+
+def _config_scoped_changes(changed_files: List[str]) -> List[str]:
+    return [_normalize_status_path(p) for p in changed_files if _normalize_status_path(p).startswith("vm-configs/")]
 
 
 def _git_tracked_paths(paths: config_store.ConfigPaths) -> List[str]:
@@ -182,6 +193,12 @@ def dashboard(request: Request):
     paths = _paths()
     bundle = config_store.load_bundle(paths)
     status = git_ops.get_status(paths.repo_root)
+    config_changed_files = _config_scoped_changes([str(x) for x in status.get("changed_files", [])])
+    config_git_status = {
+        "is_clean": len(config_changed_files) == 0,
+        "changed_files": config_changed_files,
+        "change_count": len(config_changed_files),
+    }
     validation_errors = validators.validate_bundle(bundle, paths.repo_root)
     backups_count = len(backups.list_backups(paths))
 
@@ -199,6 +216,7 @@ def dashboard(request: Request):
             rules_count=len(rules),
             backups_count=backups_count,
             git_status=status,
+            git_status_config=config_git_status,
             validation_errors=validation_errors,
         ),
     )
@@ -212,36 +230,100 @@ def git_commits_page(request: Request):
     timezone_name = str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE))
     preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
     status = git_ops.get_status(paths.repo_root)
-    default_branch = preferred_branch or git_ops.default_branch_name(timezone_name)
+    current_local_branch = str(status.get("branch", "") or "")
+    related_prs: List[Dict[str, Any]] = []
+    pr_list_error = ""
+    related_branches: List[Dict[str, Any]] = []
+    branch_list_error = ""
+    try:
+        related_prs = git_ops.list_open_prs(
+            paths.repo_root,
+            preferred_branch=preferred_branch,
+            related_only=True,
+            limit=100,
+        )
+    except Exception as exc:  # noqa: BLE001
+        pr_list_error = str(exc)
+    try:
+        related_branches = git_ops.list_related_branches(
+            paths.repo_root,
+            preferred_branch=preferred_branch,
+            limit=100,
+        )
+    except Exception as exc:  # noqa: BLE001
+        branch_list_error = str(exc)
+
+    if git_ops.is_related_config_branch(current_local_branch, preferred_branch=preferred_branch):
+        selected_target_branch = current_local_branch
+        selected_branch_source = "local_related"
+    elif related_prs:
+        selected_target_branch = str(related_prs[0].get("head", "") or "").strip()
+        selected_branch_source = "open_related_pr"
+    else:
+        resolved_branch, _resolved_exists = git_ops.resolve_target_branch(
+            paths.repo_root,
+            explicit_branch=None,
+            preferred_branch=preferred_branch or None,
+            fallback_tz=timezone_name,
+        )
+        selected_target_branch = resolved_branch
+        selected_branch_source = "resolved_related_or_new"
     return templates.TemplateResponse(
         "git_commits.html",
         _ctx(
             request,
             page_title="Branch and Commit",
             git_status=status,
-            default_branch=default_branch,
+            default_branch=git_ops.default_branch_name(timezone_name),
+            selected_target_branch=selected_target_branch,
+            selected_branch_source=selected_branch_source,
             preferred_config_branch=preferred_branch,
             default_message=git_ops.default_commit_message(),
             tracked_files=_git_tracked_paths(paths),
+            related_open_prs=related_prs,
+            pr_list_error=pr_list_error,
+            related_branches=related_branches,
+            branch_list_error=branch_list_error,
         ),
     )
 
 
 @router.get("/settings")
-def settings_page(request: Request):
+def settings_root() -> RedirectResponse:
+    return RedirectResponse(url="/settings/timezone", status_code=307)
+
+
+@router.get("/settings/timezone")
+def settings_timezone_page(request: Request):
     paths = _paths()
     cfg = app_settings.load_settings(paths.repo_root)
     timezone_name = str(cfg.get("timezone", app_settings.DEFAULT_TIMEZONE))
     preferred_branch = str(cfg.get("preferred_config_branch", "") or "")
     return templates.TemplateResponse(
-        "settings.html",
+        "settings_timezone.html",
         _ctx(
             request,
-            page_title="Settings",
-            nav_mode="home" if request.url.path == "/settings" else "config",
+            page_title="Settings - Time Zone",
+            nav_mode="settings",
             current_timezone=timezone_name,
             preferred_config_branch=preferred_branch,
             timezone_options=app_settings.all_timezones(),
+        ),
+    )
+
+
+@router.get("/settings/connections")
+def settings_connections_page(request: Request):
+    paths = _paths()
+    github_connection = git_ops.github_connection_status(paths.repo_root)
+    return templates.TemplateResponse(
+        "settings_connections.html",
+        _ctx(
+            request,
+            page_title="Settings - Connections",
+            nav_mode="settings",
+            github_connection=github_connection,
+            github_device_login_url="https://github.com/login/device",
         ),
     )
 
@@ -266,6 +348,89 @@ async def save_settings(request: Request):
             "<div class='flash success'>"
             f"Settings saved. Timezone: <code>{saved['timezone']}</code>. "
             f"UI target branch: <code>{saved.get('preferred_config_branch', '') or '-'}</code>."
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/settings/connections/github/connect")
+async def settings_connect_github(request: Request):
+    paths = _paths()
+    try:
+        result = git_ops.connect_github_web(paths.repo_root, git_protocol="https", hostname="github.com")
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(
+            (
+                "<div class='flash error'>"
+                f"GitHub connect failed: {exc}<br/>"
+                "If browser did not open, run <code>gh auth login --web --git-protocol https</code> in terminal."
+                "</div>"
+            ),
+            status_code=200,
+        )
+    device_code = str(result.get("device_code", "") or "").strip()
+    auth_url = str(result.get("auth_url", "https://github.com/login/device"))
+    details = "<div class='flash success'>"
+    details += f"{result.get('message', 'GitHub browser OAuth started.')}<br/>"
+    if device_code:
+        details += (
+            "Device Code (enter this on GitHub): "
+            f"<code style='font-size:1.1rem;'>{device_code}</code>. "
+            f"<button type='button' class='btn ghost small' onclick=\"navigator.clipboard && navigator.clipboard.writeText('{device_code}')\">Copy Code</button><br/>"
+            "Paste this code into the GitHub authentication tab.<br/>"
+        )
+    else:
+        details += (
+            "<span class='warn'>Device code is not available yet.</span> "
+            "GitHub CLI usually copies it to your clipboard automatically.<br/>"
+            "If the GitHub page asks for a code, click Connect To GitHub again.<br/>"
+        )
+    details += (
+        "Open authentication page: "
+        f"<a class='card-link' href='{auth_url}' target='_blank' rel='noreferrer'>GitHub Device Login</a>.<br/>"
+        "After completing browser auth, refresh this page to see Connected status."
+        "</div>"
+    )
+    return HTMLResponse(details, status_code=200)
+
+
+@router.post("/settings/connections/github/device-code")
+async def settings_device_code_github(request: Request):
+    code = str(git_ops.read_device_code_hint() or "").strip()
+    if code:
+        return HTMLResponse(
+            (
+                "<div class='flash success'>"
+                "Device Code: "
+                f"<code style='font-size:1.1rem;'>{code}</code>. "
+                f"<button type='button' class='btn ghost small' onclick=\"navigator.clipboard && navigator.clipboard.writeText('{code}')\">Copy Code</button>"
+                "</div>"
+            ),
+            status_code=200,
+        )
+    return HTMLResponse(
+        (
+            "<div class='flash warn'>"
+            "No device code found in clipboard yet. Click Connect To GitHub again, then retry."
+            "</div>"
+        ),
+        status_code=200,
+    )
+
+
+@router.post("/settings/connections/github/disconnect")
+async def settings_disconnect_github(request: Request):
+    paths = _paths()
+    try:
+        result = git_ops.disconnect_github(paths.repo_root, hostname="github.com")
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<div class='flash error'>GitHub disconnect failed: {exc}</div>", status_code=200)
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            "GitHub disconnected. Refreshing status.<br/>"
+            f"<pre>{result.get('message', '')}</pre>"
             "</div>"
         ),
         headers={"HX-Refresh": "true"},
@@ -327,6 +492,124 @@ async def git_prepare_commit(request: Request):
             f"<ul class='simple-list'>{files_html or '<li>-</li>'}</ul>"
             "<h4>Next Commands</h4>"
             f"<ul class='simple-list'>{next_cmds or '<li>-</li>'}</ul>"
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/config-management/git-commits/create-pr")
+async def git_create_pr(request: Request):
+    paths = _paths()
+    form = await request.form()
+    head_branch = str(form.get("head_branch", "")).strip()
+    base_branch = str(form.get("base_branch", "main")).strip() or "main"
+    pr_title = str(form.get("pr_title", "")).strip()
+    pr_body = str(form.get("pr_body", ""))
+    use_fill = str(form.get("use_fill", "")).strip().lower() in {"1", "true", "on", "yes"}
+
+    if not head_branch:
+        head_branch = app_settings.get_preferred_config_branch(paths.repo_root)
+
+    try:
+        created = git_ops.create_pr(
+            paths.repo_root,
+            head_branch=head_branch,
+            base_branch=base_branch,
+            title=pr_title,
+            body=pr_body,
+            use_fill=use_fill,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(
+            (
+                "<div class='flash error'>"
+                f"Create PR failed: {exc}<br/>"
+                "Go to <code>Settings -> Connections -> GitHub</code> and connect via browser OAuth "
+                "(<code>gh auth login --web</code>), then retry."
+                "</div>"
+            ),
+            status_code=200,
+        )
+
+    url = created.get("url", "")
+    link = f"<a href='{url}' target='_blank' rel='noreferrer'>{url}</a>" if url else "(URL not returned by gh)"
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"PR created for <code>{created['head']}</code> -> <code>{created['base']}</code>.<br/>"
+            f"{link}"
+            "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/config-management/git-commits/delete-pr")
+async def git_delete_pr(request: Request):
+    paths = _paths()
+    form = await request.form()
+    pr_number_raw = str(form.get("pr_number", "")).strip()
+    delete_branch = str(form.get("delete_branch", "")).strip().lower() in {"1", "true", "on", "yes"}
+
+    try:
+        pr_number = int(pr_number_raw)
+    except ValueError:
+        return HTMLResponse("<div class='flash error'>Delete PR failed: pr_number must be an integer.</div>", status_code=200)
+
+    try:
+        result = git_ops.close_pr(paths.repo_root, pr_number=pr_number, delete_branch=delete_branch)
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(
+            (
+                "<div class='flash error'>"
+                f"Delete PR failed: {exc}<br/>"
+                "Go to <code>Settings -> Connections -> GitHub</code> and connect via browser OAuth "
+                "(<code>gh auth login --web</code>), then retry."
+                "</div>"
+            ),
+            status_code=200,
+        )
+
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"PR <code>#{result['number']}</code> closed."
+            + (" Related branch delete requested." if result.get("delete_branch") else "")
+            + "</div>"
+        ),
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/config-management/git-commits/delete-branch")
+async def git_delete_branch(request: Request):
+    paths = _paths()
+    form = await request.form()
+    branch_name = str(form.get("branch_name", "")).strip()
+    remote_name = str(form.get("remote_name", "origin")).strip() or "origin"
+    delete_local = str(form.get("delete_local", "")).strip().lower() in {"1", "true", "on", "yes"}
+    delete_remote = str(form.get("delete_remote", "")).strip().lower() in {"1", "true", "on", "yes"}
+
+    try:
+        result = git_ops.delete_branch(
+            paths.repo_root,
+            branch_name=branch_name,
+            delete_local=delete_local,
+            delete_remote=delete_remote,
+            remote_name=remote_name,
+        )
+        preferred = app_settings.get_preferred_config_branch(paths.repo_root)
+        if preferred and preferred == branch_name:
+            app_settings.save_preferred_config_branch(paths.repo_root, "")
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<div class='flash error'>Delete branch failed: {exc}</div>", status_code=200)
+
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"Branch <code>{result['branch']}</code> delete complete. "
+            f"local_deleted={result['local_deleted']}, remote_deleted={result['remote_deleted']}."
             "</div>"
         ),
         headers={"HX-Refresh": "true"},
@@ -503,11 +786,12 @@ def backups_page(
 @router.post("/config-management/backups/create")
 async def create_backup(request: Request):
     paths = _paths()
+    timezone_name = app_settings.get_timezone(paths.repo_root)
     form = await request.form()
     label = str(form.get("label", "")).strip()
     remark = str(form.get("remark", "")).strip()
     try:
-        meta = backups.create_backup(paths, label=label, remark=remark)
+        meta = backups.create_backup(paths, label=label, remark=remark, tz_name=timezone_name)
     except Exception as exc:  # noqa: BLE001
         return HTMLResponse(
             f"<div class='flash error'>Backup failed: {exc}</div>",

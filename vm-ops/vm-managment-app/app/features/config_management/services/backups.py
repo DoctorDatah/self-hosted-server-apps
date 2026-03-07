@@ -26,10 +26,13 @@ def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _backup_id() -> str:
-    now = _now_utc()
+def _backup_id(tz_name: str = "UTC") -> str:
+    try:
+        now = datetime.now(ZoneInfo((tz_name or "").strip() or "UTC"))
+    except Exception:
+        now = _now_utc()
     suffix = uuid.uuid4().hex[:6]
-    return f"cfg-{now.strftime('%Y%m%d-%H%M%S')}-{suffix}"
+    return f"cfg-{now.strftime('%B-%d-%Y--%I-%M-%p')}-{suffix}"
 
 
 def _status_file(paths: config_store.ConfigPaths) -> Path:
@@ -106,11 +109,16 @@ def _save_status(paths: config_store.ConfigPaths, payload: Dict[str, Any]) -> No
     _atomic_write(_status_file(paths), json.dumps(payload, indent=2) + "\n")
 
 
-def create_backup(paths: config_store.ConfigPaths, label: str = "", remark: str = "") -> Dict[str, Any]:
+def create_backup(
+    paths: config_store.ConfigPaths,
+    label: str = "",
+    remark: str = "",
+    tz_name: str = "UTC",
+) -> Dict[str, Any]:
     root = _backup_root(paths.repo_root)
     root.mkdir(parents=True, exist_ok=True)
 
-    backup_id = _backup_id()
+    backup_id = _backup_id(tz_name=tz_name)
     backup_dir = root / backup_id
     backup_dir.mkdir(parents=True, exist_ok=False)
 

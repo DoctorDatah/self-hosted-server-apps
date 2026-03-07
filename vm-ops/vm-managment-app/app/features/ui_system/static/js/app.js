@@ -334,51 +334,112 @@
     });
   }
 
+  function bindGithubClipboardCode(root) {
+    var btn = qs('#github-clipboard-code-btn', root || document);
+    if (!btn || btn.__boundClipboardCode) return;
+    btn.__boundClipboardCode = true;
+
+    btn.addEventListener('click', async function () {
+      var resultNode = qs('#github-connection-result');
+      if (!resultNode) return;
+
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        resultNode.innerHTML = '<div class="flash warn">Browser clipboard read is unavailable. Use "Server Fallback Code".</div>';
+        return;
+      }
+
+      try {
+        var clip = await navigator.clipboard.readText();
+        var match = String(clip || '').toUpperCase().match(/\b[A-Z0-9]{4}-[A-Z0-9]{4}\b/);
+        if (match && match[0]) {
+          var code = match[0];
+          resultNode.innerHTML = (
+            '<div class="flash success">Device Code: <code style="font-size:1.1rem;">' + asHtml(code) + '</code>. ' +
+            '<button type="button" class="btn ghost small" id="github-copy-device-code-btn">Copy Code</button></div>'
+          );
+          var copyBtn = qs('#github-copy-device-code-btn', resultNode);
+          if (copyBtn) {
+            copyBtn.addEventListener('click', function () {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code);
+              }
+            });
+          }
+          return;
+        }
+        resultNode.innerHTML = '<div class="flash warn">No device code pattern found in clipboard. Click Connect To GitHub again and retry.</div>';
+      } catch (_err) {
+        resultNode.innerHTML = '<div class="flash warn">Clipboard permission denied. Allow clipboard access, then retry.</div>';
+      }
+    });
+  }
+
   async function refreshTopStatus() {
     try {
       var res = await fetch('/api/status');
       if (!res.ok) throw new Error('status failed');
       var data = await res.json();
+      var navMode = (document.body && document.body.getAttribute('data-nav-mode')) || 'home';
 
-      var changed = (data.changed_files || []).length;
+      var changed = Number(data.config_changed_count || 0);
+      if (!Number.isFinite(changed)) {
+        changed = (data.config_changed_files || []).length;
+      }
+      var openPrCountRaw = data.related_open_pr_count;
+      var openPrCount = Number.isFinite(Number(openPrCountRaw)) ? String(Number(openPrCountRaw)) : 'N/A';
       var validation = (data.validation_errors || []).length;
       var backupStatus = data.backup_status || {};
       var backupState = String(backupStatus.state || '');
       var backupSummary = String(backupStatus.summary || '');
+      var backupId = String(backupStatus.latest_matching_backup_id || backupStatus.latest_backup_id || '-');
+      var branchValue = String(data.preferred_config_branch || '-');
+      var trackedSensitiveCount = Number(data.tracked_sensitive_count || 0);
 
-      var branchNode = qs('#pill-branch');
       var targetBranchNode = qs('#pill-target-branch');
       var changesNode = qs('#pill-changes');
+      var openPrNode = qs('#pill-open-prs');
       var validationNode = qs('#pill-validation');
       var timezoneNode = qs('#pill-timezone');
       var backupNode = qs('#pill-backup');
       var statusText = qs('#top-status-text');
 
-      if (branchNode) branchNode.textContent = 'branch: ' + (data.branch || '-');
-      if (targetBranchNode) targetBranchNode.textContent = 'ui target: ' + (data.preferred_config_branch || '-');
-      if (changesNode) changesNode.textContent = 'changes: ' + changed;
-      if (validationNode) validationNode.textContent = 'validation: ' + (validation ? 'errors' : 'ok');
-      if (timezoneNode) timezoneNode.textContent = 'timezone: ' + (data.app_timezone || 'UTC');
+      if (targetBranchNode) targetBranchNode.textContent = 'Config Branch: ' + branchValue;
+      if (changesNode) changesNode.textContent = 'Change Count: ' + changed;
+      if (openPrNode) openPrNode.textContent = 'Open PR Count: ' + openPrCount;
+      if (validationNode) validationNode.textContent = 'Validation Status: ' + (validation ? 'Errors' : 'Ok');
+      if (timezoneNode) timezoneNode.textContent = 'Global Time Zone: ' + (data.app_timezone || 'UTC');
       if (backupNode) {
         backupNode.classList.remove('ok', 'warn');
         if (backupState === 'backed_up' || backupState === 'backed_up_restored') {
-          backupNode.textContent = 'backup: up to date';
+          backupNode.textContent = 'Backup Status: Up To Date';
           backupNode.classList.add('ok');
         } else if (backupState) {
-          backupNode.textContent = 'backup: not backed up';
+          backupNode.textContent = 'Backup Status: Not Backed Up';
           backupNode.classList.add('warn');
         } else {
-          backupNode.textContent = 'backup: -';
+          backupNode.textContent = 'Backup Status: -';
         }
       }
       if (statusText) {
-        var validationText = validation
-          ? 'Validation has issues.'
-          : 'Validation is clean.';
-        if (backupSummary) {
-          statusText.textContent = backupSummary + ' ' + validationText;
+        if (navMode === 'config') {
+          var validationText = validation
+            ? 'Validation has issues.'
+            : 'Validation is clean.';
+          var securityText = trackedSensitiveCount > 0
+            ? 'Security alert: local app-data is tracked by git.'
+            : '';
+          var infoPrefix = [
+            'Config Branch: ' + branchValue,
+            'Matching Backup: ' + backupId,
+            'Open PR Count: ' + openPrCount
+          ].join(' | ');
+          if (backupSummary) {
+            statusText.textContent = infoPrefix + '. ' + backupSummary + ' ' + validationText + (securityText ? ' ' + securityText : '');
+          } else {
+            statusText.textContent = infoPrefix + '. ' + validationText + (securityText ? ' ' + securityText : '');
+          }
         } else {
-          statusText.textContent = validationText;
+          statusText.textContent = 'Global settings apply across all sections.';
         }
       }
     } catch (_err) {
@@ -475,6 +536,7 @@
       bindSetupCheckboxes(event.target);
       openDrawer();
     }
+    bindGithubClipboardCode(document);
   });
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -483,6 +545,7 @@
     bindSetupCheckboxes(document);
     bindDeleteButtons(document);
     bindGitPrepareForm(document);
+    bindGithubClipboardCode(document);
     bindRealtime();
     refreshTopStatus();
   });

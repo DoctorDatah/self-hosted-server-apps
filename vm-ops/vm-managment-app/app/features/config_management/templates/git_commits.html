@@ -1,42 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel">
-  <h3>Branch and Commit</h3>
-  <p>
-    Manage a UI target branch from here without changing your main local checked-out branch.
-    Commits happen in an isolated worktree.
-  </p>
-  <p class="muted">Branch default uses timezone: <code>{{ app_timezone or 'UTC' }}</code></p>
-  <p class="muted">UI target branch: <code>{{ preferred_config_branch or default_branch }}</code></p>
-</section>
-
-<section class="panel two-col">
-  <div>
-    <h3>Git Working Tree</h3>
-    <p>Current branch: <code>{{ git_status.branch }}</code></p>
-    {% if git_status.is_clean %}
-      <p class="ok">Working tree is clean.</p>
-    {% else %}
-      <p class="warn">Working tree has local changes.</p>
-      <ul class="simple-list">
-        {% for path in git_status.changed_files %}
-          <li><code>{{ path }}</code></li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-
-  <div>
-    <h3>Tracked Config Files</h3>
-    <ul class="simple-list">
-      {% for tracked in tracked_files %}
-        <li><code>{{ tracked }}</code></li>
-      {% endfor %}
-    </ul>
-  </div>
-</section>
-
-<section class="panel">
   <h3>Set Active Branch</h3>
   <form
     class="form-grid"
@@ -46,7 +10,7 @@
   >
     <label>
       Branch Name
-      <input type="text" name="branch_name" value="{{ preferred_config_branch or default_branch or '' }}" required />
+      <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or default_branch or '' }}" required />
     </label>
     <div class="actions-row">
       <button type="submit" class="btn">Create/Switch Branch</button>
@@ -64,7 +28,7 @@
   >
     <label>
       Branch Name (optional)
-      <input type="text" name="branch_name" value="{{ preferred_config_branch or '' }}" />
+      <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
     </label>
 
     <label>
@@ -89,7 +53,7 @@
     <div class="field-row two-col">
       <label>
         Branch Name
-        <input type="text" name="branch_name" value="{{ preferred_config_branch or '' }}" />
+        <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
       </label>
       <label>
         Remote Name
@@ -107,7 +71,193 @@
 </section>
 
 <section class="panel">
-  <h3>Result</h3>
+  <h3>Create PR</h3>
+  <form
+    class="form-grid"
+    hx-post="/config-management/git-commits/create-pr"
+    hx-target="#git-action-result"
+    hx-swap="innerHTML"
+  >
+    <div class="field-row two-col">
+      <label>
+        Head Branch
+        <input type="text" name="head_branch" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
+      </label>
+      <label>
+        Base Branch
+        <input type="text" name="base_branch" value="main" />
+      </label>
+    </div>
+    <label>
+      PR Title (optional when Fill is enabled)
+      <input type="text" name="pr_title" placeholder="chore(vm-configs): update config" />
+    </label>
+    <label>
+      PR Body (optional)
+      <textarea name="pr_body" rows="4" placeholder="Summary of config changes"></textarea>
+    </label>
+    <label class="checkline">
+      <input type="checkbox" name="use_fill" checked />
+      <span>Use git commit details to auto-fill PR metadata (`gh pr create --fill`)</span>
+    </label>
+    <div class="actions-row">
+      <button type="submit" class="btn">Create PR</button>
+    </div>
+  </form>
   <div id="git-action-result" class="result-box"></div>
+</section>
+
+<section class="panel">
+  <h3>Tracked Config Files</h3>
+  <ul class="simple-list">
+    {% for tracked in tracked_files %}
+      <li><code>{{ tracked }}</code></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h3>Related Open Branches</h3>
+  <p class="hint">All related config branches currently present in local/remote refs.</p>
+  {% if not related_branches %}
+    <div class="flash warn">
+      No related config branch found. Create a new branch using Set Active Branch above.
+    </div>
+  {% endif %}
+  {% if branch_list_error %}
+    <div class="flash warn">
+      Could not list related branches: {{ branch_list_error }}.
+    </div>
+  {% endif %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>branch</th>
+          <th>local</th>
+          <th>remote</th>
+          <th>preferred</th>
+          <th>last commit</th>
+          <th>actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in related_branches %}
+          <tr>
+            <td><code>{{ row.branch }}</code></td>
+            <td>{{ "yes" if row.local_exists else "no" }}</td>
+            <td>{{ "yes" if row.remote_exists else "no" }}</td>
+            <td>{{ "yes" if row.is_preferred else "no" }}</td>
+            <td>{{ row.last_commit_at or "-" }}</td>
+            <td>
+              <div class="actions-row">
+                {% if row.github_url %}
+                  <a class="btn small ghost" href="{{ row.github_url }}" target="_blank" rel="noreferrer">Open Branch</a>
+                {% endif %}
+                <form
+                  hx-post="/config-management/git-commits/delete-branch"
+                  hx-target="#git-action-result"
+                  hx-swap="innerHTML"
+                  onsubmit="return confirm('Delete branch {{ row.branch }} (local + remote)?')"
+                >
+                  <input type="hidden" name="branch_name" value="{{ row.branch }}" />
+                  <input type="hidden" name="remote_name" value="origin" />
+                  <input type="hidden" name="delete_local" value="true" />
+                  <input type="hidden" name="delete_remote" value="true" />
+                  <button type="submit" class="btn danger">Delete Branch</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">No related config branches found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Related Open PRs</h3>
+  <p class="hint">Shows open PRs for related config branches (including your UI target branch).</p>
+  {% if pr_list_error %}
+    <div class="flash warn">
+      Could not list PRs: {{ pr_list_error }}.
+      Go to <code>Settings -> Connections -> GitHub</code> and connect using <code>gh auth login --web</code>.
+    </div>
+  {% endif %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>title</th>
+          <th>head</th>
+          <th>base</th>
+          <th>author</th>
+          <th>updated</th>
+          <th>url</th>
+          <th>actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in related_open_prs %}
+          <tr>
+            <td>{{ pr.number }}</td>
+            <td>{{ pr.title }}</td>
+            <td><code>{{ pr.head }}</code></td>
+            <td><code>{{ pr.base }}</code></td>
+            <td>{{ pr.author or "-" }}</td>
+            <td>{{ pr.updated_at or "-" }}</td>
+            <td>
+              {% if pr.url %}
+                <a class="card-link" href="{{ pr.url }}" target="_blank" rel="noreferrer">Open</a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              <div class="actions-row">
+                {% if pr.url %}
+                  <a class="btn small ghost" href="{{ pr.url }}" target="_blank" rel="noreferrer">Open PR</a>
+                {% endif %}
+                <form
+                  hx-post="/config-management/git-commits/delete-pr"
+                  hx-target="#git-action-result"
+                  hx-swap="innerHTML"
+                  onsubmit="return confirm('Close PR #{{ pr.number }}?')"
+                >
+                  <input type="hidden" name="pr_number" value="{{ pr.number }}" />
+                  <label class="checkline" style="margin-bottom:0.4rem;">
+                    <input type="checkbox" name="delete_branch" />
+                    <span>also delete branch</span>
+                  </label>
+                  <button type="submit" class="btn danger">Close PR</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8">No related open PRs found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Branch and Commit</h3>
+  <p>Manage only related config branches from here. Commits happen in an isolated worktree.</p>
+  <p class="hint">
+    Expected flow: keep one active config branch and one related open PR at a time.
+    If no related branch/PR appears here, it usually means the previous one was merged/closed.
+  </p>
+  <p class="hint">
+    Config Management branch format: <code>config_update/&lt;MonthName&gt;-&lt;DD&gt;-&lt;YYYY&gt;--&lt;hh&gt;-&lt;mm&gt;-&lt;AM/PM&gt;</code>
+    (example: <code>config_update/March-07-2026--12-34-PM</code>).
+  </p>
+  <p class="hint">All config commits stay on <code>config_update/*</code> branches. <code>main</code> remains clean.</p>
+  <p class="muted">Branch default uses timezone: <code>{{ app_timezone or 'UTC' }}</code></p>
+  <p class="muted">UI target branch: <code>{{ selected_target_branch or preferred_config_branch or default_branch }}</code></p>
 </section>
 {% endblock %}
