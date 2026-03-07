@@ -46,6 +46,9 @@ def _group_members(raw_group: Any) -> List[str]:
 
 
 def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any]:
+    raw_type = str(machine.get("target_type", machine.get("type", "vm")))
+    canonical_type = "host" if raw_type in {"host", "host-vm"} else "vm"
+
     enabled = machine.get("enabled_setups", machine.get("enabled_stages", []))
     if not isinstance(enabled, list):
         enabled = []
@@ -67,7 +70,10 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
         groups = []
 
     return {
-        "target_type": machine.get("target_type", machine.get("type", "vm")),
+        # Runtime uses canonical target_type values for stage compatibility.
+        "target_type": canonical_type,
+        # Keep raw type visible for UI/listing compatibility.
+        "vm_type": raw_type,
         "environment": machine.get("environment", machine.get("env", "")),
         "labels": [str(x) for x in labels],
         "enabled_stages": [str(x) for x in enabled],

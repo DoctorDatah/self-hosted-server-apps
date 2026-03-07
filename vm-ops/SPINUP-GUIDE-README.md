@@ -1,6 +1,6 @@
 # SPINUP-GUIDE-README.md
 
-This guide gets `vm-ops` and `vm-managment-app` running on a host or VM with copy/paste commands.
+This guide gets `vm-ops` and **VM Management** (`vm-managment-app` folder) running on a host or VM with copy/paste commands.
 
 ## 1. Clone Repo
 
@@ -100,11 +100,21 @@ http://127.0.0.1:8787
 http://<vm-ip>:8787
 ```
 
+Example direct URL (replace with your real VM IP):
+
+```text
+http://87.87.87.87:8787
+```
+
 If still not reachable, check listener on VM:
 
 ```bash
 ss -ltnp | grep 8787 || lsof -iTCP:8787 -sTCP:LISTEN
 ```
+
+Important:
+- `0.0.0.0` is only a bind address for the server command.
+- Never paste `http://0.0.0.0:8787` into Safari/Chrome.
 
 ## 9. Useful Runtime Checks
 

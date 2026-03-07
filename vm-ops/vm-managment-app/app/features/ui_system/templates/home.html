@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h3>Welcome to {{ app_display_name }}</h3>
+  <p>
+    Choose a top-level area from the main menu. Right now, <strong>Config Management</strong>
+    is available.
+  </p>
+</section>
+
+<section class="cards-grid">
+  <article class="stat-card">
+    <h3>Config Management</h3>
+    <p>Manage machines, operations, rules, and config source-of-truth files.</p>
+    <a href="/config-management" class="card-link">Open Config Management</a>
+  </article>
+</section>
+{% endblock %}

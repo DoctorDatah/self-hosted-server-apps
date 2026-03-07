@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h3>UI System Tokens</h3>
+  <p>High-level design and architecture tokens used by the interface.</p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Token</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for domain, mapping in tokens.items() %}
+          {% for key, value in mapping.items() %}
+            <tr>
+              <td>{{ domain }}</td>
+              <td><code>{{ key }}</code></td>
+              <td><code>{{ value }}</code></td>
+            </tr>
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

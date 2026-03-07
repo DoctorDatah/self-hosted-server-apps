@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h3>Source of Truth for Config</h3>
+  <p>The following files are the canonical configuration inputs used by runtime and UI.</p>
+  <ul class="simple-list">
+    {% for file in files %}
+      <li><code>{{ file }}</code></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="panel">
+  <h3>Backup Before Editing</h3>
+  <p>
+    Use Config Backups to snapshot these files with label and remarks before making large changes.
+    You can restore any snapshot in chronological order.
+  </p>
+  <div class="actions-row">
+    <a class="btn" href="/config-management/backups">Open Config Backups</a>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>How to Validate</h3>
+  <pre class="diff-view">python3 tools/quick_validate.py
+./runtime/vmcx doctor --ci</pre>
+</section>
+{% endblock %}

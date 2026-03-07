@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <div class="table-tools">
+    <input type="search" class="table-filter" data-filter-target="#rules-table" placeholder="Filter rules..." />
+    <button
+      class="btn"
+      hx-get="/rules/form"
+      hx-target="#drawer-body"
+      hx-swap="innerHTML"
+      data-open-drawer="true"
+      data-drawer-title="Create Rule"
+      type="button"
+    >
+      Add Rule
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="rules-table" class="data-table">
+      <thead>
+        <tr>
+          <th>setup_id</th>
+          <th>requires_confirmation</th>
+          <th>allowed_environments</th>
+          <th>actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for setup_id, rule in rules %}
+          <tr>
+            <td><code>{{ setup_id }}</code></td>
+            <td>{{ rule.requires_confirmation }}</td>
+            <td>
+              {% set envs = rule.allowed_environments or [] %}
+              {% if envs %}
+                {{ envs | join(', ') }}
+              {% else %}
+                <span class="muted">Any</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="inline-actions">
+                <button
+                  class="btn small"
+                  hx-get="/rules/form?setup_id={{ setup_id }}"
+                  hx-target="#drawer-body"
+                  hx-swap="innerHTML"
+                  data-open-drawer="true"
+                  data-drawer-title="Edit {{ setup_id }}"
+                  type="button"
+                >Edit</button>
+
+                <button
+                  class="btn danger small delete-entity-btn"
+                  type="button"
+                  data-entity-type="rule"
+                  data-entity-id="{{ setup_id }}"
+                >Delete</button>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No rules configured.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

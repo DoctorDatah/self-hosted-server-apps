@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="cards-grid">
+  <article class="stat-card">
+    <h3>Machines</h3>
+    <p class="stat-number">{{ machines_count }}</p>
+    <a href="/config-management/machines" class="card-link">Manage Machines</a>
+  </article>
+  <article class="stat-card">
+    <h3>Operations</h3>
+    <p class="stat-number">{{ operations_count }}</p>
+    <a href="/config-management/operations" class="card-link">Manage Operations</a>
+  </article>
+  <article class="stat-card">
+    <h3>Env Rules</h3>
+    <p class="stat-number">{{ rules_count }}</p>
+    <a href="/config-management/rules" class="card-link">Manage Rules</a>
+  </article>
+  <article class="stat-card">
+    <h3>Config Backups</h3>
+    <p class="stat-number">{{ backups_count or 0 }}</p>
+    <a href="/config-management/backups" class="card-link">Create or Restore Backups</a>
+  </article>
+  <article class="stat-card">
+    <h3>Branch and Commit</h3>
+    <p class="stat-number">Git</p>
+    <a href="/config-management/git-commits" class="card-link">Open Branch + Commit</a>
+  </article>
+</section>
+
+<section class="panel two-col">
+  <div>
+    <h3>Git Working Tree</h3>
+    <p>Current branch: <code>{{ git_status.branch }}</code></p>
+    {% if git_status.is_clean %}
+      <p class="ok">Working tree is clean.</p>
+    {% else %}
+      <p class="warn">Working tree has local changes.</p>
+      <ul class="simple-list">
+        {% for path in git_status.changed_files %}
+          <li><code>{{ path }}</code></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <div>
+    <h3>Validation Snapshot</h3>
+    {% if validation_errors %}
+      <p class="warn">Validation issues were detected:</p>
+      <ul class="simple-list">
+        {% for err in validation_errors %}
+          <li>{{ err }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="ok">No validation issues found.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}
