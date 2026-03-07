@@ -23,7 +23,7 @@
         "vm_install"
       ],
       "exec_mode": "vm-local",
-      "repo_path": "/opt/vm-ops",
+      "repo_path": "/repo/vm-ops",
       "ssh": {
         "host": "10.10.0.20",
         "user": "ubuntu",
@@ -48,7 +48,7 @@
         ],
         "repo": {
           "branch": "main",
-          "path": "/opt/vm-ops"
+          "path": "/repo/vm-ops"
         },
         "runtime": {
           "shell": "bash"
@@ -97,7 +97,7 @@
         "repo_clone_or_update"
       ],
       "exec_mode": "vm-remote-ssh",
-      "repo_path": "/opt/vm-ops",
+      "repo_path": "/repo/vm-ops",
       "ssh": {
         "host": "10.10.0.30",
         "user": "ubuntu",
@@ -122,7 +122,7 @@
         ],
         "repo": {
           "branch": "main",
-          "path": "/opt/vm-ops"
+          "path": "/repo/vm-ops"
         },
         "runtime": {
           "shell": "bash"
@@ -180,7 +180,7 @@
       ],
       "set_of_operations": {},
       "exec_mode": "vm-remote-ssh",
-      "repo_path": "/opt/vm-ops",
+      "repo_path": "/repo/vm-ops",
       "ssh": {
         "host": "10.10.0.41",
         "user": "ubuntu",
@@ -205,7 +205,7 @@
         ],
         "repo": {
           "branch": "main",
-          "path": "/opt/vm-ops"
+          "path": "/repo/vm-ops"
         },
         "runtime": {
           "shell": "bash"
@@ -221,8 +221,10 @@
       "labels": [],
       "groups": [],
       "enabled_setups": [
+        "repo_clone_or_update",
+        "vm_install",
         "cloudflare_vm_access",
-        "vm_install"
+        "cleanup_vm"
       ],
       "current_setup_checklist": [],
       "set_of_operations": {
@@ -234,15 +236,57 @@
         }
       },
       "exec_mode": "vm-local",
-      "repo_path": "/opt/vm-ops",
+      "repo_path": "/repo/vm-ops",
       "ssh": {
         "host": "",
         "user": "",
         "port": 22,
         "key_ref": ""
       },
-      "params": {},
-      "defaults": {}
+      "params": {
+        "branch": "main",
+        "repo_path": "/repo/vm-ops",
+        "repo_url": "https://github.com/DoctorDatah/self-hosted-server-apps",
+        "install_utils": true,
+        "utils_version_pin": "",
+        "install_git": true,
+        "git_version_pin": "",
+        "install_python": true,
+        "python_version_pin": "",
+        "install_docker": true,
+        "docker_version_pin": "",
+        "create_network": true,
+        "network_name": "appnet",
+        "install_infisical": true,
+        "infisical_version_pin": "",
+        "install_codex": false,
+        "codex_version_pin": ""
+      },
+      "defaults": {
+        "setup_defaults": {
+          "repo_clone_or_update": {
+            "repo_url": "https://github.com/DoctorDatah/self-hosted-server-apps",
+            "repo_path": "/repo/vm-ops",
+            "branch": "main"
+          },
+          "vm_install": {
+            "install_utils": true,
+            "utils_version_pin": "",
+            "install_git": true,
+            "git_version_pin": "",
+            "install_python": true,
+            "python_version_pin": "",
+            "install_docker": true,
+            "docker_version_pin": "",
+            "create_network": true,
+            "network_name": "appnet",
+            "install_infisical": true,
+            "infisical_version_pin": "",
+            "install_codex": false,
+            "codex_version_pin": ""
+          }
+        }
+      }
     }
   },
   "groups": {

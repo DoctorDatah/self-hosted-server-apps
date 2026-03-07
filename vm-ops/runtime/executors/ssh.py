@@ -23,7 +23,7 @@ def run_ssh_stage(
     user = ssh.get("user")
     port = ssh.get("port", 22)
     key_ref = ssh.get("key_ref")
-    repo_path = target.get("repo_path", "/opt/vm-codex-v2")
+    repo_path = target.get("repo_path", "/repo/vm-ops")
 
     if not host or not user:
         return subprocess.CompletedProcess(args=["ssh"], returncode=2, stdout="", stderr="Missing target.ssh.host or target.ssh.user")

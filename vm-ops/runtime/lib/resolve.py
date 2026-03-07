@@ -107,7 +107,7 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
         "enabled_stages": [str(x) for x in enabled],
         "status": _normalize_machine_status(machine.get("status", "active")),
         "exec_mode": _normalize_machine_exec_mode(machine.get("exec_mode", "vm-local")),
-        "repo_path": machine.get("repo_path", "/opt/vm-ops"),
+        "repo_path": machine.get("repo_path", "/repo/vm-ops"),
         "ssh": machine.get("ssh", {}),
         "access": access,
         "params": params,

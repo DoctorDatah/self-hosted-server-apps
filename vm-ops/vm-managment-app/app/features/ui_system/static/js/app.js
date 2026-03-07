@@ -319,16 +319,93 @@
     return base;
   }
 
+  function getCheckedSetupValues(group) {
+    return qsa('input[type="checkbox"]', group)
+      .filter(function (el) { return el.checked; })
+      .map(function (el) { return String(el.value || '').trim(); })
+      .filter(Boolean);
+  }
+
+  function getChecklistSetForForm(form) {
+    var raw = '';
+    var hidden = qs('input[name="current_setup_checklist_csv"]', form);
+    if (hidden) raw = String(hidden.value || '');
+    return new Set(parseCsvList(raw));
+  }
+
+  function syncEnabledOrderHidden(form) {
+    var hidden = qs('input[data-setup-csv="true"]', form);
+    var orderList = qs('[data-enabled-order-list="true"]', form);
+    if (!hidden || !orderList) return;
+    var ordered = qsa('[data-enabled-order-item]', orderList)
+      .map(function (row) { return String(row.getAttribute('data-enabled-order-item') || '').trim(); })
+      .filter(Boolean);
+    hidden.value = ordered.join(',');
+  }
+
+  function renderEnabledOrderList(form, orderedValues) {
+    var orderList = qs('[data-enabled-order-list="true"]', form);
+    if (!orderList) return;
+    var checklistSet = getChecklistSetForForm(form);
+    orderList.innerHTML = '';
+    orderedValues.forEach(function (sid) {
+      var row = document.createElement('div');
+      row.className = 'enabled-order-row';
+      row.setAttribute('data-enabled-order-item', sid);
+
+      var label = document.createElement('span');
+      label.className = 'enabled-order-label';
+      var mark = checklistSet.has(sid) ? '☑ ' : '☐ ';
+      label.innerHTML = mark + '<code>' + asHtml(sid) + '</code>';
+      row.appendChild(label);
+
+      var actions = document.createElement('div');
+      actions.className = 'actions-row';
+
+      var upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.className = 'btn ghost small';
+      upBtn.setAttribute('data-order-move', 'up');
+      upBtn.setAttribute('aria-label', 'Move ' + sid + ' up');
+      upBtn.textContent = '↑';
+      actions.appendChild(upBtn);
+
+      var downBtn = document.createElement('button');
+      downBtn.type = 'button';
+      downBtn.className = 'btn ghost small';
+      downBtn.setAttribute('data-order-move', 'down');
+      downBtn.setAttribute('aria-label', 'Move ' + sid + ' down');
+      downBtn.textContent = '↓';
+      actions.appendChild(downBtn);
+
+      row.appendChild(actions);
+      orderList.appendChild(row);
+    });
+    syncEnabledOrderHidden(form);
+  }
+
   function updateSetupCsv(container) {
     qsa('[data-setup-checks="true"]', container).forEach(function (group) {
       var form = group.closest('form');
       if (!form) return;
       var hidden = qs('input[data-setup-csv="true"]', form);
       if (!hidden) return;
-      var values = qsa('input[type="checkbox"]', group)
-        .filter(function (el) { return el.checked; })
-        .map(function (el) { return el.value; });
-      hidden.value = values.join(',');
+      var values = getCheckedSetupValues(group);
+      var orderList = qs('[data-enabled-order-list="true"]', form);
+      if (!orderList) {
+        hidden.value = values.join(',');
+        return;
+      }
+
+      var existingOrder = qsa('[data-enabled-order-item]', orderList)
+        .map(function (row) { return String(row.getAttribute('data-enabled-order-item') || '').trim(); })
+        .filter(Boolean);
+      var checkedSet = new Set(values);
+      var ordered = existingOrder.filter(function (sid) { return checkedSet.has(sid); });
+      values.forEach(function (sid) {
+        if (ordered.indexOf(sid) === -1) ordered.push(sid);
+      });
+      renderEnabledOrderList(form, ordered);
     });
   }
 
@@ -339,6 +416,31 @@
       });
     });
     updateSetupCsv(root);
+  }
+
+  function bindEnabledSetupOrderEditors(root) {
+    qsa('[data-enabled-order-list="true"]', root).forEach(function (orderList) {
+      if (orderList.__boundEnabledOrder) return;
+      orderList.__boundEnabledOrder = true;
+      orderList.addEventListener('click', function (event) {
+        var btn = event.target.closest('[data-order-move]');
+        if (!btn) return;
+        var row = btn.closest('[data-enabled-order-item]');
+        if (!row) return;
+        var dir = String(btn.getAttribute('data-order-move') || '');
+        if (dir === 'up') {
+          var prev = row.previousElementSibling;
+          if (prev) row.parentNode.insertBefore(row, prev);
+        } else if (dir === 'down') {
+          var next = row.nextElementSibling;
+          if (next) row.parentNode.insertBefore(next, row);
+        }
+        var form = orderList.closest('form');
+        if (form) syncEnabledOrderHidden(form);
+      });
+      var form = orderList.closest('form');
+      if (form) updateSetupCsv(form);
+    });
   }
 
   function bindChecklistBulkActions(root) {
@@ -366,6 +468,177 @@
       .split(',')
       .map(function (x) { return x.trim(); })
       .filter(Boolean);
+  }
+
+  function stripOuterQuotes(value) {
+    var raw = String(value || '').trim();
+    if (!raw) return raw;
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+      return raw.slice(1, -1).trim();
+    }
+    return raw;
+  }
+
+  function shellValue(value) {
+    var raw = stripOuterQuotes(value);
+    if (!raw) return "''";
+    // Keep shell expansions unquoted when user intentionally sets expressions like ${...}.
+    if (/^\$\{[^}]+\}$/.test(raw) || raw.indexOf('$') !== -1 || raw.indexOf('`') !== -1) {
+      return raw;
+    }
+    return "'" + raw.replace(/'/g, "'\\''") + "'";
+  }
+
+  function buildRepoCloneLocalCmd(repoUrl, repoPath, branch) {
+    return [
+      'REPO_URL=' + shellValue(repoUrl),
+      'REPO_PATH=' + shellValue(repoPath),
+      'BRANCH=' + shellValue(branch),
+      'if [ -z "$REPO_PATH" ] || [ "$REPO_PATH" = "/" ] || [ "$REPO_PATH" = "." ]; then',
+      '  echo "Invalid REPO_PATH. Use /repo/vm-ops" >&2',
+      '  exit 2',
+      'fi',
+      'REPO_PARENT="$(dirname "$REPO_PATH")"',
+      'MONOREPO_HINT=false',
+      'if [ "$(basename "$REPO_PATH")" = "vm-ops" ] && echo "$REPO_URL" | grep -q "self-hosted-server-apps"; then',
+      '  MONOREPO_HINT=true',
+      'fi',
+      'if [ -d "$REPO_PATH/.git" ]; then',
+      '  WORKTREE="$REPO_PATH"',
+      'elif [ -d "$REPO_PARENT/.git" ] && [ -d "$REPO_PATH" ]; then',
+      '  WORKTREE="$REPO_PARENT"',
+      'elif [ "$MONOREPO_HINT" = true ]; then',
+      '  mkdir -p "$REPO_PARENT"',
+      '  if [ ! -d "$REPO_PARENT/.git" ]; then',
+      '    git clone --branch "$BRANCH" "$REPO_URL" "$REPO_PARENT"',
+      '  fi',
+      '  WORKTREE="$REPO_PARENT"',
+      'else',
+      '  mkdir -p "$(dirname "$REPO_PATH")"',
+      '  git clone --branch "$BRANCH" "$REPO_URL" "$REPO_PATH"',
+      '  WORKTREE="$REPO_PATH"',
+      'fi',
+      'cd "$WORKTREE"',
+      'git fetch --all --prune',
+      'git checkout "$BRANCH"',
+      'git pull --ff-only origin "$BRANCH"',
+      'if [ "$WORKTREE" != "$REPO_PATH" ] && [ -d "$WORKTREE/vm-ops" ]; then',
+      '  echo "Runtime path: $WORKTREE/vm-ops"',
+      'else',
+      '  echo "Runtime path: $REPO_PATH"',
+      'fi'
+    ].join('\n');
+  }
+
+  function shellSingleQuote(value) {
+    var raw = String(value || '');
+    return "'" + raw.replace(/'/g, "'\\''") + "'";
+  }
+
+  function normalizeDynamicValueForParams(el) {
+    if (!el) return '';
+    var value = String(el.value || '').trim();
+    if (!value) return '';
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return stripOuterQuotes(value);
+  }
+
+  function collectDynamicParams(form) {
+    var params = {};
+    qsa('input[name^="dynamic__"], select[name^="dynamic__"], textarea[name^="dynamic__"]', form).forEach(function (el) {
+      var rawName = String(el.getAttribute('name') || '');
+      if (rawName.indexOf('dynamic__') !== 0) return;
+      var key = rawName.slice('dynamic__'.length).trim();
+      if (!key) return;
+      var value = normalizeDynamicValueForParams(el);
+      if (value === '') return;
+      params[key] = value;
+    });
+    return params;
+  }
+
+  function buildSetupRunnerLocalCmd(machineId, setupId, repoPath, paramsJson) {
+    return [
+      'cd ' + shellValue(repoPath),
+      './runtime/vmcx plan --target ' + shellValue(machineId) + ' --stages ' + shellValue(setupId) + ' --params ' + shellSingleQuote(paramsJson) + ' --exec-mode local',
+      './runtime/vmcx run --target ' + shellValue(machineId) + ' --stages ' + shellValue(setupId) + ' --params ' + shellSingleQuote(paramsJson) + ' --confirm --exec-mode local'
+    ].join('\n');
+  }
+
+  function buildSetupRunnerSshCmd(machineId, setupId, paramsJson) {
+    return [
+      './runtime/vmcx plan --target ' + shellValue(machineId) + ' --stages ' + shellValue(setupId) + ' --params ' + shellSingleQuote(paramsJson) + ' --exec-mode ssh',
+      './runtime/vmcx run --target ' + shellValue(machineId) + ' --stages ' + shellValue(setupId) + ' --params ' + shellSingleQuote(paramsJson) + ' --confirm --exec-mode ssh'
+    ].join('\n');
+  }
+
+  function bindSetupRunnerCommandPreview(root) {
+    qsa('[data-setup-runner-helper="true"]', root).forEach(function (helper) {
+      if (helper.__boundSetupRunnerPreview) return;
+      helper.__boundSetupRunnerPreview = true;
+
+      var block = helper.closest('.preview-block') || document;
+      var form = qs('#dynamic-setup-form', block);
+      var localPre = qs('[data-setup-runner-local-cmd="true"]', helper);
+      var sshPre = qs('[data-setup-runner-ssh-cmd="true"]', helper);
+      if (!form || !localPre || !sshPre) return;
+
+      var machineId = String(helper.getAttribute('data-machine-id') || '').trim();
+      var setupId = String(helper.getAttribute('data-setup-id') || '').trim();
+      var repoPath = String(helper.getAttribute('data-repo-path') || '/repo/vm-ops').trim() || '/repo/vm-ops';
+      if (!setupId) return;
+
+      function render() {
+        var params = collectDynamicParams(form);
+        var paramsJson = JSON.stringify(params);
+        localPre.textContent = buildSetupRunnerLocalCmd(machineId, setupId, repoPath, paramsJson);
+        sshPre.textContent = buildSetupRunnerSshCmd(machineId, setupId, paramsJson);
+      }
+
+      qsa('input[name^="dynamic__"], select[name^="dynamic__"], textarea[name^="dynamic__"]', form).forEach(function (el) {
+        el.addEventListener('input', render);
+        el.addEventListener('change', render);
+      });
+      render();
+    });
+  }
+
+  function bindRepoCloneCommandPreview(root) {
+    qsa('[data-repo-clone-helper="true"]', root).forEach(function (helper) {
+      if (helper.__boundRepoClonePreview) return;
+      helper.__boundRepoClonePreview = true;
+
+      var block = helper.closest('.preview-block') || document;
+      var form = qs('#dynamic-setup-form', block);
+      var localPre = qs('[data-repo-clone-local-cmd="true"]', helper);
+      if (!form || !localPre) return;
+
+      var repoUrlInput = qs('input[name="dynamic__repo_url"]', form);
+      var repoPathInput = qs('input[name="dynamic__repo_path"]', form);
+      var branchInput = qs('input[name="dynamic__branch"]', form);
+
+      var defaultRepoUrl = String(helper.getAttribute('data-default-repo-url') || '<repo-url>');
+      var defaultRepoPath = String(helper.getAttribute('data-default-repo-path') || '/repo/vm-ops');
+      var defaultBranch = String(helper.getAttribute('data-default-branch') || 'main');
+
+      function render() {
+        var repoUrl = repoUrlInput ? String(repoUrlInput.value || '').trim() : '';
+        var repoPath = repoPathInput ? String(repoPathInput.value || '').trim() : '';
+        var branch = branchInput ? String(branchInput.value || '').trim() : '';
+        if (!repoUrl) repoUrl = defaultRepoUrl;
+        if (!repoPath) repoPath = defaultRepoPath;
+        if (!branch) branch = defaultBranch;
+        localPre.textContent = buildRepoCloneLocalCmd(repoUrl, repoPath, branch);
+      }
+
+      [repoUrlInput, repoPathInput, branchInput].forEach(function (el) {
+        if (!el) return;
+        el.addEventListener('input', render);
+        el.addEventListener('change', render);
+      });
+      render();
+    });
   }
 
   function bindOperationSetBuilders(root) {
@@ -1283,8 +1556,11 @@
   document.addEventListener('htmx:afterSwap', function (event) {
     if (event.target && event.target.id === 'drawer-body') {
       bindSetupCheckboxes(event.target);
+      bindEnabledSetupOrderEditors(event.target);
       bindChecklistBulkActions(event.target);
       bindOperationSetBuilders(event.target);
+      bindRepoCloneCommandPreview(event.target);
+      bindSetupRunnerCommandPreview(event.target);
       openDrawer();
     }
     bindDeleteButtons(document);
@@ -1306,8 +1582,11 @@
     bindDensityToggles(document);
     bindMachineRowExpanders(document);
     bindSetupCheckboxes(document);
+    bindEnabledSetupOrderEditors(document);
     bindChecklistBulkActions(document);
     bindOperationSetBuilders(document);
+    bindRepoCloneCommandPreview(document);
+    bindSetupRunnerCommandPreview(document);
     bindDeleteButtons(document);
     bindGitPrepareForm(document);
     bindGithubClipboardCode(document);

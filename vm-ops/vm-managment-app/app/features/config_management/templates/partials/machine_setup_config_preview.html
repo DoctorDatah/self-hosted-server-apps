@@ -136,6 +136,51 @@
           <button class="btn ghost" type="submit" name="apply_defaults" value="true">Update Defaults</button>
         </div>
       </form>
+
+      {% if setup_id == "repo_clone_or_update" %}
+        <div
+          class="panel"
+          data-repo-clone-helper="true"
+          data-default-repo-url="{{ clone_url or '<repo-url>' }}"
+          data-default-repo-path="{{ repo_path or '/repo/vm-ops' }}"
+          data-default-branch="{{ default_branch or 'main' }}"
+          data-ssh-host="{{ ssh_host or '' }}"
+          data-ssh-user="{{ ssh_user or '' }}"
+          data-ssh-port="{{ ssh_port or 22 }}"
+        >
+          <h5>GitHub Access Setup (if clone/auth fails)</h5>
+          <p class="muted">
+            If this repo is private or HTTPS clone asks for credentials, install GitHub CLI on the VM and authenticate once.
+          </p>
+          <pre class="diff-view">sudo apt-get update
+sudo apt-get install -y gh
+gh --version
+gh auth login --web --git-protocol https
+gh auth status</pre>
+
+          <h5>Run Inside VM (Local)</h5>
+          <p class="muted">This command updates live from the <code>repo_url</code>, <code>repo_path</code>, and <code>branch</code> values above.</p>
+          <pre class="diff-view" data-repo-clone-local-cmd="true">{{ local_clone_command }}</pre>
+        </div>
+      {% endif %}
+
+      <div
+        class="panel"
+        data-setup-runner-helper="true"
+        data-machine-id="{{ machine_id }}"
+        data-setup-id="{{ setup_id }}"
+        data-repo-path="{{ machine.repo_path or '/repo/vm-ops' }}"
+      >
+        <h5>Generated Commands For {{ setup_id }} (Dynamic)</h5>
+        <p class="muted">
+          These commands update live from the option values above.
+        </p>
+        <h6>Inside VM (Local)</h6>
+        <pre class="diff-view" data-setup-runner-local-cmd="true"></pre>
+        <h6>From Control Machine (SSH)</h6>
+        <pre class="diff-view" data-setup-runner-ssh-cmd="true"></pre>
+      </div>
+
       <div id="dynamic-setup-result"></div>
     {% else %}
       <p class="muted">No dynamic options detected for this setup.</p>

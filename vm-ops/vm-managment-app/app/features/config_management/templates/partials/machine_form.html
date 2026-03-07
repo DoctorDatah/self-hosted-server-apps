@@ -3,6 +3,7 @@
 {% set labels = m.labels or [] %}
 {% set groups = m.groups or [] %}
 {% set enabled = m.enabled_setups or m.enabled_stages or [] %}
+{% set current_checklist = m.current_setup_checklist or [] %}
 {% set operation_sets = m.set_of_operations or m.operation_sets or {} %}
 <div class="drawer-form-wrap">
   <form id="machine-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
@@ -132,7 +133,7 @@
           </span>
         </span>
       </span>
-      <input type="text" name="repo_path" value="{{ m.repo_path or '/opt/vm-ops' }}" />
+      <input type="text" name="repo_path" value="{{ m.repo_path or '/repo/vm-ops' }}" />
     </label>
 
     <label>
@@ -198,6 +199,22 @@
             <span>{{ sid }}</span>
           </label>
         {% endfor %}
+      </div>
+      <div class="enabled-order-wrap" data-enabled-order-editor="true">
+        <span class="hint">Order of enabled setups (used as execution/read order):</span>
+        <div class="enabled-order-list" data-enabled-order-list="true">
+          {% for sid in enabled %}
+            <div class="enabled-order-row" data-enabled-order-item="{{ sid }}">
+              <span class="enabled-order-label">
+                {% if sid in current_checklist %}☑{% else %}☐{% endif %} <code>{{ sid }}</code>
+              </span>
+              <div class="actions-row">
+                <button type="button" class="btn ghost small" data-order-move="up" aria-label="Move {{ sid }} up">↑</button>
+                <button type="button" class="btn ghost small" data-order-move="down" aria-label="Move {{ sid }} down">↓</button>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
       </div>
     </fieldset>
 

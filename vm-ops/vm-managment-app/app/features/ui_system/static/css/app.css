@@ -420,6 +420,11 @@ textarea {
   outline: none;
 }
 
+.setup-chip-checked {
+  border-color: rgba(77, 215, 144, 0.6);
+  background: rgba(77, 215, 144, 0.14);
+}
+
 .machine-id-link {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -544,10 +549,12 @@ textarea {
 }
 
 .checklist-icon-btn {
-  min-width: 34px;
-  padding: 6px 8px;
-  font-size: 1rem;
+  min-width: 42px;
+  min-height: 38px;
+  padding: 7px 10px;
+  font-size: 1.2rem;
   line-height: 1;
+  font-weight: 700;
 }
 
 .checklist-icon-btn.checked {
@@ -656,6 +663,37 @@ textarea {
   cursor: pointer;
   color: var(--accent-2);
   margin-bottom: 8px;
+}
+
+.enabled-order-wrap {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.enabled-order-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.enabled-order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.enabled-order-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .actions-row {
