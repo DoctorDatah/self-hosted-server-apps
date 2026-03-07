@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app import git_ops
+from app.features.config_management.services import git_ops
 
 
 class GitOpsTest(unittest.TestCase):

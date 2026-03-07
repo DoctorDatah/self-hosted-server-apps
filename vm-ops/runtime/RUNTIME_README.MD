@@ -49,7 +49,8 @@ Current components:
 
 ## 3. How It Relates to Other Components
 Runtime sits in the middle of the entire architecture:
-- Reads definitions from `vm-configs/vm-machines.yaml`, `vm-configs/vm-operations.yaml`, `vm-configs/vm-env-rules.yaml`, and `apps/`.
+- Reads definitions from `vm-configs/vm-machines.yaml` and `apps/`.
+- Optional legacy inputs: `vm-configs/vm-operations.yaml`, `vm-configs/vm-env-rules.yaml`.
 - Executes `vm-setups/*/stage.sh` through local or SSH executors.
 - Uses helpers from `tools/` when needed (repo ensure, secret resolution).
 - Writes run artifacts to `local-state/runs/<run-id>/`.
@@ -83,9 +84,9 @@ Use `runtime/vmcx` for all controlled operations.
 4. Use prod only after staging success.
 
 ### Troubleshooting checklist
-- "Unknown alias/target": check `vm-configs/vm-machines.yaml` and `vm-configs/vm-operations.yaml`.
-- "Stage not enabled": check target `enabled_stages`.
-- "Policy denies": check `vm-configs/vm-env-rules.yaml`.
+- "Unknown alias/target": check `vm-configs/vm-machines.yaml` (`set_of_operations`) and optional `vm-configs/vm-operations.yaml`.
+- "Stage not enabled": check target `enabled_setups` / `enabled_stages`.
+- "Policy denies": check optional `vm-configs/vm-env-rules.yaml`.
 - "SSH failure": check target SSH config and secret refs.
 
 ## 5. Examples
@@ -106,7 +107,7 @@ sed -n '1,220p' local-state/runs/run-2026-03-06-000001-123/01-vm_install.log
 Runtime is designed to scale by reusing one engine for many targets and interfaces.
 
 Scale pattern:
-- More targets/apps should mostly mean config growth (`vm-configs/vm-machines.yaml`, `vm-configs/vm-operations.yaml`, `apps/`), not runtime rewrites.
+- More targets/apps should mostly mean config growth (`vm-configs/vm-machines.yaml`, `apps/`), not runtime rewrites.
 - Add stages for new operation domains; keep runtime generic.
 - Keep one execution path for local, SSH, and CI.
 

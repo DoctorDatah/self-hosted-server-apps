@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.config_store import ConfigBundle
-from app import validators
+from app.features.config_management.services.config_store import ConfigBundle
+from app.features.config_management.services import validators
 
 
 class ValidatorsTest(unittest.TestCase):

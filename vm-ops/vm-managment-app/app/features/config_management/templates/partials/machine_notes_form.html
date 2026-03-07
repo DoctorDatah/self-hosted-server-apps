@@ -1,0 +1,68 @@
+<div class="drawer-form-wrap">
+  <form id="machine-notes-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
+    <input type="hidden" name="machine_id" value="{{ machine_id }}" />
+
+    <div class="panel">
+      <h4>Machine Notes (Markdown)</h4>
+      <p class="muted">
+        Write notes in Markdown format. Use headings, lists, code blocks, and checklists for runbook-style documentation.
+      </p>
+    </div>
+
+    <label>
+      <span class="field-title">notes_md
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: notes markdown">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Per-machine notes written in Markdown.</span>
+            <span class="help-line"><strong>Why:</strong> Keeps operational context near machine config and readable in UI.</span>
+            <span class="help-line"><strong>Workflow:</strong> Record access caveats, owner info, recovery steps, and reminders.</span>
+          </span>
+        </span>
+      </span>
+      <textarea name="notes_md" rows="14" placeholder="# Access Notes&#10;- Owner: ...&#10;- Caveat: ...">{{ notes_md or '' }}</textarea>
+    </label>
+
+    <div class="actions-row">
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="/machines/notes/render"
+        hx-include="#machine-notes-form"
+        hx-target="#notes-preview"
+        hx-swap="innerHTML"
+      >Render Markdown</button>
+
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="/machines/notes/preview"
+        hx-include="#machine-notes-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Preview Diff</button>
+
+      <button
+        class="btn"
+        type="submit"
+        formaction="/machines/notes/save"
+        formmethod="post"
+        hx-post="/machines/notes/save"
+        hx-include="#machine-notes-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Save</button>
+
+      <button type="button" class="btn ghost" data-close-drawer="true">Close</button>
+    </div>
+  </form>
+
+  <div id="notes-preview" class="panel markdown-preview">
+    <h5>Markdown Preview</h5>
+    <div class="markdown-body">{{ notes_rendered | safe }}</div>
+  </div>
+
+  <div id="preview-box" class="preview-placeholder">
+    <p>Click "Preview Diff" before saving to inspect yaml changes.</p>
+  </div>
+</div>

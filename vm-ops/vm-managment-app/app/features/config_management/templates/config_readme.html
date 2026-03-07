@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h3>{{ readme.title }}</h3>
+  <p class="hint">{{ readme.summary }}</p>
+</section>
+
+{% for section in readme.sections %}
+  <section class="panel">
+    <h3>{{ section.heading }}</h3>
+    {% if section.intro %}
+      <p>{{ section.intro }}</p>
+    {% endif %}
+    {% if section.points %}
+      <ul class="simple-list">
+        {% for point in section.points %}
+          <li>{{ point }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if section.example %}
+      <h4>Example</h4>
+      <pre><code>{{ section.example }}</code></pre>
+    {% endif %}
+  </section>
+{% endfor %}
+
+<section class="panel">
+  <a class="btn" href="{{ readme.back_link }}">Back To {{ readme.back_label }}</a>
+</section>
+{% endblock %}

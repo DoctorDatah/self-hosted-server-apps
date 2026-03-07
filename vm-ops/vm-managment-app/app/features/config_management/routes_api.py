@@ -141,11 +141,11 @@ async def prepare_commit(request: Request) -> Dict[str, Any]:
         branch_name = str(form.get("branch_name", ""))
         commit_message = str(form.get("commit_message", ""))
 
-    tracked_files = [
-        "vm-configs/vm-machines.yaml",
-        "vm-configs/vm-operations.yaml",
-        "vm-configs/vm-env-rules.yaml",
-    ]
+    tracked_files = ["vm-configs/vm-machines.yaml"]
+    if paths.operations_path.exists():
+        tracked_files.append("vm-configs/vm-operations.yaml")
+    if paths.rules_path.exists():
+        tracked_files.append("vm-configs/vm-env-rules.yaml")
     if (paths.repo_root / "vm-configs" / "config-backups").exists():
         tracked_files.append("vm-configs/config-backups")
 

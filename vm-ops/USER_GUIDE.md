@@ -4,8 +4,9 @@
 
 All machine/target configuration is under `vm-configs/`:
 - `vm-configs/vm-machines.yaml`
-- `vm-configs/vm-operations.yaml`
-- `vm-configs/vm-env-rules.yaml`
+- Optional legacy files:
+  - `vm-configs/vm-operations.yaml`
+  - `vm-configs/vm-env-rules.yaml`
 
 ## Operating modes
 
@@ -18,8 +19,8 @@ All machine/target configuration is under `vm-configs/`:
 ```bash
 ./runtime/vmcx list-targets
 ./runtime/vmcx list-aliases
-./runtime/vmcx plan --alias n8n-vm-install --exec-mode local
-./runtime/vmcx run --alias n8n-vm-install --confirm --exec-mode local
+./runtime/vmcx plan --target n8n-stage-1 --stages vm_install --exec-mode local
+./runtime/vmcx run --target n8n-stage-1 --stages vm_install --confirm --exec-mode local
 ./runtime/vmcx run-group --group prod-app-vms --stages backup_app --concurrency 1 --confirm --exec-mode ssh
 ```
 

@@ -3,18 +3,73 @@
 {% set labels = m.labels or [] %}
 {% set groups = m.groups or [] %}
 {% set enabled = m.enabled_setups or m.enabled_stages or [] %}
+{% set operation_sets = m.set_of_operations or m.operation_sets or {} %}
 <div class="drawer-form-wrap">
   <form id="machine-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
     <input type="hidden" name="original_machine_id" value="{{ machine_id }}" />
+    <input type="hidden" name="current_setup_checklist_csv" value="{{ (m.current_setup_checklist or []) | join(',') }}" />
 
     <div class="field-row two-col">
       <label>
-        machine_id
+        <span class="field-title">machine_id
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: machine_id">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Unique key for one machine record.</span>
+              <span class="help-line"><strong>Why:</strong> Operations and groups reference this exact ID.</span>
+              <span class="help-line"><strong>Workflow:</strong> Keep stable after creation; changing it can break links.</span>
+            </span>
+          </span>
+        </span>
         <input type="text" name="machine_id" value="{{ machine_id }}" {% if mode == 'edit' %}readonly{% endif %} required />
       </label>
 
       <label>
-        target_type
+        <span class="field-title">parrent
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: parrent">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Parent app/group key for related machines.</span>
+              <span class="help-line"><strong>Why:</strong> Lets you group machines by app family (for example `n8n-app`).</span>
+              <span class="help-line"><strong>Workflow:</strong> Use same value across prod/dev/qa machines of one app.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="parrent" value="{{ m.parrent or m.parent or '' }}" placeholder="n8n-app" />
+      </label>
+    </div>
+
+    <div class="field-row two-col">
+      <label>
+        <span class="field-title">status
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: status">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Lifecycle state of this machine record.</span>
+              <span class="help-line"><strong>Why:</strong> Lets operators quickly understand readiness/usage intent.</span>
+              <span class="help-line"><strong>Workflow:</strong> Use `not-setup-yet` for new machines, `active` for normal use, `inactive` when paused/retired.</span>
+            </span>
+          </span>
+        </span>
+        {% set status_v = m.status or 'active' %}
+        <select name="status">
+          <option value="active" {% if status_v in ['active'] %}selected{% endif %}>active</option>
+          <option value="inactive" {% if status_v in ['inactive'] %}selected{% endif %}>inactive</option>
+          <option value="not-setup-yet" {% if status_v in ['not-setup-yet', 'not_setup_yet', 'not setup yet'] %}selected{% endif %}>not-setup-yet</option>
+        </select>
+      </label>
+
+      <label>
+        <span class="field-title">target_type
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: target_type">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Machine category (`app-vm` or `host-vm`).</span>
+              <span class="help-line"><strong>Why:</strong> Helps keep operations and ownership boundaries clear.</span>
+              <span class="help-line"><strong>Workflow:</strong> Use `app-vm` for app workloads, `host-vm` for host-level tasks.</span>
+            </span>
+          </span>
+        </span>
         <select name="target_type">
           {% set t_raw = m.type or m.target_type or 'app-vm' %}
           {% set t = 'host-vm' if t_raw in ['host', 'host-vm'] else 'app-vm' %}
@@ -22,11 +77,18 @@
           <option value="host-vm" {% if t == 'host-vm' %}selected{% endif %}>host-vm</option>
         </select>
       </label>
-    </div>
 
-    <div class="field-row two-col">
       <label>
-        environment
+        <span class="field-title">environment
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: environment">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Environment tag (`dev`, `stage`, `prod`).</span>
+              <span class="help-line"><strong>Why:</strong> Env Rules use this to allow or block setups.</span>
+              <span class="help-line"><strong>Workflow:</strong> Set correctly before deploy/restore operations.</span>
+            </span>
+          </span>
+        </span>
         {% set env = m.env or m.environment or '' %}
         <select name="environment" required>
           <option value="">Select</option>
@@ -37,34 +99,97 @@
       </label>
 
       <label>
-        exec_mode
-        {% set mode_v = m.exec_mode or 'local' %}
+        <span class="field-title">exec_mode
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: exec_mode">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> How setups execute for this machine.</span>
+              <span class="help-line"><strong>Why:</strong> Chooses local run vs SSH remote execution path.</span>
+              <span class="help-line"><strong>Workflow:</strong> Use `vm-local` for local-only, `vm-remote-ssh` for remote-only, or `vm-both` when both paths are supported.</span>
+            </span>
+          </span>
+        </span>
+        {% set mode_v = m.exec_mode or 'vm-local' %}
         <select name="exec_mode">
-          <option value="local" {% if mode_v == 'local' %}selected{% endif %}>local</option>
-          <option value="ssh" {% if mode_v == 'ssh' %}selected{% endif %}>ssh</option>
+          <option value="vm-local" {% if mode_v in ['local', 'vm-local'] %}selected{% endif %}>vm-local</option>
+          <option value="vm-remote-ssh" {% if mode_v in ['ssh', 'vm-remote-ssh'] %}selected{% endif %}>vm-remote-ssh</option>
+          <option value="vm-both" {% if mode_v in ['both', 'vm-both'] %}selected{% endif %}>vm-both</option>
         </select>
+        <p class="hint">vm-local for manual bootstrap / inside-VM work.</p>
+        <p class="hint">vm-remote-ssh after VM is SSH-ready for remote ops and CI.</p>
+        <p class="hint">vm-both when you want both local and remote SSH execution available.</p>
       </label>
     </div>
 
     <label>
-      repo_path
-      <input type="text" name="repo_path" value="{{ m.repo_path or '/opt/vm-codex-v2' }}" />
+      <span class="field-title">repo_path
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: repo_path">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Absolute path where `vm-ops` exists on that machine.</span>
+            <span class="help-line"><strong>Why:</strong> Runtime and setups execute from this path.</span>
+            <span class="help-line"><strong>Workflow:</strong> Keep this aligned with real machine directory layout.</span>
+          </span>
+        </span>
+      </span>
+      <input type="text" name="repo_path" value="{{ m.repo_path or '/opt/vm-ops' }}" />
+    </label>
+
+    <label>
+      <span class="field-title">notes (markdown)
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: notes">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Markdown notes for this machine.</span>
+            <span class="help-line"><strong>Why:</strong> Captures context that does not fit strict config fields.</span>
+            <span class="help-line"><strong>Workflow:</strong> Use headings/lists for runbook hints, ownership notes, and cautions.</span>
+          </span>
+        </span>
+      </span>
+      <textarea name="notes" rows="4" placeholder="# Notes&#10;- Any machine-specific reminders">{{ m.notes or '' }}</textarea>
     </label>
 
     <div class="field-row two-col">
       <label>
-        labels (CSV)
+        <span class="field-title">labels (CSV)
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: labels">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Search tags for machine classification.</span>
+              <span class="help-line"><strong>Why:</strong> Faster filtering and operator clarity.</span>
+              <span class="help-line"><strong>Workflow:</strong> Use app, env, owner tags consistently.</span>
+            </span>
+          </span>
+        </span>
         <input type="text" name="labels_csv" value="{{ labels | join(', ') }}" placeholder="n8n, app, prod" />
       </label>
 
       <label>
-        groups (CSV)
+        <span class="field-title">groups (CSV)
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: groups">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Logical groups this machine belongs to.</span>
+              <span class="help-line"><strong>Why:</strong> Enables fan-out operations and targeted rollouts.</span>
+              <span class="help-line"><strong>Workflow:</strong> Add machine to cluster/group names used by operations.</span>
+            </span>
+          </span>
+        </span>
         <input type="text" name="groups_csv" value="{{ groups | join(', ') }}" placeholder="prod-app-vms, n8n-prod-cluster" />
       </label>
     </div>
 
     <fieldset class="fieldset">
-      <legend>Enabled Setups</legend>
+      <legend>Enabled Setups
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: enabled setups">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Setup allow-list for this machine.</span>
+            <span class="help-line"><strong>Why:</strong> Prevents unsupported or unsafe setup runs.</span>
+            <span class="help-line"><strong>Workflow:</strong> Enable only setups this machine is actually prepared to run.</span>
+          </span>
+        </span>
+      </legend>
       <input type="hidden" name="enabled_setups_csv" value="{{ enabled | join(',') }}" data-setup-csv="true" />
       <div class="checks-grid" data-setup-checks="true">
         {% for sid in stage_ids %}
@@ -77,39 +202,192 @@
     </fieldset>
 
     <fieldset class="fieldset">
-      <legend>SSH</legend>
+      <legend>Set Of Operations
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: set of operations">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Named setup sequences stored per machine.</span>
+            <span class="help-line"><strong>Why:</strong> Lets you keep reusable chains like `deploy-the-app-set` in machine config.</span>
+            <span class="help-line"><strong>Workflow:</strong> Define set name + ordered setups. Then reuse that set name when building operations.</span>
+          </span>
+        </span>
+      </legend>
+
+      <input
+        type="hidden"
+        name="set_of_operations_json"
+        value="{{ operation_sets | tojson }}"
+        data-operation-sets-json="true"
+      />
+
+      <div class="operation-set-builder" data-operation-sets="true">
+        <div class="operation-set-catalog">
+          <span class="hint">Available setups:</span>
+          <div class="setup-chip-list">
+            {% for sid in stage_ids %}
+              <button class="setup-chip operation-catalog-chip" type="button" data-opset-catalog="{{ sid }}">{{ sid }}</button>
+            {% endfor %}
+          </div>
+          <p class="hint">Click a setup chip to append it to the active "setups sequence" field.</p>
+        </div>
+
+        <div class="operation-set-rows" data-operation-set-rows="true">
+          {% for set_name, set_payload in operation_sets.items() %}
+            {% set set_data = set_payload if set_payload is mapping else {} %}
+            {% set set_setups = set_data.setups if set_data.setups is defined else [] %}
+            <div class="operation-set-row" data-operation-set-row="true">
+              <label>
+                <span class="field-title">set name</span>
+                <input type="text" data-opset-name="true" value="{{ set_name }}" placeholder="deploy-the-app-set" />
+              </label>
+              <label>
+                <span class="field-title">setups sequence (ordered CSV)</span>
+                <input
+                  type="text"
+                  data-opset-setups="true"
+                  value="{{ set_setups | join(', ') }}"
+                  placeholder="cleanup_vm, vm_install, cloudflare_vm_access, app_deploy"
+                />
+              </label>
+              <label>
+                <span class="field-title">description (optional)</span>
+                <input
+                  type="text"
+                  data-opset-description="true"
+                  value="{{ set_data.description if set_data.description is defined else '' }}"
+                  placeholder="Full deploy chain for this machine"
+                />
+              </label>
+              <button class="btn danger small" type="button" data-opset-remove="true">Remove</button>
+            </div>
+          {% endfor %}
+        </div>
+
+        <template data-operation-set-template="true">
+          <div class="operation-set-row" data-operation-set-row="true">
+            <label>
+              <span class="field-title">set name</span>
+              <input type="text" data-opset-name="true" placeholder="deploy-the-app-set" />
+            </label>
+            <label>
+              <span class="field-title">setups sequence (ordered CSV)</span>
+              <input
+                type="text"
+                data-opset-setups="true"
+                placeholder="cleanup_vm, vm_install, cloudflare_vm_access, app_deploy"
+              />
+            </label>
+            <label>
+              <span class="field-title">description (optional)</span>
+              <input type="text" data-opset-description="true" placeholder="Full deploy chain for this machine" />
+            </label>
+            <button class="btn danger small" type="button" data-opset-remove="true">Remove</button>
+          </div>
+        </template>
+
+        <div class="actions-row">
+          <button class="btn ghost small" type="button" data-opset-add="true">Add Set</button>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="fieldset">
+      <legend>SSH
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: ssh block">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Remote connection details for `vm-remote-ssh` mode.</span>
+            <span class="help-line"><strong>Why:</strong> Missing values cause remote plan/run failures.</span>
+            <span class="help-line"><strong>Workflow:</strong> Fill after bootstrap and SSH hardening are complete.</span>
+          </span>
+        </span>
+      </legend>
       <div class="field-row two-col">
         <label>
-          host
+          <span class="field-title">host
+            <span class="help-wrap">
+              <button class="help-icon" type="button" aria-label="Help: ssh host">i</button>
+              <span class="help-pop" role="tooltip">
+                <span class="help-line"><strong>What:</strong> Target IP or hostname for SSH connection.</span>
+                <span class="help-line"><strong>Why:</strong> Runtime uses this as destination host.</span>
+                <span class="help-line"><strong>Workflow:</strong> Keep current when VM IP/DNS changes.</span>
+              </span>
+            </span>
+          </span>
           <input type="text" name="ssh_host" value="{{ ssh.host or '' }}" placeholder="10.10.0.20" />
         </label>
 
         <label>
-          user
+          <span class="field-title">user
+            <span class="help-wrap">
+              <button class="help-icon" type="button" aria-label="Help: ssh user">i</button>
+              <span class="help-pop" role="tooltip">
+                <span class="help-line"><strong>What:</strong> SSH login username.</span>
+                <span class="help-line"><strong>Why:</strong> Required for remote command execution.</span>
+                <span class="help-line"><strong>Workflow:</strong> Use least-privilege operational account.</span>
+              </span>
+            </span>
+          </span>
           <input type="text" name="ssh_user" value="{{ ssh.user or '' }}" placeholder="ubuntu" />
         </label>
       </div>
 
       <div class="field-row two-col">
         <label>
-          port
+          <span class="field-title">port
+            <span class="help-wrap">
+              <button class="help-icon" type="button" aria-label="Help: ssh port">i</button>
+              <span class="help-pop" role="tooltip">
+                <span class="help-line"><strong>What:</strong> SSH TCP port (usually 22).</span>
+                <span class="help-line"><strong>Why:</strong> Wrong port prevents remote connection.</span>
+                <span class="help-line"><strong>Workflow:</strong> Match hardened SSH daemon config.</span>
+              </span>
+            </span>
+          </span>
           <input type="number" name="ssh_port" value="{{ ssh.port or 22 }}" />
         </label>
 
         <label>
-          key_ref
+          <span class="field-title">key_ref
+            <span class="help-wrap">
+              <button class="help-icon" type="button" aria-label="Help: ssh key ref">i</button>
+              <span class="help-pop" role="tooltip">
+                <span class="help-line"><strong>What:</strong> Secret reference to SSH private key material.</span>
+                <span class="help-line"><strong>Why:</strong> Avoids storing raw credentials in config.</span>
+                <span class="help-line"><strong>Workflow:</strong> Point to secret manager path; rotate as needed.</span>
+              </span>
+            </span>
+          </span>
           <input type="text" name="ssh_key_ref" value="{{ ssh.key_ref or '' }}" placeholder="infisical://..." />
         </label>
       </div>
     </fieldset>
 
     <details class="details-block">
-      <summary>params (JSON object)</summary>
+      <summary>params (JSON object)
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: params">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Machine-level run values (JSON object).</span>
+            <span class="help-line"><strong>Why:</strong> Passed into setup execution for target-specific behavior.</span>
+            <span class="help-line"><strong>Workflow:</strong> Keep only machine-specific values here.</span>
+          </span>
+        </span>
+      </summary>
       <textarea name="params_json" rows="8">{{ (m.params or {}) | tojson(indent=2) }}</textarea>
     </details>
 
     <details class="details-block">
-      <summary>defaults (JSON object)</summary>
+      <summary>defaults (JSON object)
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: defaults">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Default baseline config merged for this machine.</span>
+            <span class="help-line"><strong>Why:</strong> Reduces repetitive parameters in operations.</span>
+            <span class="help-line"><strong>Workflow:</strong> Put stable defaults here, not one-off release values.</span>
+          </span>
+        </span>
+      </summary>
       <textarea name="defaults_json" rows="10">{{ (m.defaults or {}) | tojson(indent=2) }}</textarea>
     </details>
 

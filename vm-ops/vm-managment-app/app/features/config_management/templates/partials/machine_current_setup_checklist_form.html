@@ -1,0 +1,78 @@
+<div class="drawer-form-wrap">
+  <form id="machine-current-setup-checklist-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
+    <input type="hidden" name="machine_id" value="{{ machine_id }}" />
+
+    <div class="panel">
+      <h4>Current Setup Checklist</h4>
+      <p class="muted">
+        This is your personal VM run checklist. Check setups that were already executed on this machine.
+      </p>
+      <p class="muted">
+        Source list comes from this machine's <code>enabled_setups</code>.
+      </p>
+    </div>
+
+    {% if enabled_setups %}
+      <fieldset class="fieldset">
+        <legend>Executed Setup Checklist</legend>
+        <div class="actions-row">
+          <button
+            class="btn ghost small"
+            type="button"
+            data-checklist-bulk="select-all"
+          >Select All</button>
+          <button
+            class="btn ghost small"
+            type="button"
+            data-checklist-bulk="clear-all"
+          >Clear All</button>
+        </div>
+        <input
+          type="hidden"
+          name="current_setup_checklist_csv"
+          value="{{ current_setup_checklist | join(',') }}"
+          data-setup-csv="true"
+        />
+        <div class="checks-grid" data-setup-checks="true">
+          {% for sid in enabled_setups %}
+            <label class="checkbox-chip">
+              <input type="checkbox" value="{{ sid }}" {% if sid in current_setup_checklist %}checked{% endif %} />
+              <span>{{ sid }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+    {% else %}
+      <div class="flash warn">No enabled setups found for this machine. Add setups first in machine config.</div>
+      <input type="hidden" name="current_setup_checklist_csv" value="" data-setup-csv="true" />
+    {% endif %}
+
+    <div class="actions-row">
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="/machines/current-setup-checklist/preview"
+        hx-include="#machine-current-setup-checklist-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Preview Diff</button>
+
+      <button
+        class="btn"
+        type="submit"
+        formaction="/machines/current-setup-checklist/save"
+        formmethod="post"
+        hx-post="/machines/current-setup-checklist/save"
+        hx-include="#machine-current-setup-checklist-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Save</button>
+
+      <button type="button" class="btn ghost" data-close-drawer="true">Close</button>
+    </div>
+  </form>
+
+  <div id="preview-box" class="preview-placeholder">
+    <p>Click "Preview Diff" before saving checklist updates.</p>
+  </div>
+</div>

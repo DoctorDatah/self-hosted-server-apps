@@ -1,0 +1,186 @@
+{% set m = machine or {} %}
+{% set ssh = m.ssh or {} %}
+{% set access = m.access or {} %}
+<div class="drawer-form-wrap">
+  <form id="machine-access-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
+    <input type="hidden" name="machine_id" value="{{ machine_id }}" />
+
+    <div class="panel">
+      <h4>Machine Access Details</h4>
+      <p class="muted">
+        Edit VM access-related details used by operators. Runtime-critical SSH values are updated here too.
+      </p>
+    </div>
+
+    <div class="field-row two-col">
+      <label>
+        <span class="field-title">vm_link
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: vm link">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Clickable URL/IP to reach this VM in browser or console portal.</span>
+              <span class="help-line"><strong>Why:</strong> Gives operators a fast path to the machine entry point.</span>
+              <span class="help-line"><strong>Workflow:</strong> Put console URL or internal doc link for this VM.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="vm_link" value="{{ access.vm_link or '' }}" placeholder="https://console.example/vm/n8n-prod-1" />
+      </label>
+
+      <label>
+        <span class="field-title">main_user
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: main user">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Primary SSH username for this machine.</span>
+              <span class="help-line"><strong>Why:</strong> Runtime remote execution uses this identity.</span>
+              <span class="help-line"><strong>Workflow:</strong> Keep aligned with machine hardening and sudo policy.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="main_user" value="{{ ssh.user or '' }}" placeholder="ubuntu" />
+      </label>
+    </div>
+
+    <div class="field-row two-col">
+      <label>
+        <span class="field-title">ssh_host
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: ssh host">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Hostname/IP used for SSH.</span>
+              <span class="help-line"><strong>Why:</strong> Wrong host sends operations to the wrong machine or fails connection.</span>
+              <span class="help-line"><strong>Workflow:</strong> Update whenever VM IP/DNS changes.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="ssh_host" value="{{ ssh.host or '' }}" placeholder="10.10.0.30" />
+      </label>
+
+      <label>
+        <span class="field-title">ssh_port
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: ssh port">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> SSH port for remote login.</span>
+              <span class="help-line"><strong>Why:</strong> Must match the sshd port on the machine.</span>
+              <span class="help-line"><strong>Workflow:</strong> Keep `22` unless your hardening changed it.</span>
+            </span>
+          </span>
+        </span>
+        <input type="number" name="ssh_port" value="{{ ssh.port or 22 }}" min="1" />
+      </label>
+    </div>
+
+    <div class="field-row two-col">
+      <label>
+        <span class="field-title">ssh_key_ref
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: ssh key ref">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Secret reference for SSH private key material.</span>
+              <span class="help-line"><strong>Why:</strong> Keeps sensitive key data out of repo config.</span>
+              <span class="help-line"><strong>Workflow:</strong> Rotate key refs when access keys are rotated.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="ssh_key_ref" value="{{ ssh.key_ref or '' }}" placeholder="infisical://vm-codex/ssh/n8n-prod-1" />
+      </label>
+
+      <label>
+        <span class="field-title">repo_path
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: repo path">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Absolute path of `vm-ops` on this machine.</span>
+              <span class="help-line"><strong>Why:</strong> Runtime executes setups from this path.</span>
+              <span class="help-line"><strong>Workflow:</strong> Keep accurate so remote runs don't fail on missing path.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="repo_path" value="{{ m.repo_path or '/opt/vm-ops' }}" />
+      </label>
+    </div>
+
+    <div class="field-row two-col">
+      <label>
+        <span class="field-title">jump_host (optional)
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: jump host">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Bastion/jump host used before this VM.</span>
+              <span class="help-line"><strong>Why:</strong> Documents multi-hop access paths for operators.</span>
+              <span class="help-line"><strong>Workflow:</strong> Fill if your team accesses this VM via bastion.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="jump_host" value="{{ access.jump_host or '' }}" placeholder="bastion.example.internal" />
+      </label>
+
+      <label>
+        <span class="field-title">jump_user (optional)
+          <span class="help-wrap">
+            <button class="help-icon" type="button" aria-label="Help: jump user">i</button>
+            <span class="help-pop" role="tooltip">
+              <span class="help-line"><strong>What:</strong> Username used on jump host.</span>
+              <span class="help-line"><strong>Why:</strong> Helps operators avoid trial-and-error during login.</span>
+              <span class="help-line"><strong>Workflow:</strong> Keep synced with bastion account policy.</span>
+            </span>
+          </span>
+        </span>
+        <input type="text" name="jump_user" value="{{ access.jump_user or '' }}" placeholder="ops-user" />
+      </label>
+    </div>
+
+    <label>
+      <span class="field-title">access_notes
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: access notes">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Access-specific instructions for this machine.</span>
+            <span class="help-line"><strong>Why:</strong> Captures context like VPN requirement, MFA notes, or handoff info.</span>
+            <span class="help-line"><strong>Workflow:</strong> Keep short and actionable for on-call use.</span>
+          </span>
+        </span>
+      </span>
+      <textarea name="access_notes" rows="4" placeholder="VPN required. Use bastion first. Confirm host key on first connect.">{{ access.notes or '' }}</textarea>
+    </label>
+
+    <div class="panel">
+      <h5>Quick SSH Command Preview</h5>
+      {% if ssh.host and ssh.user %}
+        <pre class="diff-view">ssh -p {{ ssh.port or 22 }} {{ ssh.user }}@{{ ssh.host }}</pre>
+      {% else %}
+        <p class="muted">Fill <code>main_user</code> and <code>ssh_host</code> to build a direct command preview.</p>
+      {% endif %}
+    </div>
+
+    <div class="actions-row">
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="/machines/access/preview"
+        hx-include="#machine-access-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Preview Diff</button>
+
+      <button
+        class="btn"
+        type="submit"
+        formaction="/machines/access/save"
+        formmethod="post"
+        hx-post="/machines/access/save"
+        hx-include="#machine-access-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Save</button>
+
+      <button type="button" class="btn ghost" data-close-drawer="true">Close</button>
+    </div>
+  </form>
+
+  <div id="preview-box" class="preview-placeholder">
+    <p>Click "Preview Diff" before saving to inspect access-detail changes.</p>
+  </div>
+</div>

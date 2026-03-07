@@ -13,6 +13,24 @@ class ResolutionError(Exception):
     pass
 
 
+def _normalize_machine_exec_mode(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"vm-remote-ssh", "ssh"}:
+        return "vm-remote-ssh"
+    if raw in {"vm-both", "both"}:
+        return "vm-both"
+    if raw in {"vm-local", "local", ""}:
+        return "vm-local"
+    raise ResolutionError(f"Invalid target exec_mode for target: {value}")
+
+
+def _normalize_machine_status(value: Any) -> str:
+    raw = str(value or "active").strip().lower().replace("_", "-").replace(" ", "-")
+    if raw in {"active", "inactive", "not-setup-yet"}:
+        return raw
+    raise ResolutionError(f"Invalid target status for target: {value}")
+
+
 def parse_csv(value: Optional[str]) -> List[str]:
     if not value:
         return []
@@ -33,6 +51,12 @@ def parse_params_json(params_json: Optional[str]) -> Dict[str, Any]:
 
 def repo_root_from_script(script_path: Path) -> Path:
     return script_path.resolve().parents[1]
+
+
+def _load_optional_data_file(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    return load_data_file(path)
 
 
 def _group_members(raw_group: Any) -> List[str]:
@@ -68,6 +92,9 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
     groups = machine.get("groups", [])
     if not isinstance(groups, list):
         groups = []
+    access = machine.get("access", {})
+    if not isinstance(access, dict):
+        access = {}
 
     return {
         # Runtime uses canonical target_type values for stage compatibility.
@@ -75,24 +102,106 @@ def _normalize_target(machine_id: str, machine: Dict[str, Any]) -> Dict[str, Any
         # Keep raw type visible for UI/listing compatibility.
         "vm_type": raw_type,
         "environment": machine.get("environment", machine.get("env", "")),
+        "notes": str(machine.get("notes", "") or "").strip(),
         "labels": [str(x) for x in labels],
         "enabled_stages": [str(x) for x in enabled],
-        "exec_mode": machine.get("exec_mode", "local"),
-        "repo_path": machine.get("repo_path", "/opt/vm-codex-v2"),
+        "status": _normalize_machine_status(machine.get("status", "active")),
+        "exec_mode": _normalize_machine_exec_mode(machine.get("exec_mode", "vm-local")),
+        "repo_path": machine.get("repo_path", "/opt/vm-ops"),
         "ssh": machine.get("ssh", {}),
+        "access": access,
         "params": params,
         # Keep vars for stage/runtime compatibility.
         "vars": params,
         "defaults": defaults,
         "groups": [str(x) for x in groups],
+        "set_of_operations": machine.get("set_of_operations", machine.get("operation_sets", {})),
         "target_id": machine_id,
     }
+
+
+def _normalize_setups(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(x).strip() for x in value if str(x).strip()]
+    if isinstance(value, str):
+        return [x.strip() for x in value.split(",") if x.strip()]
+    return []
+
+
+def _merge_alias(aliases: Dict[str, Dict[str, Any]], alias_name: str, alias_data: Dict[str, Any]) -> None:
+    aliases[str(alias_name)] = alias_data
+
+
+def _aliases_from_machine_sets(targets: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    aliases: Dict[str, Dict[str, Any]] = {}
+    plain_name_candidates: Dict[str, Dict[str, Any]] = {}
+    plain_name_collisions: set[str] = set()
+
+    for machine_id, target in targets.items():
+        raw_sets = target.get("set_of_operations", target.get("operation_sets", {}))
+        if not raw_sets:
+            continue
+        if not isinstance(raw_sets, dict):
+            raise ConfigError(
+                f"vm-machines.yaml: machine {machine_id} set_of_operations must be an object"
+            )
+
+        for set_name_raw, set_cfg in raw_sets.items():
+            set_name = str(set_name_raw).strip()
+            if not set_name:
+                continue
+            if not isinstance(set_cfg, dict):
+                raise ConfigError(
+                    f"vm-machines.yaml: machine {machine_id} set_of_operations {set_name} must be an object"
+                )
+
+            setups = _normalize_setups(set_cfg.get("setups", set_cfg.get("default_stages", [])))
+            if not setups:
+                raise ConfigError(
+                    f"vm-machines.yaml: machine {machine_id} set_of_operations {set_name} must define non-empty setups"
+                )
+
+            params = set_cfg.get("params", set_cfg.get("default_params", {}))
+            if not isinstance(params, dict):
+                raise ConfigError(
+                    f"vm-machines.yaml: machine {machine_id} set_of_operations {set_name} params must be an object"
+                )
+
+            requires_confirmation = bool(set_cfg.get("requires_confirmation", True))
+            description = str(set_cfg.get("description", "")).strip() or (
+                f"{set_name} on {machine_id}"
+            )
+
+            alias_data = {
+                "target_selector": f"target_id={machine_id}",
+                "default_stages": setups,
+                "default_params": params,
+                "requires_confirmation": requires_confirmation,
+                "description": description,
+            }
+
+            # Always expose a machine-scoped alias key.
+            scoped_alias = f"{machine_id}--{set_name}"
+            _merge_alias(aliases, scoped_alias, alias_data)
+
+            # Also expose plain set name when globally unique.
+            if set_name in plain_name_candidates:
+                plain_name_collisions.add(set_name)
+            else:
+                plain_name_candidates[set_name] = alias_data
+
+    for set_name, alias_data in plain_name_candidates.items():
+        if set_name in plain_name_collisions:
+            continue
+        _merge_alias(aliases, set_name, alias_data)
+
+    return aliases
 
 
 def load_inventory(repo_root: Path) -> Dict[str, Dict[str, Any]]:
     config_dir = repo_root / "vm-configs"
     machines_cfg = load_data_file(config_dir / "vm-machines.yaml")
-    operations_cfg = load_data_file(config_dir / "vm-operations.yaml")
+    operations_cfg = _load_optional_data_file(config_dir / "vm-operations.yaml")
 
     raw_machines = machines_cfg.get("machines", machines_cfg.get("targets", {}))
     if not isinstance(raw_machines, dict):
@@ -130,45 +239,51 @@ def load_inventory(repo_root: Path) -> Dict[str, Dict[str, Any]]:
             if machine_id not in groups[group_name]["members"]:
                 groups[group_name]["members"].append(machine_id)
 
-    raw_operations = operations_cfg.get("operations", operations_cfg.get("aliases", {}))
-    if not isinstance(raw_operations, dict):
-        raise ConfigError("vm-operations.yaml: operations must be a map")
-
     aliases: Dict[str, Dict[str, Any]] = {}
-    for op_id, op in raw_operations.items():
-        if not isinstance(op, dict):
-            raise ConfigError(f"vm-operations.yaml: operation {op_id} must be an object")
 
-        target_selector = str(op.get("target_selector", "")).strip()
-        machine_id = str(op.get("machine", "")).strip()
-        if not target_selector:
-            if not machine_id:
-                raise ConfigError(
-                    f"vm-operations.yaml: operation {op_id} must define machine or target_selector"
-                )
-            target_selector = f"target_id={machine_id}"
+    # Legacy alias source (optional): vm-operations.yaml
+    raw_operations = operations_cfg.get("operations", operations_cfg.get("aliases", {}))
+    if raw_operations:
+        if not isinstance(raw_operations, dict):
+            raise ConfigError("vm-operations.yaml: operations must be a map")
+        for op_id, op in raw_operations.items():
+            if not isinstance(op, dict):
+                raise ConfigError(f"vm-operations.yaml: operation {op_id} must be an object")
 
-        setups = op.get("setups", op.get("default_stages", []))
-        if not isinstance(setups, list):
-            raise ConfigError(f"vm-operations.yaml: operation {op_id} setups must be a list")
+            target_selector = str(op.get("target_selector", "")).strip()
+            machine_id = str(op.get("machine", "")).strip()
+            if not target_selector:
+                if not machine_id:
+                    raise ConfigError(
+                        f"vm-operations.yaml: operation {op_id} must define machine or target_selector"
+                    )
+                target_selector = f"target_id={machine_id}"
 
-        params = op.get("params", op.get("default_params", {}))
-        if not isinstance(params, dict):
-            raise ConfigError(f"vm-operations.yaml: operation {op_id} params must be an object")
+            setups = op.get("setups", op.get("default_stages", []))
+            if not isinstance(setups, list):
+                raise ConfigError(f"vm-operations.yaml: operation {op_id} setups must be a list")
 
-        aliases[str(op_id)] = {
-            "target_selector": target_selector,
-            "default_stages": [str(x) for x in setups],
-            "default_params": params,
-            "requires_confirmation": op.get("requires_confirmation", True),
-            "description": op.get("description", ""),
-        }
+            params = op.get("params", op.get("default_params", {}))
+            if not isinstance(params, dict):
+                raise ConfigError(f"vm-operations.yaml: operation {op_id} params must be an object")
+
+            aliases[str(op_id)] = {
+                "target_selector": target_selector,
+                "default_stages": [str(x) for x in setups],
+                "default_params": params,
+                "requires_confirmation": op.get("requires_confirmation", True),
+                "description": op.get("description", ""),
+            }
+
+    # Machine-first alias source: vm-machines.yaml -> set_of_operations
+    machine_set_aliases = _aliases_from_machine_sets(targets)
+    aliases.update(machine_set_aliases)
 
     return {"targets": targets, "groups": groups, "aliases": aliases}
 
 
 def load_policy(repo_root: Path) -> Dict[str, Any]:
-    return load_data_file(repo_root / "vm-configs" / "vm-env-rules.yaml")
+    return _load_optional_data_file(repo_root / "vm-configs" / "vm-env-rules.yaml")
 
 
 def load_stage_meta(repo_root: Path, stage_id: str) -> Dict[str, Any]:
@@ -210,14 +325,24 @@ def resolve_secret(repo_root: Path, ref: str) -> str:
 
 
 def _resolve_exec_mode(target: Dict[str, Any], requested: str) -> str:
-    if requested in {"local", "ssh"}:
-        return requested
-    if requested != "auto":
+    requested_raw = str(requested or "").strip().lower()
+    if requested_raw in {"local", "vm-local"}:
+        return "local"
+    if requested_raw in {"ssh", "vm-remote-ssh"}:
+        return "ssh"
+    if requested_raw in {"both", "vm-both"}:
+        requested_raw = "auto"
+    if requested_raw != "auto":
         raise ResolutionError(f"Invalid exec mode: {requested}")
-    target_mode = target.get("exec_mode", "local")
-    if target_mode not in {"local", "ssh"}:
-        raise ResolutionError(f"Invalid target exec_mode for target: {target_mode}")
-    return target_mode
+    target_mode = _normalize_machine_exec_mode(target.get("exec_mode", "vm-local"))
+    if target_mode == "vm-remote-ssh":
+        return "ssh"
+    if target_mode == "vm-both":
+        ssh = target.get("ssh", {})
+        if isinstance(ssh, dict) and str(ssh.get("host", "")).strip() and str(ssh.get("user", "")).strip():
+            return "ssh"
+        return "local"
+    return "local"
 
 
 def _resolve_stages(
@@ -352,6 +477,8 @@ def build_plan(
 
 
 def render_exact_command(plan: Dict[str, Any]) -> str:
+    resolved_mode = str(plan.get("exec_mode", "local"))
+    mode_for_cli = "vm-remote-ssh" if resolved_mode == "ssh" else "vm-local"
     parts = ["vmcx", plan["operation"]]
     if plan.get("alias"):
         parts.extend(["--alias", str(plan["alias"])])
@@ -360,7 +487,7 @@ def render_exact_command(plan: Dict[str, Any]) -> str:
     parts.extend(["--stages", ",".join(plan["stages"])])
     if plan.get("resolved_params"):
         parts.extend(["--params", json.dumps(plan["resolved_params"], separators=(",", ":"))])
-    parts.extend(["--exec-mode", str(plan["exec_mode"])])
+    parts.extend(["--exec-mode", mode_for_cli])
     if plan["operation"] == "run":
         parts.append("--confirm")
     return " ".join(shlex.quote(p) for p in parts)

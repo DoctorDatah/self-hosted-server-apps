@@ -1,0 +1,97 @@
+{% set r = rule or {} %}
+{% set envs = r.allowed_environments or [] %}
+<div class="drawer-form-wrap">
+  <form id="rule-form" class="form-grid" method="post" hx-target="#preview-box" hx-swap="innerHTML">
+    <input type="hidden" name="original_setup_id" value="{{ setup_id }}" />
+
+    <label>
+      <span class="field-title">setup_id
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: setup_id">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Setup this env rule controls.</span>
+            <span class="help-line"><strong>Why:</strong> Policy is enforced per setup ID.</span>
+            <span class="help-line"><strong>Workflow:</strong> Define rules for high-risk setups first (deploy/restore/cleanup).</span>
+          </span>
+        </span>
+      </span>
+      <select name="setup_id" {% if mode == 'edit' %}disabled{% endif %} required>
+        <option value="">Select setup</option>
+        {% for sid in stage_ids %}
+          <option value="{{ sid }}" {% if setup_id == sid %}selected{% endif %}>{{ sid }}</option>
+        {% endfor %}
+      </select>
+      {% if mode == 'edit' %}
+        <input type="hidden" name="setup_id" value="{{ setup_id }}" />
+      {% endif %}
+    </label>
+
+    <label class="checkline">
+      <input type="checkbox" name="requires_confirmation" {% if r.requires_confirmation %}checked{% endif %} />
+      <span class="field-title">Requires confirmation
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: env rule confirmation">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Mandatory user confirmation for this setup.</span>
+            <span class="help-line"><strong>Why:</strong> Adds a guardrail for risky changes.</span>
+            <span class="help-line"><strong>Workflow:</strong> Keep enabled for mutating and recovery operations.</span>
+          </span>
+        </span>
+      </span>
+    </label>
+
+    <fieldset class="fieldset">
+      <legend>Allowed Environments
+        <span class="help-wrap">
+          <button class="help-icon" type="button" aria-label="Help: allowed environments">i</button>
+          <span class="help-pop" role="tooltip">
+            <span class="help-line"><strong>What:</strong> Environments where this setup is permitted.</span>
+            <span class="help-line"><strong>Why:</strong> Blocks unsafe setup execution in restricted environments.</span>
+            <span class="help-line"><strong>Workflow:</strong> Use `any` for unrestricted; otherwise choose explicit envs.</span>
+          </span>
+        </span>
+      </legend>
+      <div class="checks-grid env-grid">
+        <label class="checkbox-chip">
+          <input type="checkbox" name="allowed_environments" value="any" {% if not envs %}checked{% endif %} />
+          <span>any</span>
+        </label>
+        {% for env in ['dev', 'stage', 'prod'] %}
+          <label class="checkbox-chip">
+            <input type="checkbox" name="allowed_environments" value="{{ env }}" {% if env in envs %}checked{% endif %} />
+            <span>{{ env }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="hint">Select `any` for no environment restriction, or choose specific environments.</p>
+    </fieldset>
+
+    <div class="actions-row">
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="/env-rules/preview"
+        hx-include="#rule-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Preview Diff</button>
+
+      <button
+        class="btn"
+        type="submit"
+        formaction="/env-rules/save"
+        formmethod="post"
+        hx-post="/env-rules/save"
+        hx-include="#rule-form"
+        hx-target="#preview-box"
+        hx-swap="innerHTML"
+      >Save</button>
+
+      <button type="button" class="btn ghost" data-close-drawer="true">Close</button>
+    </div>
+  </form>
+
+  <div id="preview-box" class="preview-placeholder">
+    <p>Click "Preview Diff" before saving to inspect changes.</p>
+  </div>
+</div>

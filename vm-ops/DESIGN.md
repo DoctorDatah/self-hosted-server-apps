@@ -1,6 +1,7 @@
 > NOTE (March 6, 2026): Active runtime uses the Lite config model.
 > Source of truth is:
-> `vm-configs/vm-machines.yaml`, `vm-configs/vm-operations.yaml`, `vm-configs/vm-env-rules.yaml`.
+> `vm-configs/vm-machines.yaml` (machine-first), with optional legacy files
+> `vm-configs/vm-operations.yaml` and `vm-configs/vm-env-rules.yaml`.
 > No legacy fallback folders are used.
 
 Below is the **fully updated, comprehensive plan** for **`vm-codex-v2`**, now expanded to include:

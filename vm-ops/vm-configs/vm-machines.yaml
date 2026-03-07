@@ -1,22 +1,29 @@
 {
   "machines": {
     "n8n-stage-1": {
-      "type": "vm",
+      "type": "app-vm",
+      "parrent": "n8n-app",
       "env": "stage",
-      "labels": ["n8n", "app", "cloudflare"],
-      "groups": ["n8n-stage"],
-      "enabled_setups": [
-        "repo_clone_or_update",
-        "vm_install",
-        "cloudflare_vm_access",
-        "cloudflare_app_access",
-        "app_deploy",
-        "cleanup_vm",
-        "backup_app",
-        "restore_app"
+      "labels": [
+        "n8n",
+        "app",
+        "cloudflare"
       ],
-      "exec_mode": "local",
-      "repo_path": "/opt/vm-codex-v2",
+      "groups": [
+        "n8n-stage"
+      ],
+      "enabled_setups": [
+        "app_deploy",
+        "backup_app",
+        "cleanup_vm",
+        "cloudflare_app_access",
+        "cloudflare_vm_access",
+        "repo_clone_or_update",
+        "restore_app",
+        "vm_install"
+      ],
+      "exec_mode": "vm-local",
+      "repo_path": "/opt/vm-ops",
       "ssh": {
         "host": "10.10.0.20",
         "user": "ubuntu",
@@ -28,34 +35,69 @@
         "public_hostname": "n8n-stage.example.com"
       },
       "defaults": {
-        "logging": {
-          "level": "info"
-        },
-        "repo": {
-          "branch": "main",
-          "path": "/opt/vm-codex-v2"
-        },
-        "runtime": {
-          "shell": "bash"
-        },
         "docker": {
           "install": true
         },
-        "packages": ["curl", "git", "docker.io"]
-      }
+        "logging": {
+          "level": "info"
+        },
+        "packages": [
+          "curl",
+          "git",
+          "docker.io"
+        ],
+        "repo": {
+          "branch": "main",
+          "path": "/opt/vm-ops"
+        },
+        "runtime": {
+          "shell": "bash"
+        }
+      },
+      "set_of_operations": {
+        "n8n-vm-install": {
+          "setups": [
+            "repo_clone_or_update",
+            "vm_install",
+            "cloudflare_vm_access"
+          ],
+          "params": {},
+          "requires_confirmation": true,
+          "description": "Prepare the n8n staging VM for operations"
+        },
+        "n8n-app-restore-staging": {
+          "setups": [
+            "restore_app"
+          ],
+          "params": {
+            "app_id": "n8n"
+          },
+          "requires_confirmation": true,
+          "description": "Restore n8n in staging from backup"
+        }
+      },
+      "status": "active"
     },
     "n8n-prod-1": {
-      "type": "vm",
+      "type": "app-vm",
+      "parrent": "n8n-app",
       "env": "prod",
-      "labels": ["n8n", "app", "prod"],
-      "groups": ["prod-app-vms", "n8n-prod-cluster"],
-      "enabled_setups": [
-        "repo_clone_or_update",
-        "app_deploy",
-        "backup_app"
+      "labels": [
+        "n8n",
+        "app",
+        "prod"
       ],
-      "exec_mode": "ssh",
-      "repo_path": "/opt/vm-codex-v2",
+      "groups": [
+        "prod-app-vms",
+        "n8n-prod-cluster"
+      ],
+      "enabled_setups": [
+        "app_deploy",
+        "backup_app",
+        "repo_clone_or_update"
+      ],
+      "exec_mode": "vm-remote-ssh",
+      "repo_path": "/opt/vm-ops",
       "ssh": {
         "host": "10.10.0.30",
         "user": "ubuntu",
@@ -67,36 +109,80 @@
         "public_hostname": "n8n.example.com"
       },
       "defaults": {
-        "logging": {
-          "level": "info"
-        },
-        "repo": {
-          "branch": "main",
-          "path": "/opt/vm-codex-v2"
-        },
-        "runtime": {
-          "shell": "bash"
-        },
         "docker": {
           "install": true
         },
-        "packages": ["curl", "git", "docker.io"]
-      }
+        "logging": {
+          "level": "info"
+        },
+        "packages": [
+          "curl",
+          "git",
+          "docker.io"
+        ],
+        "repo": {
+          "branch": "main",
+          "path": "/opt/vm-ops"
+        },
+        "runtime": {
+          "shell": "bash"
+        }
+      },
+      "set_of_operations": {
+        "n8n-app-deploy": {
+          "setups": [
+            "repo_clone_or_update",
+            "app_deploy"
+          ],
+          "params": {
+            "app_id": "n8n"
+          },
+          "requires_confirmation": true,
+          "description": "Deploy n8n app layer to production"
+        },
+        "n8n-app-backup": {
+          "setups": [
+            "backup_app"
+          ],
+          "params": {
+            "app_id": "n8n"
+          },
+          "requires_confirmation": true,
+          "description": "Backup n8n production state"
+        }
+      },
+      "status": "active",
+      "notes": "# dfad\n\npdf a\n\n- * adfkl a",
+      "current_setup_checklist": []
     },
     "coolify-prod-1": {
-      "type": "vm",
+      "type": "app-vm",
+      "parrent": "coolify-app",
+      "status": "active",
       "env": "prod",
-      "labels": ["coolify", "app", "prod"],
-      "groups": ["prod-app-vms", "coolify-prod"],
-      "enabled_setups": [
-        "repo_clone_or_update",
-        "app_deploy",
-        "backup_app"
+      "notes": "#afda jkasdnfkj asndfjkadsnf kjasndfjkansdfjkansdfjk ansjdfknasjkfn asjkdfnasjknfdakjsnfdajksnfdjaksndfakjsndf ajksnfjaksnfakjsndfkajsnfjkasnfdjkasndfjkasnfdkjasnfjkadsnfjkasndfjkasndfjkasnfdkj asndf kjasnf jkans fjkasnfdjklansjfdknaskjfd nakjsf bakjsb akjsfbakjsfbajksfgrejkbfrkjq a",
+      "labels": [
+        "coolify",
+        "app",
+        "prod"
       ],
-      "exec_mode": "ssh",
-      "repo_path": "/opt/vm-codex-v2",
+      "groups": [
+        "prod-app-vms",
+        "coolify-prod"
+      ],
+      "enabled_setups": [
+        "app_deploy",
+        "backup_app",
+        "repo_clone_or_update"
+      ],
+      "current_setup_checklist": [
+        "repo_clone_or_update"
+      ],
+      "set_of_operations": {},
+      "exec_mode": "vm-remote-ssh",
+      "repo_path": "/opt/vm-ops",
       "ssh": {
-        "host": "10.10.0.40",
+        "host": "10.10.0.41",
         "user": "ubuntu",
         "port": 22,
         "key_ref": "infisical://vm-codex/ssh/coolify-prod-1"
@@ -106,27 +192,62 @@
         "public_hostname": "coolify.example.com"
       },
       "defaults": {
-        "logging": {
-          "level": "info"
-        },
-        "repo": {
-          "branch": "main",
-          "path": "/opt/vm-codex-v2"
-        },
-        "runtime": {
-          "shell": "bash"
-        },
         "docker": {
           "install": true
         },
-        "packages": ["curl", "git", "docker.io"]
+        "logging": {
+          "level": "info"
+        },
+        "packages": [
+          "curl",
+          "git",
+          "docker.io"
+        ],
+        "repo": {
+          "branch": "main",
+          "path": "/opt/vm-ops"
+        },
+        "runtime": {
+          "shell": "bash"
+        }
       }
+    },
+    "promos-host": {
+      "type": "host-vm",
+      "parrent": "promos-app",
+      "env": "prod",
+      "labels": [],
+      "groups": [],
+      "enabled_setups": [
+        "cleanup_vm",
+        "vm_install"
+      ],
+      "exec_mode": "vm-local",
+      "repo_path": "/opt/vm-ops",
+      "ssh": {
+        "host": "",
+        "user": "",
+        "port": 22,
+        "key_ref": ""
+      },
+      "params": {},
+      "defaults": {},
+      "status": "not-setup-yet"
     }
   },
   "groups": {
-    "n8n-stage": ["n8n-stage-1"],
-    "prod-app-vms": ["n8n-prod-1", "coolify-prod-1"],
-    "n8n-prod-cluster": ["n8n-prod-1"],
-    "coolify-prod": ["coolify-prod-1"]
+    "n8n-stage": [
+      "n8n-stage-1"
+    ],
+    "prod-app-vms": [
+      "n8n-prod-1",
+      "coolify-prod-1"
+    ],
+    "n8n-prod-cluster": [
+      "n8n-prod-1"
+    ],
+    "coolify-prod": [
+      "coolify-prod-1"
+    ]
   }
 }

@@ -9,13 +9,19 @@
   "required_params": [],
   "optional_params": [
     "install_utils",
+    "utils_version_pin",
     "install_git",
+    "git_version_pin",
     "install_python",
+    "python_version_pin",
     "install_docker",
+    "docker_version_pin",
     "create_network",
     "network_name",
     "install_infisical",
-    "install_codex"
+    "infisical_version_pin",
+    "install_codex",
+    "codex_version_pin"
   ],
   "policy_tags": ["install", "mutating"]
 }

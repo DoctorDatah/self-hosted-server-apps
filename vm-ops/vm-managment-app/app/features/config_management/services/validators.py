@@ -59,25 +59,113 @@ def validate_bundle(bundle: ConfigBundle, repo_root: Path) -> List[str]:
         if not env:
             errors.append(f"machine {machine_id} missing env")
 
+        if "parrent" in machine and not isinstance(machine.get("parrent"), str):
+            errors.append(f"machine {machine_id} parrent must be a string")
+        if "notes" in machine and not isinstance(machine.get("notes"), str):
+            errors.append(f"machine {machine_id} notes must be a string")
+        if "access" in machine:
+            access = machine.get("access")
+            if not isinstance(access, dict):
+                errors.append(f"machine {machine_id} access must be an object")
+            else:
+                for field_name in ["vm_link", "jump_host", "jump_user", "notes"]:
+                    if field_name in access and not isinstance(access.get(field_name), str):
+                        errors.append(f"machine {machine_id} access.{field_name} must be a string")
+
+        status = str(machine.get("status", "active")).strip().lower().replace("_", "-").replace(" ", "-")
+        if status not in {"active", "inactive", "not-setup-yet"}:
+            errors.append(
+                f"machine {machine_id} has invalid status '{status}' "
+                "(allowed: active, inactive, not-setup-yet)"
+            )
+
         enabled = machine.get("enabled_setups", machine.get("enabled_stages", []))
+        enabled_ids: Set[str] = set()
         if not isinstance(enabled, list) or not enabled:
             errors.append(f"machine {machine_id} must define non-empty enabled_setups")
         else:
+            enabled_ids = {str(x) for x in enabled}
             for setup_id in enabled:
                 sid = str(setup_id)
                 if sid not in setup_ids:
                     errors.append(f"machine {machine_id} references unknown setup: {sid}")
 
-        exec_mode = str(machine.get("exec_mode", "local"))
-        if exec_mode == "ssh":
+        current_checklist = machine.get("current_setup_checklist", [])
+        if current_checklist is not None:
+            if not isinstance(current_checklist, list):
+                errors.append(f"machine {machine_id} current_setup_checklist must be an array")
+            else:
+                for setup_id in current_checklist:
+                    sid = str(setup_id).strip()
+                    if not sid:
+                        continue
+                    if sid not in setup_ids:
+                        errors.append(f"machine {machine_id} current_setup_checklist references unknown setup: {sid}")
+                    if enabled_ids and sid not in enabled_ids:
+                        errors.append(
+                            f"machine {machine_id} current_setup_checklist setup {sid} is not enabled on machine"
+                        )
+
+        operation_sets = machine.get("set_of_operations", machine.get("operation_sets", {}))
+        if operation_sets and not isinstance(operation_sets, dict):
+            errors.append(f"machine {machine_id} set_of_operations must be an object")
+        elif isinstance(operation_sets, dict):
+            for set_name, set_body in operation_sets.items():
+                operation_set_name = str(set_name).strip()
+                if not operation_set_name:
+                    errors.append(f"machine {machine_id} has empty set_of_operations key")
+                    continue
+                if not isinstance(set_body, dict):
+                    errors.append(
+                        f"machine {machine_id} set_of_operations {operation_set_name} must be an object"
+                    )
+                    continue
+
+                set_setups = set_body.get("setups", [])
+                if not isinstance(set_setups, list) or not set_setups:
+                    errors.append(
+                        f"machine {machine_id} set_of_operations {operation_set_name} must define non-empty setups"
+                    )
+                    continue
+
+                for setup_id in set_setups:
+                    sid = str(setup_id).strip()
+                    if not sid:
+                        continue
+                    if sid not in setup_ids:
+                        errors.append(
+                            f"machine {machine_id} set_of_operations {operation_set_name} references unknown setup: {sid}"
+                        )
+                    if sid not in enabled_ids:
+                        errors.append(
+                            f"machine {machine_id} set_of_operations {operation_set_name} setup {sid} is not enabled on machine"
+                        )
+
+                if "description" in set_body and not isinstance(set_body.get("description"), str):
+                    errors.append(
+                        f"machine {machine_id} set_of_operations {operation_set_name} description must be a string"
+                    )
+                if "params" in set_body and not isinstance(set_body.get("params"), dict):
+                    errors.append(
+                        f"machine {machine_id} set_of_operations {operation_set_name} params must be an object"
+                    )
+
+        exec_mode = str(machine.get("exec_mode", "vm-local")).strip()
+        if exec_mode not in {"vm-local", "vm-remote-ssh", "vm-both", "local", "ssh", "both"}:
+            errors.append(
+                f"machine {machine_id} has invalid exec_mode '{exec_mode}' "
+                "(allowed: vm-local, vm-remote-ssh, vm-both)"
+            )
+
+        if exec_mode in {"vm-remote-ssh", "ssh", "vm-both", "both"}:
             ssh = machine.get("ssh", {})
             if not isinstance(ssh, dict):
                 errors.append(f"machine {machine_id} ssh must be an object")
             else:
                 if not str(ssh.get("host", "")).strip():
-                    errors.append(f"machine {machine_id} missing ssh.host for ssh mode")
+                    errors.append(f"machine {machine_id} missing ssh.host for vm-remote-ssh/vm-both mode")
                 if not str(ssh.get("user", "")).strip():
-                    errors.append(f"machine {machine_id} missing ssh.user for ssh mode")
+                    errors.append(f"machine {machine_id} missing ssh.user for vm-remote-ssh/vm-both mode")
                 port = ssh.get("port", 22)
                 try:
                     p = int(port)

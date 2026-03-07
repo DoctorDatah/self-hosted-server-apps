@@ -54,11 +54,14 @@ def _atomic_write(path: Path, text: str) -> None:
 
 
 def _backup_files(paths: config_store.ConfigPaths) -> Dict[str, Path]:
-    return {
+    files: Dict[str, Path] = {
         "vm-machines.yaml": paths.machines_path,
-        "vm-operations.yaml": paths.operations_path,
-        "vm-env-rules.yaml": paths.rules_path,
     }
+    if paths.operations_path.exists():
+        files["vm-operations.yaml"] = paths.operations_path
+    if paths.rules_path.exists():
+        files["vm-env-rules.yaml"] = paths.rules_path
+    return files
 
 
 def _hash_payload(parts: List[tuple[str, str]]) -> str:
@@ -82,12 +85,12 @@ def _current_config_fingerprint(paths: config_store.ConfigPaths) -> str:
 
 
 def _backup_dir_fingerprint(backup_dir: Path) -> str:
-    names = ["vm-machines.yaml", "vm-operations.yaml", "vm-env-rules.yaml"]
+    names = [name for name in ["vm-machines.yaml", "vm-operations.yaml", "vm-env-rules.yaml"] if (backup_dir / name).exists()]
+    if not names:
+        return ""
     parts: List[tuple[str, str]] = []
     for name in names:
         fp = backup_dir / name
-        if not fp.exists():
-            return ""
         parts.append((name, fp.read_text(encoding="utf-8")))
     return _hash_payload(parts)
 
@@ -310,6 +313,76 @@ def delete_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str, 
     }
 
 
+def cleanup_backups_before_last_n(paths: config_store.ConfigPaths, keep_last_n: int) -> Dict[str, Any]:
+    keep_n = int(keep_last_n)
+    if keep_n <= 0:
+        raise BackupError("keep_last_n must be greater than 0")
+
+    all_records = list_backups(paths)
+    total_before = len(all_records)
+    if total_before <= keep_n:
+        return {
+            "keep_last_n": keep_n,
+            "total_before": total_before,
+            "total_after": total_before,
+            "deleted_count": 0,
+            "deleted_backup_ids": [],
+        }
+
+    to_delete = all_records[keep_n:]
+    deleted_ids: List[str] = []
+    for record in to_delete:
+        bid = str(record.get("backup_id", "")).strip()
+        if not bid:
+            continue
+        root = _backup_root(paths.repo_root)
+        backup_dir = root / bid
+        if backup_dir.exists() and backup_dir.is_dir():
+            shutil.rmtree(backup_dir)
+            deleted_ids.append(bid)
+
+    status_doc = _load_status(paths)
+    changed = False
+    remaining = list_backups(paths)
+    remaining_ids = {str(x.get("backup_id", "")).strip() for x in remaining}
+
+    last_backup = status_doc.get("last_backup", {})
+    if isinstance(last_backup, dict):
+        lbid = str(last_backup.get("backup_id", "")).strip()
+        if lbid and lbid not in remaining_ids:
+            if remaining:
+                latest = remaining[0]
+                status_doc["last_backup"] = {
+                    "backup_id": latest.get("backup_id", ""),
+                    "created_at": latest.get("created_at", ""),
+                    "created_at_epoch": int(latest.get("created_at_epoch", 0) or 0),
+                    "label": latest.get("label", ""),
+                    "remark": latest.get("remark", ""),
+                    "config_fingerprint": latest.get("config_fingerprint", ""),
+                }
+            else:
+                status_doc.pop("last_backup", None)
+            changed = True
+
+    last_restore = status_doc.get("last_restore", {})
+    if isinstance(last_restore, dict):
+        lrid = str(last_restore.get("backup_id", "")).strip()
+        if lrid and lrid not in remaining_ids:
+            status_doc.pop("last_restore", None)
+            changed = True
+
+    if changed:
+        _save_status(paths, status_doc)
+
+    return {
+        "keep_last_n": keep_n,
+        "total_before": total_before,
+        "total_after": len(remaining),
+        "deleted_count": len(deleted_ids),
+        "deleted_backup_ids": deleted_ids,
+    }
+
+
 def restore_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str, Any]:
     bid = (backup_id or "").strip()
     if not bid:
@@ -322,10 +395,21 @@ def restore_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str,
 
     files = _backup_files(paths)
     staged: Dict[str, str] = {}
-    for name in files:
+    # vm-machines.yaml remains the only mandatory file.
+    required_names = ["vm-machines.yaml"]
+    optional_names = ["vm-operations.yaml", "vm-env-rules.yaml"]
+    names_to_restore: List[str] = []
+    for name in required_names:
         src = backup_dir / name
         if not src.exists():
             raise BackupError(f"Backup is missing required file: {name}")
+        names_to_restore.append(name)
+    for name in optional_names:
+        if (backup_dir / name).exists():
+            names_to_restore.append(name)
+
+    for name in names_to_restore:
+        src = backup_dir / name
         text = src.read_text(encoding="utf-8")
         try:
             parsed = json.loads(text)
@@ -335,8 +419,16 @@ def restore_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str,
             raise BackupError(f"Backup file top-level must be an object: {name}")
         staged[name] = text
 
-    for name, dest in files.items():
+    destination_map = {
+        "vm-machines.yaml": paths.machines_path,
+        "vm-operations.yaml": paths.operations_path,
+        "vm-env-rules.yaml": paths.rules_path,
+    }
+    restored_paths: List[Path] = []
+    for name in names_to_restore:
+        dest = destination_map[name]
         _atomic_write(dest, staged[name])
+        restored_paths.append(dest)
 
     metadata = _load_metadata(backup_dir)
     restored_at = _now_utc()
@@ -353,7 +445,7 @@ def restore_backup(paths: config_store.ConfigPaths, backup_id: str) -> Dict[str,
 
     return {
         "backup": metadata,
-        "restored_files": [str(path.relative_to(paths.repo_root)) for path in files.values()],
+        "restored_files": [str(path.relative_to(paths.repo_root)) for path in restored_paths],
     }
 
 

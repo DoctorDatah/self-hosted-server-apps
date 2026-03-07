@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app import config_store
+from app.features.config_management.services import config_store
 
 
 class ConfigStoreRoundtripTest(unittest.TestCase):

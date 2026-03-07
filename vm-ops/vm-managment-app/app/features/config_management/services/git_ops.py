@@ -968,15 +968,21 @@ def prepare_commit(
     preferred_branch: Optional[str] = None,
     fallback_tz: str = "UTC",
     commit_message: Optional[str] = None,
+    require_existing_branch: bool = False,
 ) -> Dict[str, object]:
     assert_no_tracked_sensitive_files(repo_root)
 
-    branch, _branch_exists = resolve_target_branch(
+    branch, branch_exists = resolve_target_branch(
         repo_root,
         explicit_branch=branch_name,
         preferred_branch=preferred_branch,
         fallback_tz=fallback_tz,
     )
+    if require_existing_branch and not branch_exists:
+        raise GitOpsError(
+            f"branch '{branch}' does not exist (local/remote). "
+            "Use Create/Switch Branch first, then run Commit Only."
+        )
     message = (commit_message or "").strip() or default_commit_message()
 
     wt_path: Optional[Path] = None

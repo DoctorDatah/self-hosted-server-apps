@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 from ....core.dependency_graph import build_dependency_graph, direct_dependents
@@ -93,10 +94,16 @@ def build_delete_impact_report(
     warnings: List[str] = []
     blockers: List[IntegrityViolation] = []
 
+    repo_root_path = Path(repo_root)
+    operations_file = repo_root_path / "vm-configs" / "vm-operations.yaml"
+    rules_file = repo_root_path / "vm-configs" / "vm-env-rules.yaml"
+
     if entity_type == "machine":
         direct = _machine_dependents(bundle, entity_id)
         transitive = list(direct)
-        affected_files = ["vm-configs/vm-machines.yaml", "vm-configs/vm-operations.yaml"]
+        affected_files = ["vm-configs/vm-machines.yaml"]
+        if operations_file.exists():
+            affected_files.append("vm-configs/vm-operations.yaml")
         warnings.append("Machine groups are recomputed from remaining machines.")
         if direct:
             blockers.append(
@@ -113,19 +120,19 @@ def build_delete_impact_report(
     elif entity_type == "operation":
         direct = []
         transitive = []
-        affected_files = ["vm-configs/vm-operations.yaml"]
+        affected_files = ["vm-configs/vm-operations.yaml"] if operations_file.exists() else []
     elif entity_type == "rule":
         direct = []
         transitive = []
-        affected_files = ["vm-configs/vm-env-rules.yaml"]
+        affected_files = ["vm-configs/vm-env-rules.yaml"] if rules_file.exists() else []
     elif entity_type == "setup_ref":
         direct = _setup_dependents(bundle, entity_id)
         transitive = list(direct)
-        affected_files = [
-            "vm-configs/vm-machines.yaml",
-            "vm-configs/vm-operations.yaml",
-            "vm-configs/vm-env-rules.yaml",
-        ]
+        affected_files = ["vm-configs/vm-machines.yaml"]
+        if operations_file.exists():
+            affected_files.append("vm-configs/vm-operations.yaml")
+        if rules_file.exists():
+            affected_files.append("vm-configs/vm-env-rules.yaml")
         blockers.append(
             IntegrityViolation(
                 code="unsupported_entity",
