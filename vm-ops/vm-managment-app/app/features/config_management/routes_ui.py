@@ -2,6 +2,7 @@
 import html
 import json
 import re
+import shlex
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -2113,6 +2114,81 @@ def machine_access_form(request: Request, machine_id: str):
     )
 
 
+@router.get("/machines/clone-repo")
+def machine_clone_repo_help(request: Request, machine_id: str):
+    machine_key = str(machine_id or "").strip()
+    if not machine_key:
+        return HTMLResponse("<div class='flash error'>machine_id is required.</div>", status_code=400)
+
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    machines = bundle.machines_doc.get("machines", {})
+    machine = machines.get(machine_key, {})
+    if not isinstance(machine, dict) or not machine:
+        return HTMLResponse(f"<div class='flash error'>Machine not found: {machine_key}</div>", status_code=404)
+
+    ssh = machine.get("ssh", {}) if isinstance(machine.get("ssh"), dict) else {}
+    repo_path = str(machine.get("repo_path", "/opt/vm-ops") or "/opt/vm-ops").strip() or "/opt/vm-ops"
+    default_branch = "main"
+    defaults = machine.get("defaults", {})
+    if isinstance(defaults, dict):
+        repo_defaults = defaults.get("repo", {})
+        if isinstance(repo_defaults, dict):
+            branch_raw = str(repo_defaults.get("branch", "") or "").strip()
+            if branch_raw:
+                default_branch = branch_raw
+
+    clone_url = str(git_ops.origin_clone_url(paths.repo_root) or "").strip()
+    repo_url_for_cmd = clone_url or "<repo-url>"
+
+    local_cmd = "\n".join(
+        [
+            f"REPO_URL={shlex.quote(repo_url_for_cmd)}",
+            f"REPO_PATH={shlex.quote(repo_path)}",
+            f"BRANCH={shlex.quote(default_branch)}",
+            "if [ ! -d \"$REPO_PATH/.git\" ]; then",
+            "  mkdir -p \"$(dirname \"$REPO_PATH\")\"",
+            "  git clone --branch \"$BRANCH\" \"$REPO_URL\" \"$REPO_PATH\"",
+            "else",
+            "  cd \"$REPO_PATH\"",
+            "  git fetch --all --prune",
+            "  git checkout \"$BRANCH\"",
+            "  git pull --ff-only origin \"$BRANCH\"",
+            "fi",
+        ]
+    )
+
+    ssh_host = str(ssh.get("host", "") or "").strip()
+    ssh_user = str(ssh.get("user", "") or "").strip()
+    ssh_port = int(ssh.get("port", 22) or 22)
+
+    ssh_cmd = ""
+    if ssh_host and ssh_user:
+        target = f"{ssh_user}@{ssh_host}"
+        ssh_cmd = (
+            f"ssh -p {ssh_port} {shlex.quote(target)} 'bash -s' <<'EOF'\n"
+            f"{local_cmd}\n"
+            "EOF"
+        )
+
+    return templates.TemplateResponse(
+        "partials/machine_clone_repo_help.html",
+        _ctx(
+            request,
+            machine_id=machine_key,
+            machine=machine,
+            clone_url=clone_url,
+            repo_path=repo_path,
+            default_branch=default_branch,
+            local_clone_command=local_cmd,
+            ssh_clone_command=ssh_cmd,
+            ssh_host=ssh_host,
+            ssh_user=ssh_user,
+            ssh_port=ssh_port,
+        ),
+    )
+
+
 @router.post("/machines/access/preview")
 async def machine_access_preview(request: Request):
     paths = _paths()
@@ -2427,6 +2503,82 @@ async def machine_current_setup_checklist_save(request: Request):
 
     return HTMLResponse(
         "<div class='flash success'>Current setup checklist saved.</div>",
+        headers={"HX-Refresh": "true"},
+    )
+
+
+@router.post("/machines/clone-repo-check")
+async def machine_clone_repo_check(request: Request):
+    paths = _paths()
+    bundle = config_store.load_bundle(paths)
+    candidate = config_store.clone_bundle(bundle)
+
+    form = await request.form()
+    machine_id = str(form.get("machine_id", "")).strip()
+    if not machine_id:
+        return HTMLResponse("<div class='flash error'>machine_id is required.</div>", status_code=200)
+
+    machines = candidate.machines_doc.get("machines", {})
+    machine = machines.get(machine_id, {})
+    if not isinstance(machine, dict) or not machine:
+        return HTMLResponse(f"<div class='flash error'>Machine not found: {machine_id}</div>", status_code=200)
+
+    enabled_raw = machine.get("enabled_setups", machine.get("enabled_stages", []))
+    enabled_setups = [str(x).strip() for x in enabled_raw] if isinstance(enabled_raw, list) else []
+    setup_id = "repo_clone_or_update"
+    if setup_id not in enabled_setups:
+        return HTMLResponse(
+            (
+                "<div class='flash warn'>"
+                f"Cannot mark clone checklist for <code>{machine_id}</code>: "
+                f"<code>{setup_id}</code> is not in enabled_setups."
+                "</div>"
+            ),
+            status_code=200,
+        )
+
+    checklist_raw = machine.get("current_setup_checklist", [])
+    checklist = [str(x).strip() for x in checklist_raw] if isinstance(checklist_raw, list) else []
+    checklist = [x for x in checklist if x]
+
+    if setup_id in checklist:
+        checklist = [x for x in checklist if x != setup_id]
+        new_state = False
+    else:
+        checklist.append(setup_id)
+        # Keep deterministic order based on enabled_setups order.
+        order = {sid: idx for idx, sid in enumerate(enabled_setups)}
+        checklist = sorted(set(checklist), key=lambda sid: order.get(sid, 9999))
+        new_state = True
+
+    machine["current_setup_checklist"] = checklist
+
+    errors = validators.validate_bundle(candidate, paths.repo_root)
+    if errors:
+        return HTMLResponse(
+            (
+                "<div class='flash error'>"
+                f"Checklist toggle failed for <code>{machine_id}</code>: {errors[0]}"
+                "</div>"
+            ),
+            status_code=200,
+        )
+
+    try:
+        config_store.save_bundle(paths, candidate, ["machines"])
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(
+            f"<div class='flash error'>Checklist toggle failed: {exc}</div>",
+            status_code=200,
+        )
+
+    message = "marked done" if new_state else "unchecked"
+    return HTMLResponse(
+        (
+            "<div class='flash success'>"
+            f"Clone Repo checklist {message} for <code>{machine_id}</code>."
+            "</div>"
+        ),
         headers={"HX-Refresh": "true"},
     )
 

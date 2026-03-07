@@ -131,6 +131,32 @@
             <td>
               <div class="inline-actions stack-vertical">
                 <code>{{ machine_id }}</code>
+                <div class="inline-actions">
+                  <button
+                    class="btn ghost small"
+                    type="button"
+                    hx-get="/machines/clone-repo?machine_id={{ machine_id }}"
+                    hx-target="#drawer-body"
+                    hx-swap="innerHTML"
+                    data-open-drawer="true"
+                    data-drawer-title="Clone Repo to vm: {{ machine_id }}"
+                    title="Open clone repo commands for this VM"
+                  >Clone Repo to vm</button>
+                  <form
+                    hx-post="/machines/clone-repo-check"
+                    hx-target="#flash-area"
+                    hx-swap="innerHTML"
+                    data-confirm-message="Toggle Clone Repo checklist status for {{ machine_id }}?"
+                  >
+                    <input type="hidden" name="machine_id" value="{{ machine_id }}" />
+                    <button
+                      class="btn ghost small checklist-icon-btn {% if 'repo_clone_or_update' in current_checklist %}checked{% endif %}"
+                      type="submit"
+                      title="{% if 'repo_clone_or_update' in current_checklist %}Clone Repo marked done{% else %}Mark Clone Repo as done{% endif %}"
+                      aria-label="{% if 'repo_clone_or_update' in current_checklist %}Clone Repo marked done{% else %}Mark Clone Repo as done{% endif %}"
+                    >{% if 'repo_clone_or_update' in current_checklist %}☑{% else %}☐{% endif %}</button>
+                  </form>
+                </div>
                 <button
                   class="btn ghost small"
                   type="button"

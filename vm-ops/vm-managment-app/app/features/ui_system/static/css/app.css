@@ -543,6 +543,19 @@ textarea {
   border: 1px solid var(--line);
 }
 
+.checklist-icon-btn {
+  min-width: 34px;
+  padding: 6px 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.checklist-icon-btn.checked {
+  border-color: rgba(77, 215, 144, 0.55);
+  background: rgba(77, 215, 144, 0.14);
+  color: #9ff6c5;
+}
+
 .btn.danger {
   background: linear-gradient(145deg, #ff7b7b, var(--danger));
   color: #3f0e0e;
