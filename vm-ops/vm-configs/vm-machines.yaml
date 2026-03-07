@@ -215,13 +215,24 @@
     "promos-host": {
       "type": "host-vm",
       "parrent": "promos-app",
+      "status": "not-setup-yet",
       "env": "prod",
+      "notes": "",
       "labels": [],
       "groups": [],
       "enabled_setups": [
-        "cleanup_vm",
+        "cloudflare_vm_access",
         "vm_install"
       ],
+      "current_setup_checklist": [],
+      "set_of_operations": {
+        "vm-direct-setup-before-ssh-ability": {
+          "setups": [
+            "vm_install",
+            "cloudflare_vm_access"
+          ]
+        }
+      },
       "exec_mode": "vm-local",
       "repo_path": "/opt/vm-ops",
       "ssh": {
@@ -231,8 +242,7 @@
         "key_ref": ""
       },
       "params": {},
-      "defaults": {},
-      "status": "not-setup-yet"
+      "defaults": {}
     }
   },
   "groups": {
