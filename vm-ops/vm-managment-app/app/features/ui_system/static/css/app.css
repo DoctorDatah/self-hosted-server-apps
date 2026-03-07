@@ -223,6 +223,34 @@ textarea {
   margin-bottom: 16px;
 }
 
+.action-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+}
+
+.action-tile {
+  margin-bottom: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.action-tile h3 {
+  margin-top: 0;
+}
+
+.action-tile .form-grid {
+  height: 100%;
+  align-content: start;
+}
+
+.action-tile .actions-row {
+  margin-top: auto;
+}
+
 .stat-card {
   border-radius: var(--radius);
   padding: 14px;

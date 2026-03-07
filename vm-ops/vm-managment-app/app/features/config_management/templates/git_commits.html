@@ -1,134 +1,140 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="panel">
-  <h3>Set Active Branch</h3>
-  <form
-    class="form-grid"
-    hx-post="/config-management/git-commits/switch"
-    hx-target="#git-action-result"
-    hx-swap="innerHTML"
-  >
-    <label>
-      Branch Name
-      <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or default_branch or '' }}" required />
-    </label>
-    <div class="actions-row">
-      <button type="submit" class="btn">Create/Switch Branch</button>
-    </div>
-  </form>
-</section>
-
-<section class="panel">
-  <h3>Prepare Branch + Commit</h3>
-  <form
-    class="form-grid"
-    hx-post="/config-management/git-commits/prepare"
-    hx-target="#git-action-result"
-    hx-swap="innerHTML"
-  >
-    <label>
-      Branch Name (optional)
-      <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
-    </label>
-
-    <label>
-      Commit Message (optional)
-      <input type="text" name="commit_message" value="{{ default_message or '' }}" />
-    </label>
-
-    <div class="actions-row">
-      <button type="submit" class="btn">Create Branch + Commit</button>
-    </div>
-  </form>
-</section>
-
-<section class="panel">
-  <h3>Commit Only (Existing Branch)</h3>
-  <form
-    class="form-grid"
-    hx-post="/config-management/git-commits/commit-only"
-    hx-target="#git-action-result"
-    hx-swap="innerHTML"
-  >
-    <label>
-      Branch Name
-      <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" required />
-    </label>
-
-    <label>
-      Commit Message (optional)
-      <input type="text" name="commit_message" value="{{ default_message or '' }}" />
-    </label>
-
-    <div class="actions-row">
-      <button type="submit" class="btn">Commit Only</button>
-    </div>
-    <p class="hint">This action does not create a new branch. It only commits to an already existing local/remote branch.</p>
-  </form>
-</section>
-
-<section class="panel">
-  <h3>Push Branch</h3>
-  <form
-    class="form-grid"
-    hx-post="/config-management/git-commits/push"
-    hx-target="#git-action-result"
-    hx-swap="innerHTML"
-  >
-    <div class="field-row two-col">
+<div class="action-tile-grid">
+  <section class="panel action-tile">
+    <h3>Set Active Branch</h3>
+    <form
+      class="form-grid"
+      hx-post="/config-management/git-commits/switch"
+      hx-target="#git-action-result"
+      hx-swap="innerHTML"
+    >
       <label>
         Branch Name
+        <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or default_branch or '' }}" required />
+      </label>
+      <div class="actions-row">
+        <button type="submit" class="btn">Create/Switch Branch</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel action-tile">
+    <h3>Prepare Branch + Commit</h3>
+    <form
+      class="form-grid"
+      hx-post="/config-management/git-commits/prepare"
+      hx-target="#git-action-result"
+      hx-swap="innerHTML"
+    >
+      <label>
+        Branch Name (optional)
         <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
       </label>
+
       <label>
-        Remote Name
-        <input type="text" name="remote_name" value="origin" />
+        Commit Message (optional)
+        <input type="text" name="commit_message" value="{{ default_message or '' }}" />
       </label>
-    </div>
-    <label class="checkline">
-      <input type="checkbox" name="set_upstream" checked />
-      <span>Set upstream tracking (`git push -u`)</span>
-    </label>
-    <div class="actions-row">
-      <button type="submit" class="btn">Push Branch</button>
-    </div>
-  </form>
-</section>
+
+      <div class="actions-row">
+        <button type="submit" class="btn">Create Branch + Commit</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel action-tile">
+    <h3>Commit Only (Existing Branch)</h3>
+    <form
+      class="form-grid"
+      hx-post="/config-management/git-commits/commit-only"
+      hx-target="#git-action-result"
+      hx-swap="innerHTML"
+    >
+      <label>
+        Branch Name
+        <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" required />
+      </label>
+
+      <label>
+        Commit Message (optional)
+        <input type="text" name="commit_message" value="{{ default_message or '' }}" />
+      </label>
+
+      <div class="actions-row">
+        <button type="submit" class="btn">Commit Only</button>
+      </div>
+      <p class="hint">This action does not create a new branch. It only commits to an already existing local/remote branch.</p>
+    </form>
+  </section>
+
+  <section class="panel action-tile">
+    <h3>Push Branch</h3>
+    <form
+      class="form-grid"
+      hx-post="/config-management/git-commits/push"
+      hx-target="#git-action-result"
+      hx-swap="innerHTML"
+    >
+      <div class="field-row two-col">
+        <label>
+          Branch Name
+          <input type="text" name="branch_name" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
+        </label>
+        <label>
+          Remote Name
+          <input type="text" name="remote_name" value="origin" />
+        </label>
+      </div>
+      <label class="checkline">
+        <input type="checkbox" name="set_upstream" checked />
+        <span>Set upstream tracking (`git push -u`)</span>
+      </label>
+      <div class="actions-row">
+        <button type="submit" class="btn">Push Branch</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel action-tile">
+    <h3>Create PR</h3>
+    <form
+      class="form-grid"
+      hx-post="/config-management/git-commits/create-pr"
+      hx-target="#git-action-result"
+      hx-swap="innerHTML"
+    >
+      <div class="field-row two-col">
+        <label>
+          Head Branch
+          <input type="text" name="head_branch" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
+        </label>
+        <label>
+          Base Branch
+          <input type="text" name="base_branch" value="main" />
+        </label>
+      </div>
+      <label>
+        PR Title (optional when Fill is enabled)
+        <input type="text" name="pr_title" placeholder="chore(vm-configs): update config" />
+      </label>
+      <label>
+        PR Body (optional)
+        <textarea name="pr_body" rows="4" placeholder="Summary of config changes"></textarea>
+      </label>
+      <label class="checkline">
+        <input type="checkbox" name="use_fill" checked />
+        <span>Use git commit details to auto-fill PR metadata (`gh pr create --fill`)</span>
+      </label>
+      <div class="actions-row">
+        <button type="submit" class="btn">Create PR</button>
+      </div>
+    </form>
+  </section>
+</div>
 
 <section class="panel">
-  <h3>Create PR</h3>
-  <form
-    class="form-grid"
-    hx-post="/config-management/git-commits/create-pr"
-    hx-target="#git-action-result"
-    hx-swap="innerHTML"
-  >
-    <div class="field-row two-col">
-      <label>
-        Head Branch
-        <input type="text" name="head_branch" value="{{ selected_target_branch or preferred_config_branch or '' }}" />
-      </label>
-      <label>
-        Base Branch
-        <input type="text" name="base_branch" value="main" />
-      </label>
-    </div>
-    <label>
-      PR Title (optional when Fill is enabled)
-      <input type="text" name="pr_title" placeholder="chore(vm-configs): update config" />
-    </label>
-    <label>
-      PR Body (optional)
-      <textarea name="pr_body" rows="4" placeholder="Summary of config changes"></textarea>
-    </label>
-    <label class="checkline">
-      <input type="checkbox" name="use_fill" checked />
-      <span>Use git commit details to auto-fill PR metadata (`gh pr create --fill`)</span>
-    </label>
-    <div class="actions-row">
-      <button type="submit" class="btn">Create PR</button>
-    </div>
-  </form>
+  <h3>Action Result</h3>
   <div id="git-action-result" class="result-box"></div>
 </section>
 
