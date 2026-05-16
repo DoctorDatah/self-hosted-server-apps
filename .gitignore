@@ -33,3 +33,6 @@ vm-codex-v2/install/logs/
 
 # vm-ops local app state (must never be committed)
 vm-ops/vm-managment-app/app-data/
+
+# Cloudflare — generated per-VM at runtime, never commit
+config.generated.yml

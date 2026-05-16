@@ -1,0 +1,10 @@
+# Cloudflare Tunnel — SSH ingress template.
+# DO NOT edit the hostname here. The install script generates config.generated.yml
+# with the correct hostname from the SSH domain you enter at runtime.
+# This file is the source template; config.generated.yml is what cloudflared uses.
+
+ingress:
+  - hostname: __SSH_DOMAIN__
+    service: ssh://localhost:22
+
+  - service: http_status:404
